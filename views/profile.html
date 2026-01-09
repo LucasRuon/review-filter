@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+        .profile-photo-section { display: flex; align-items: center; gap: 1.5rem; }
+        .profile-photo { width: 100px; height: 100px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--text-muted); overflow: hidden; flex-shrink: 0; border: 3px solid var(--border); cursor: pointer; transition: all 0.2s; position: relative; }
+        .profile-photo:hover { border-color: var(--primary); }
+        .profile-photo:hover .photo-overlay { opacity: 1; }
+        .profile-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 50%; }
+        .photo-overlay i { color: white; font-size: 1.5rem; }
+        .profile-photo-info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .profile-photo-info p { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .photo-actions { display: flex; gap: 0.5rem; }
+        .photo-input { display: none; }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item active"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">👤 Meu Perfil</h1>
+                <p class="page-subtitle">Gerencie suas informações pessoais</p>
+            </div>
+
+            <!-- Foto de perfil -->
+            <div class="card" style="margin-bottom:1rem;max-width:800px">
+                <div class="card-body">
+                    <div class="profile-photo-section">
+                        <div class="profile-photo" id="profile-photo" onclick="document.getElementById('photoInput').click()">
+                            <i class="fas fa-user"></i>
+                            <div class="photo-overlay"><i class="fas fa-camera"></i></div>
+                        </div>
+                        <input type="file" id="photoInput" class="photo-input" accept="image/*" onchange="uploadPhoto(this)">
+                        <div class="profile-photo-info">
+                            <h3>Foto de perfil</h3>
+                            <p>Clique na foto para fazer upload. JPG, PNG ou GIF.</p>
+                            <div class="photo-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('photoInput').click()"><i class="fas fa-upload"></i> Enviar foto</button>
+                                <button class="btn btn-secondary btn-sm" onclick="removePhoto()" id="removePhotoBtn" style="display:none"><i class="fas fa-trash"></i> Remover</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados pessoais e Alterar senha lado a lado -->
+            <div class="profile-grid" style="max-width:800px">
+                <div class="card">
+                    <div class="card-header"><h2 class="card-title">Dados pessoais</h2></div>
+                    <div class="card-body">
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label class="form-label">Nome completo</label>
+                                <input type="text" name="name" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="profileBtn">Salvar alterações</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h2 class="card-title">Alterar senha</h2></div>
+                    <div class="card-body">
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label class="form-label">Senha atual</label>
+                                <input type="password" name="currentPassword" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nova senha</label>
+                                <input type="password" name="newPassword" class="form-input" minlength="6" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Confirmar nova senha</label>
+                                <input type="password" name="confirmPassword" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-secondary" id="passwordBtn">Alterar senha</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadProfile() {
+            const user = await checkAuth();
+            if (!user) return;
+            await loadUserInfo();
+            document.querySelector('[name="name"]').value = user.name;
+            document.querySelector('[name="email"]').value = user.email;
+            
+            // Carregar foto se existir
+            const photoData = localStorage.getItem('profilePhoto');
+            if (photoData) {
+                document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
+                document.getElementById('removePhotoBtn').style.display = '';
+                updateSidebarPhoto(photoData);
+            }
+            
+            hideLoading();
+        }
+
+        function uploadPhoto(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            // Verificar tamanho (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('A imagem deve ter no máximo 2MB', 'error');
+                return;
+            }
+            
+            // Converter para base64
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const photoData = e.target.result;
+                localStorage.setItem('profilePhoto', photoData);
+                document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
+                document.getElementById('removePhotoBtn').style.display = '';
+                updateSidebarPhoto(photoData);
+                showToast('Foto atualizada');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removePhoto() {
+            localStorage.removeItem('profilePhoto');
+            document.getElementById('profile-photo').innerHTML = '<i class="fas fa-user"></i><div class="photo-overlay"><i class="fas fa-camera"></i></div>';
+            document.getElementById('removePhotoBtn').style.display = 'none';
+            document.getElementById('user-avatar').innerHTML = '<i class="fas fa-user"></i>';
+            showToast('Foto removida');
+        }
+
+        function updateSidebarPhoto(photoData) {
+            const avatar = document.getElementById('user-avatar');
+            if (avatar) {
+                avatar.innerHTML = `<img src="${photoData}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('profileBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/profile', { name: f.name.value, email: f.email.value });
+            if (res.success) { showToast('Perfil atualizado'); loadUserInfo(); }
+            else showToast(res.error, 'error');
+            btn.textContent = 'Salvar alterações';
+            btn.disabled = false;
+        });
+
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('passwordBtn');
+            if (f.newPassword.value !== f.confirmPassword.value) {
+                showToast('As senhas não coincidem', 'error');
+                return;
+            }
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/password', { currentPassword: f.currentPassword.value, newPassword: f.newPassword.value });
+            if (res.success) { showToast('Senha alterada'); f.reset(); }
+            else showToast(res.error, 'error');
+            btn.textContent = 'Alterar senha';
+            btn.disabled = false;
+        });
+
+        loadProfile();
+    </script>
+</body>
+</html>

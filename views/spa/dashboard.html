@@ -1,0 +1,28 @@
+<div class="page-header">
+    <h1 class="page-title">📊 Dashboard</h1>
+    <p class="page-subtitle">Visão geral do sistema</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card animate-fadeInUp">
+        <div><div class="stat-value" id="total-clients">-</div><div class="stat-label">Clientes</div></div>
+        <div class="stat-icon blue"><i class="fas fa-building"></i></div>
+    </div>
+    <div class="stat-card animate-fadeInUp" style="animation-delay:0.1s">
+        <div><div class="stat-value" id="total-complaints">-</div><div class="stat-label">Reclamações</div></div>
+        <div class="stat-icon orange"><i class="fas fa-comments"></i></div>
+    </div>
+    <div class="stat-card animate-fadeInUp" style="animation-delay:0.2s">
+        <div><div class="stat-value" id="pending-complaints">-</div><div class="stat-label">Pendentes</div></div>
+        <div class="stat-icon red"><i class="fas fa-clock"></i></div>
+    </div>
+    <div class="stat-card animate-fadeInUp" style="animation-delay:0.3s">
+        <div><div class="stat-value" id="resolved-complaints">-</div><div class="stat-label">Resolvidos</div></div>
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+    </div>
+</div>
+
+<div class="card animate-fadeInUp" style="animation-delay:0.4s">
+    <div class="card-header"><h2 class="card-title">Reclamações recentes</h2></div>
+    <div id="complaints-container"></div>
+</div>

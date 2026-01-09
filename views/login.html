@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card animate-fadeIn">
+            <div class="auth-header">
+                <div class="auth-logo">OJ</div>
+                <h1 class="auth-title">Bem-vindo de volta</h1>
+                <p class="auth-subtitle">Entre na sua conta para continuar</p>
+            </div>
+
+            <div id="alert" class="alert alert-error" style="display: none;"></div>
+            <div id="alert-success" class="alert alert-success" style="display: none;"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" placeholder="seu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Senha</label>
+                    <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="submitBtn">Entrar</button>
+            </form>
+
+            <div class="auth-footer">
+                Não tem uma conta? <a href="/register">Cadastre-se</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const api = { async post(url, data) { const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return res.json(); } };
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('registered') === 'true') {
+            document.getElementById('alert-success').textContent = 'Conta criada com sucesso! Faça login para continuar.';
+            document.getElementById('alert-success').style.display = 'flex';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const alert = document.getElementById('alert');
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            alert.style.display = 'none';
+
+            const res = await api.post('/api/auth/login', { email: form.email.value, password: form.password.value });
+            
+            if (res.success) {
+                window.location.href = '/dashboard';
+            } else {
+                alert.textContent = res.error;
+                alert.style.display = 'flex';
+                btn.textContent = 'Entrar';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

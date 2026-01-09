@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item active"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header-actions">
+                <div><h1 class="page-title">🏢 Clientes</h1><p class="page-subtitle">Gerencie seus clientes e links de avaliação</p></div>
+                <a href="/clients/new" class="btn btn-primary"><i class="fas fa-plus"></i> Novo cliente</a>
+            </div>
+            <div id="clients-container" class="clients-grid"></div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadClients() {
+            await checkAuth();
+            await loadUserInfo();
+            const clients = await api.get('/api/clients');
+            const container = document.getElementById('clients-container');
+            if (!clients || clients.length === 0) {
+                container.innerHTML = '<div class="card" style="grid-column:1/-1"><div class="empty-state"><div class="empty-icon">🏢</div><h3 class="empty-title">Nenhum cliente cadastrado</h3><p class="empty-description">Cadastre seu primeiro cliente para começar.</p><a href="/clients/new" class="btn btn-primary">Cadastrar cliente</a></div></div>';
+            } else {
+                container.innerHTML = clients.map((c, i) => `
+                    <div class="client-card animate-fadeInUp" style="animation-delay:${0.05*i}s">
+                        <div class="client-card-header" style="background:${c.primary_color || 'var(--primary)'}"></div>
+                        <div class="client-card-body">
+                            <div class="client-header">
+                                ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" class="client-logo ${isTransparentLogo(c.logo_url) ? 'client-logo-transparent' : ''}" onerror="this.outerHTML='<div class=\\'client-logo-placeholder\\'>${getInitials(c.name)}</div>'">` : `<div class="client-logo-placeholder" style="background:${c.primary_color || 'var(--primary)'}">${getInitials(c.name)}</div>`}
+                                <div><div class="client-name">${c.name}</div><div class="client-phone">${c.phone}</div></div>
+                            </div>
+                            <div class="client-info">
+                                <p><i class="fas fa-map-marker-alt"></i>${c.address}</p>
+                                <p><i class="fas fa-clock"></i>${c.business_hours}</p>
+                            </div>
+                            <div class="client-card-footer">
+                                <div class="client-link-row"><span class="client-link-label">Link de avaliação</span><button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')">Copiar</button></div>
+                                <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
+                                ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
+                                <div class="client-actions">
+                                    <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
+                                    <a href="/clients/${c.id}/complaints" class="btn btn-link">Ver reclamações</a>
+                                    <div><a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a><button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            hideLoading();
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        }
+
+        function isTransparentLogo(url) {
+            return url && (url.includes('.png') || url.includes('.webp') || url.includes('.svg'));
+        }
+
+        async function deleteClient(id) {
+            if (!confirm('Excluir este cliente?')) return;
+            const res = await api.delete('/api/clients/' + id);
+            if (res.success) { showToast('Cliente excluído'); loadClients(); }
+            else showToast(res.error, 'error');
+        }
+
+        loadClients();
+    </script>
+</body>
+</html>

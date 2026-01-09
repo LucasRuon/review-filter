@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tópicos - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .topics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .topic-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; align-items: center; gap: 1rem; transition: all 0.2s; }
+        .topic-card:hover { border-color: var(--primary); }
+        .topic-card.inactive { opacity: 0.5; }
+        .topic-icon-display { font-size: 2rem; width: 50px; height: 50px; background: var(--bg-tertiary); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .topic-info { flex: 1; }
+        .topic-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+        .topic-status { font-size: 0.75rem; color: var(--text-muted); }
+        .topic-actions { display: flex; gap: 0.25rem; }
+        .topic-actions button { background: var(--bg-tertiary); border: none; width: 32px; height: 32px; border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+        .topic-actions button:hover { background: var(--primary); color: white; }
+        .add-topic-card { background: var(--bg-tertiary); border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .add-topic-card:hover { border-color: var(--primary); background: rgba(55, 80, 240, 0.05); }
+        .add-topic-card i { font-size: 1.5rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .add-topic-card span { display: block; font-size: 0.875rem; color: var(--text-secondary); }
+        .niche-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        .niche-btn { padding: 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .niche-btn:hover { border-color: var(--primary); background: rgba(55, 80, 240, 0.05); }
+        .niche-btn-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem; }
+        .niche-btn-count { font-size: 0.75rem; color: var(--text-muted); }
+        .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .modal.hidden { display: none; }
+        .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+        .modal-content { background: var(--bg-secondary); border-radius: var(--radius); width: 100%; max-width: 400px; position: relative; z-index: 1; border: 1px solid var(--border); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); }
+        .modal-header h3 { font-size: 1rem; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+        .modal-body { padding: 1rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem; border-top: 1px solid var(--border); }
+        .emoji-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.25rem; margin-bottom: 1rem; max-height: 150px; overflow-y: auto; }
+        .emoji-btn { padding: 0.5rem; font-size: 1.25rem; background: var(--bg-tertiary); border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.1s; }
+        .emoji-btn:hover, .emoji-btn.selected { border-color: var(--primary); background: rgba(55, 80, 240, 0.1); }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item active"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <a href="/clients" class="back-link"><i class="fas fa-arrow-left"></i> Voltar para clientes</a>
+                <h1 class="page-title">📌 Tópicos de Reclamação</h1>
+                <p class="page-subtitle" id="client-name-subtitle">Carregando...</p>
+            </div>
+
+            <div class="card" style="margin-bottom:1.5rem">
+                <div class="card-body">
+                    <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem">
+                        <i class="fas fa-info-circle"></i> Os tópicos ajudam a categorizar as reclamações. O cliente seleciona um tópico antes de descrever o problema.
+                    </p>
+                </div>
+            </div>
+
+            <div class="topics-grid" id="topics-grid">
+                <!-- Topics will be rendered here -->
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h2 class="card-title">Carregar template de nicho</h2>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem">
+                        Substitua todos os tópicos pelos de um template pré-definido:
+                    </p>
+                    <div class="niche-templates" id="niche-templates"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Adicionar/Editar Tópico -->
+    <div id="topicModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Novo tópico</h3>
+                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Ícone</label>
+                    <div class="emoji-picker" id="emoji-picker"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nome do tópico</label>
+                    <input type="text" id="topicName" class="form-input" placeholder="Ex: Atendimento, Entrega, Qualidade...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveTopic()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Reset -->
+    <div id="resetModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeResetModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Substituir tópicos?</h3>
+                <button class="modal-close" onclick="closeResetModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:1rem">Isso irá <strong>remover todos os tópicos atuais</strong> e substituir pelos do template selecionado.</p>
+                <p style="font-size:0.85rem;color:var(--text-muted)">Template: <strong id="reset-niche-name"></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeResetModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmReset()">Substituir</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const emojis = ['👋', '💬', '⭐', '🍽️', '⏱️', '🧹', '💰', '🛵', '📦', '🔄', '📋', '🚚', '👨‍⚕️', '📅', '✨', '🛏️', '☕', '🔑', '🏊', '📶', '🔧', '⚙️', '📜', '🛠️', '🐛', '📱', '⚡', '📝', '❓', '🎯', '💡', '🔔'];
+        let clientId = null;
+        let topics = [];
+        let niches = [];
+        let editingTopicId = null;
+        let selectedEmoji = '💬';
+        let pendingResetNiche = null;
+
+        async function init() {
+            await checkAuth();
+            await loadUserInfo();
+            
+            // Pegar ID do cliente da URL
+            const match = window.location.pathname.match(/\/clients\/(\d+)\/topics/);
+            if (!match) {
+                window.location.href = '/clients';
+                return;
+            }
+            clientId = match[1];
+            
+            // Carregar dados do cliente
+            const client = await api.get(`/api/clients/${clientId}`);
+            if (!client || client.error) {
+                showToast('Cliente não encontrado', 'error');
+                setTimeout(() => window.location.href = '/clients', 1500);
+                return;
+            }
+            document.getElementById('client-name-subtitle').textContent = client.name;
+            
+            // Carregar templates
+            niches = await api.get('/api/clients/templates/niches') || [];
+            renderNicheTemplates();
+            
+            // Renderizar emoji picker
+            renderEmojiPicker();
+            
+            // Carregar tópicos
+            await loadTopics();
+            
+            hideLoading();
+        }
+
+        function renderEmojiPicker() {
+            document.getElementById('emoji-picker').innerHTML = emojis.map(e => 
+                `<button type="button" class="emoji-btn ${e === selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</button>`
+            ).join('');
+        }
+
+        function selectEmoji(emoji) {
+            selectedEmoji = emoji;
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.textContent === emoji);
+            });
+        }
+
+        function renderNicheTemplates() {
+            document.getElementById('niche-templates').innerHTML = niches.map(n => `
+                <button class="niche-btn" onclick="showResetModal('${n.id}', '${n.name}')">
+                    <div class="niche-btn-name">${n.name}</div>
+                    <div class="niche-btn-count">${n.topics.length} tópicos</div>
+                </button>
+            `).join('');
+        }
+
+        async function loadTopics() {
+            topics = await api.get(`/api/clients/${clientId}/topics`) || [];
+            renderTopics();
+        }
+
+        function renderTopics() {
+            const grid = document.getElementById('topics-grid');
+            let html = topics.map(t => `
+                <div class="topic-card ${t.active ? '' : 'inactive'}">
+                    <div class="topic-icon-display">${t.icon}</div>
+                    <div class="topic-info">
+                        <div class="topic-name">${t.name}</div>
+                        <div class="topic-status">${t.active ? 'Ativo' : 'Inativo'}</div>
+                    </div>
+                    <div class="topic-actions">
+                        <button title="${t.active ? 'Desativar' : 'Ativar'}" onclick="toggleTopic(${t.id}, ${t.active ? 0 : 1})">
+                            <i class="fas fa-${t.active ? 'eye' : 'eye-slash'}"></i>
+                        </button>
+                        <button title="Editar" onclick="editTopic(${t.id})">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button title="Excluir" onclick="deleteTopic(${t.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            html += `
+                <div class="add-topic-card" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i>
+                    <span>Adicionar tópico</span>
+                </div>
+            `;
+            
+            grid.innerHTML = html;
+        }
+
+        function openAddModal() {
+            editingTopicId = null;
+            selectedEmoji = '💬';
+            document.getElementById('modal-title').textContent = 'Novo tópico';
+            document.getElementById('topicName').value = '';
+            renderEmojiPicker();
+            document.getElementById('topicModal').classList.remove('hidden');
+        }
+
+        function editTopic(id) {
+            const topic = topics.find(t => t.id === id);
+            if (!topic) return;
+            
+            editingTopicId = id;
+            selectedEmoji = topic.icon;
+            document.getElementById('modal-title').textContent = 'Editar tópico';
+            document.getElementById('topicName').value = topic.name;
+            renderEmojiPicker();
+            document.getElementById('topicModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('topicModal').classList.add('hidden');
+        }
+
+        async function saveTopic() {
+            const name = document.getElementById('topicName').value.trim();
+            if (!name) {
+                showToast('Digite o nome do tópico', 'error');
+                return;
+            }
+            
+            let res;
+            if (editingTopicId) {
+                const topic = topics.find(t => t.id === editingTopicId);
+                res = await api.put(`/api/clients/${clientId}/topics/${editingTopicId}`, { 
+                    name, 
+                    icon: selectedEmoji,
+                    active: topic.active
+                });
+            } else {
+                res = await api.post(`/api/clients/${clientId}/topics`, { name, icon: selectedEmoji });
+            }
+            
+            if (res.success || res.id) {
+                showToast(editingTopicId ? 'Tópico atualizado' : 'Tópico criado');
+                closeModal();
+                await loadTopics();
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        async function toggleTopic(id, active) {
+            const topic = topics.find(t => t.id === id);
+            await api.put(`/api/clients/${clientId}/topics/${id}`, { ...topic, active });
+            await loadTopics();
+        }
+
+        async function deleteTopic(id) {
+            if (!confirm('Excluir este tópico?')) return;
+            await api.delete(`/api/clients/${clientId}/topics/${id}`);
+            showToast('Tópico excluído');
+            await loadTopics();
+        }
+
+        function showResetModal(nicheId, nicheName) {
+            pendingResetNiche = nicheId;
+            document.getElementById('reset-niche-name').textContent = nicheName;
+            document.getElementById('resetModal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.add('hidden');
+            pendingResetNiche = null;
+        }
+
+        async function confirmReset() {
+            if (!pendingResetNiche) return;
+            const res = await api.post(`/api/clients/${clientId}/topics/reset`, { niche: pendingResetNiche });
+            if (res.success) {
+                showToast('Tópicos substituídos');
+                closeResetModal();
+                await loadTopics();
+            } else {
+                showToast(res.error || 'Erro ao resetar', 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

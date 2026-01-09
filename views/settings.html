@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/clients" class="nav-item"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/settings" class="nav-item active"><span class="nav-icon">⚙️</span><span class="nav-text">Configurações</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <div class="user-info"><div class="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></div>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">⚙️ Configurações</h1>
+                <p class="page-subtitle">Gerencie sua conta</p>
+            </div>
+
+            <div style="max-width:500px">
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="card-header"><h2 class="card-title">Perfil</h2></div>
+                    <div class="card-body">
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label class="form-label">Nome</label>
+                                <input type="text" name="name" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="profileBtn">Salvar</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h2 class="card-title">Alterar senha</h2></div>
+                    <div class="card-body">
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label class="form-label">Senha atual</label>
+                                <input type="password" name="currentPassword" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nova senha</label>
+                                <input type="password" name="newPassword" class="form-input" minlength="6" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Confirmar nova senha</label>
+                                <input type="password" name="confirmPassword" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="passwordBtn">Alterar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadSettings() {
+            const user = await checkAuth();
+            if (!user) return;
+            await loadUserInfo();
+            document.querySelector('[name="name"]').value = user.name;
+            document.querySelector('[name="email"]').value = user.email;
+            hideLoading();
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('profileBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/profile', { name: f.name.value, email: f.email.value });
+            if (res.success) { showToast('Perfil atualizado'); loadUserInfo(); }
+            else showToast(res.error, 'error');
+            btn.textContent = 'Salvar';
+            btn.disabled = false;
+        });
+
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('passwordBtn');
+            if (f.newPassword.value !== f.confirmPassword.value) {
+                showToast('As senhas não coincidem', 'error');
+                return;
+            }
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/password', { currentPassword: f.currentPassword.value, newPassword: f.newPassword.value });
+            if (res.success) { showToast('Senha alterada'); f.reset(); }
+            else showToast(res.error, 'error');
+            btn.textContent = 'Alterar';
+            btn.disabled = false;
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>

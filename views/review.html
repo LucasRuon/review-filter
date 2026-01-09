@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliação</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --accent: #3750F0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0F172A; padding: 1rem; }
+        
+        .loading { position: fixed; inset: 0; background: #0F172A; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.4s; }
+        .loading.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner { width: 32px; height: 32px; border: 3px solid #334155; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .popup { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
+        .card { background: #1E293B; border-radius: 20px; width: 100%; max-width: 440px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); animation: slideUp 0.4s ease-out; border: 1px solid #334155; margin: auto; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .header { background: linear-gradient(135deg, var(--accent) 0%, #5C6BC0 100%); padding: 2.5rem 2rem; text-align: center; color: white; }
+        .logo { max-width: 200px; max-height: 80px; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; }
+        .logo img { max-width: 100%; max-height: 80px; object-fit: contain; filter: brightness(0) invert(1); }
+        .logo.has-dark-logo img { filter: none; }
+        .logo-initials { font-size: 2.5rem; font-weight: 700; color: white; letter-spacing: 2px; }
+        .title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.9rem; opacity: 0.9; line-height: 1.6; }
+        
+        /* Stars animation */
+        .stars-display { display: flex; justify-content: center; gap: 0.25rem; margin: 1rem 0; }
+        .stars-display i { font-size: 1.75rem; color: #FBBF24; animation: starPulse 1.5s ease-in-out infinite; }
+        .stars-display i:nth-child(2) { animation-delay: 0.1s; }
+        .stars-display i:nth-child(3) { animation-delay: 0.2s; }
+        .stars-display i:nth-child(4) { animation-delay: 0.3s; }
+        .stars-display i:nth-child(5) { animation-delay: 0.4s; }
+        @keyframes starPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        .incentive-text { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; margin-top: 1rem; }
+        .incentive-text p { font-size: 0.85rem; opacity: 0.9; line-height: 1.5; }
+        .incentive-text p strong { color: #FBBF24; }
+        
+        .body { padding: 1.75rem; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1.125rem; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; text-decoration: none; transition: all 0.2s; margin-bottom: 0.875rem; }
+        .btn:last-child { margin-bottom: 0; }
+        .btn:active { transform: scale(0.98); }
+        .btn-success { background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4); }
+        .btn-secondary { background: #334155; color: #E5E7EB; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        
+        .btn-success .stars { display: flex; gap: 0.25rem; margin-left: 0.5rem; }
+        .btn-success .stars i { font-size: 0.875rem; color: #FBBF24; }
+        
+        .footer { background: #0F172A; padding: 1.25rem 1.75rem; border-top: 1px solid #334155; }
+        .footer-header { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1rem; }
+        .footer-logo { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.875rem; font-weight: 600; background: var(--accent); color: white; overflow: hidden; }
+        .footer-logo img { width: 100%; height: 100%; object-fit: contain; }
+        .footer-name { font-weight: 600; color: #F9FAFB; font-size: 1rem; }
+        .footer-info { font-size: 0.9rem; color: #9CA3AF; }
+        .footer-info p { display: flex; align-items: flex-start; gap: 0.625rem; margin-bottom: 0.5rem; line-height: 1.5; }
+        .footer-info i { width: 16px; color: #6B7280; margin-top: 0.2rem; flex-shrink: 0; }
+        
+        .hidden { display: none !important; }
+        
+        .form-group { margin-bottom: 1.125rem; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 500; color: #D1D5DB; margin-bottom: 0.5rem; }
+        .form-label .required { color: #EF4444; }
+        .form-input, .form-select { width: 100%; padding: 0.875rem; font-size: 0.95rem; border: 1px solid #334155; border-radius: 10px; background: #0F172A; color: #F9FAFB; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+        .form-input::placeholder { color: #6B7280; }
+        textarea.form-input { resize: none; min-height: 100px; }
+        
+        .form-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
+        .form-title { font-size: 1.25rem; font-weight: 700; color: #F9FAFB; }
+        .form-subtitle { font-size: 0.85rem; color: #9CA3AF; margin-top: 0.25rem; }
+        .close-btn { background: #334155; border: none; width: 36px; height: 36px; border-radius: 50%; color: #9CA3AF; cursor: pointer; transition: all 0.2s; }
+        .close-btn:hover { background: #475569; color: white; }
+        
+        /* Topic Selection */
+        .topics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+        .topic-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem 0.5rem; background: #0F172A; border: 2px solid #334155; border-radius: 12px; cursor: pointer; transition: all 0.2s; min-height: 80px; }
+        .topic-btn:hover { border-color: #475569; background: #1E293B; }
+        .topic-btn.selected { border-color: var(--accent); background: rgba(55, 80, 240, 0.1); }
+        .topic-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .topic-name { font-size: 0.8rem; color: #D1D5DB; text-align: center; font-weight: 500; }
+        .topic-btn.selected .topic-name { color: white; }
+        
+        .success-icon { width: 80px; height: 80px; background: rgba(34, 197, 94, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2.5rem; color: #22C55E; }
+        .success-title { font-size: 1.375rem; font-weight: 700; color: #F9FAFB; text-align: center; margin-bottom: 0.75rem; }
+        .success-text { color: #9CA3AF; text-align: center; margin-bottom: 1.75rem; font-size: 0.95rem; line-height: 1.6; }
+        
+        .divider { display: flex; align-items: center; gap: 1rem; margin: 0.5rem 0; }
+        .divider span { font-size: 0.8rem; color: #6B7280; white-space: nowrap; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #334155; }
+        
+        @media (max-width: 400px) { .topics-grid { grid-template-columns: repeat(2, 1fr); } .topic-btn { padding: 0.75rem 0.25rem; min-height: 70px; } }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading"><div class="loading-spinner"></div></div>
+
+    <div id="mainPopup" class="popup">
+        <div class="card">
+            <div class="header">
+                <div class="logo" id="header-logo"></div>
+                <h1 class="title">Sua opinião é importante!</h1>
+                <div class="stars-display">
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                </div>
+                <p class="subtitle">Ficamos muito felizes em atendê-lo! Se você gostou do nosso serviço, compartilhe sua experiência.</p>
+                <div class="incentive-text">
+                    <p><strong>⭐ Sua avaliação 5 estrelas no Google</strong> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
+                </div>
+            </div>
+            <div class="body">
+                <a href="#" id="btnPraise" class="btn btn-success" target="_blank">
+                    <i class="fas fa-thumbs-up"></i> Avaliar com 5 estrelas
+                    <span class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </span>
+                </a>
+                <div class="divider"><span>ou</span></div>
+                <button id="btnComplaint" class="btn btn-secondary"><i class="fas fa-comment-alt"></i> Relatar um problema</button>
+            </div>
+            <div class="footer">
+                <div class="footer-header"><div class="footer-logo" id="footer-logo"></div><span class="footer-name" id="client-name"></span></div>
+                <div class="footer-info">
+                    <p><i class="fas fa-map-marker-alt"></i><span id="client-address"></span></p>
+                    <p><i class="fas fa-phone"></i><span id="client-phone"></span></p>
+                    <p><i class="fas fa-clock"></i><span id="client-hours"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="topicPopup" class="popup hidden">
+        <div class="card">
+            <div class="body">
+                <div class="form-header">
+                    <div>
+                        <div class="form-title">Qual é o assunto?</div>
+                        <div class="form-subtitle">Selecione o tópico do seu relato</div>
+                    </div>
+                    <button class="close-btn" onclick="showMain()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="topics-grid" id="topics-grid"></div>
+                <button class="btn btn-primary" id="btnNextToForm" disabled onclick="showComplaintForm()">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="complaintPopup" class="popup hidden">
+        <div class="card">
+            <div class="body">
+                <div class="form-header">
+                    <div>
+                        <div class="form-title">Conte-nos o que aconteceu</div>
+                        <div class="form-subtitle">Assunto: <strong id="selected-topic-name"></strong></div>
+                    </div>
+                    <button class="close-btn" onclick="showTopics()"><i class="fas fa-arrow-left"></i></button>
+                </div>
+                <form id="complaintForm">
+                    <div class="form-group">
+                        <label class="form-label">Seu nome <span class="required">*</span></label>
+                        <input type="text" name="name" class="form-input" placeholder="Como podemos te chamar?" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Seu email <span class="required">*</span></label>
+                        <input type="email" name="email" class="form-input" placeholder="seu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Seu telefone <span class="required">*</span></label>
+                        <input type="tel" name="phone" class="form-input" placeholder="(00) 00000-0000" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descreva o problema <span class="required">*</span></label>
+                        <textarea name="complaint" class="form-input" rows="4" placeholder="Conte-nos detalhadamente o que aconteceu para que possamos resolver..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Enviar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="successPopup" class="popup hidden">
+        <div class="card">
+            <div class="body" style="padding:2.5rem">
+                <div class="success-icon"><i class="fas fa-check"></i></div>
+                <h2 class="success-title">Agradecemos seu feedback!</h2>
+                <p class="success-text">Recebemos sua mensagem e nossa equipe irá analisar com atenção. Entraremos em contato em breve para solucionar a situação.</p>
+                <button class="btn btn-primary" onclick="location.reload()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const slug = pathParts[pathParts.length - 1];
+        const isCustomDomain = !window.location.pathname.startsWith('/r/');
+        let clientSlug = slug;
+        let selectedTopic = null;
+        let topics = [];
+
+        async function loadClient() {
+            try {
+                const endpoint = isCustomDomain ? '/custom-domain-data' : `/r/${slug}/data`;
+                const res = await fetch(endpoint);
+                const data = await res.json();
+                if (data.error) { document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:2rem"><h2>Página não encontrada</h2></div>'; return; }
+                clientSlug = data.slug || slug;
+                topics = data.topics || [];
+                
+                if (data.primary_color) document.documentElement.style.setProperty('--accent', data.primary_color);
+                document.getElementById('client-name').textContent = data.name;
+                document.getElementById('client-address').textContent = data.address;
+                document.getElementById('client-phone').textContent = data.phone;
+                document.getElementById('client-hours').textContent = data.business_hours;
+                document.getElementById('btnPraise').href = data.google_review_link;
+                
+                const initials = data.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+                const headerLogo = document.getElementById('header-logo');
+                
+                if (data.logo_url) {
+                    // Verificar se é uma imagem com fundo (JPG) ou transparente (PNG/SVG)
+                    const hasDarkLogo = data.logo_url.includes('.jpg') || data.logo_url.includes('.jpeg');
+                    if (hasDarkLogo) headerLogo.classList.add('has-dark-logo');
+                    headerLogo.innerHTML = `<img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.innerHTML='<span class=\\'logo-initials\\'>${initials}</span>'">`;
+                    document.getElementById('footer-logo').innerHTML = `<img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.textContent='${initials}'">`;
+                } else {
+                    headerLogo.innerHTML = `<span class="logo-initials">${initials}</span>`;
+                    document.getElementById('footer-logo').textContent = initials;
+                }
+                
+                renderTopics();
+                document.title = `Avaliação - ${data.name}`;
+                document.getElementById('loading').classList.add('hidden');
+            } catch (e) { console.error(e); }
+        }
+
+        function renderTopics() {
+            const grid = document.getElementById('topics-grid');
+            if (topics.length === 0) {
+                topics = [{ id: 0, name: 'Relato geral', icon: '💬' }];
+            }
+            grid.innerHTML = topics.map(t => `
+                <div class="topic-btn" data-id="${t.id}" data-name="${t.name}" onclick="selectTopic(this)">
+                    <span class="topic-icon">${t.icon}</span>
+                    <span class="topic-name">${t.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectTopic(el) {
+            document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedTopic = { id: el.dataset.id, name: el.dataset.name };
+            document.getElementById('btnNextToForm').disabled = false;
+        }
+
+        function showMain() { 
+            hideAllPopups();
+            document.getElementById('mainPopup').classList.remove('hidden'); 
+            selectedTopic = null;
+            document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btnNextToForm').disabled = true;
+        }
+
+        function showTopics() {
+            hideAllPopups();
+            document.getElementById('topicPopup').classList.remove('hidden');
+        }
+
+        function showComplaintForm() {
+            if (!selectedTopic) return;
+            hideAllPopups();
+            document.getElementById('selected-topic-name').textContent = selectedTopic.name;
+            document.getElementById('complaintPopup').classList.remove('hidden');
+        }
+
+        function hideAllPopups() {
+            document.getElementById('mainPopup').classList.add('hidden');
+            document.getElementById('topicPopup').classList.add('hidden');
+            document.getElementById('complaintPopup').classList.add('hidden');
+            document.getElementById('successPopup').classList.add('hidden');
+        }
+
+        document.getElementById('btnComplaint').addEventListener('click', () => {
+            if (topics.length <= 1) {
+                selectedTopic = topics[0] || { id: 0, name: 'Relato geral' };
+                showComplaintForm();
+            } else {
+                showTopics();
+            }
+        });
+
+        document.getElementById('complaintForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target, btn = document.getElementById('submitBtn');
+            if (!f.name.value.trim() || !f.email.value.trim() || !f.phone.value.trim() || !f.complaint.value.trim()) {
+                alert('Por favor, preencha todos os campos.'); return;
+            }
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; btn.disabled = true;
+            try {
+                const endpoint = isCustomDomain ? '/custom-domain-complaint' : `/r/${clientSlug}/complaint`;
+                const res = await fetch(endpoint, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        name: f.name.value.trim(), 
+                        email: f.email.value.trim(), 
+                        phone: f.phone.value.trim(), 
+                        complaint: f.complaint.value.trim(),
+                        topic_id: selectedTopic?.id || null,
+                        topic_name: selectedTopic?.name || null
+                    }) 
+                });
+                const data = await res.json();
+                if (data.success) { 
+                    hideAllPopups();
+                    document.getElementById('successPopup').classList.remove('hidden'); 
+                }
+                else { alert(data.error || 'Erro ao enviar'); btn.textContent = 'Enviar'; btn.disabled = false; }
+            } catch (e) { alert('Erro ao enviar'); btn.textContent = 'Enviar'; btn.disabled = false; }
+        });
+
+        document.querySelector('input[name="phone"]').addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            if (v.length > 0) { if (v.length <= 2) v = '(' + v; else if (v.length <= 7) v = '(' + v.slice(0,2) + ') ' + v.slice(2); else v = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7); }
+            e.target.value = v;
+        });
+
+        loadClient();
+    </script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opina Já! - Transforme feedback em crescimento</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary: #3750F0; --primary-dark: #2840D0; --primary-light: #5570FF; --accent: #10B981; --text: #1E293B; --text-light: #64748B; --bg-dark: #0F172A; --bg-darker: #020617; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); line-height: 1.6; }
+        
+        /* Header */
+        .header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; transition: all 0.3s; }
+        .header.scrolled { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+        .header-inner { max-width: 1200px; margin: 0 auto; padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+        .logo-icon { width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1rem; }
+        .logo-text { font-weight: 800; font-size: 1.25rem; color: white; }
+        .header-nav { display: flex; gap: 2.5rem; align-items: center; }
+        .header-nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        .header-nav a:hover { color: white; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 10px; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(55, 80, 240, 0.3); }
+        .btn-outline { background: transparent; color: white; border: 2px solid rgba(255,255,255,0.3); }
+        .btn-outline:hover { border-color: white; background: rgba(255,255,255,0.1); }
+        .btn-white { background: white; color: var(--primary); }
+        .btn-white:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .btn-lg { padding: 1rem 2rem; font-size: 1rem; }
+        
+        /* Hero */
+        .hero { min-height: 100vh; background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 50%, #1E1B4B 100%); display: flex; align-items: center; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 800px; height: 800px; background: radial-gradient(circle, rgba(55, 80, 240, 0.15) 0%, transparent 70%); border-radius: 50%; }
+        .hero::after { content: ''; position: absolute; bottom: -30%; left: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%); border-radius: 50%; }
+        .hero-inner { max-width: 1200px; margin: 0 auto; padding: 8rem 2rem 5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; position: relative; z-index: 1; }
+        .hero-content h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: white; }
+        .hero-content h1 span { background: linear-gradient(135deg, var(--primary-light), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero-content p { font-size: 1.25rem; color: rgba(255,255,255,0.7); margin-bottom: 2rem; max-width: 500px; }
+        .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .hero-stats { display: flex; gap: 3rem; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .hero-stat-value { font-size: 2rem; font-weight: 800; color: white; }
+        .hero-stat-label { font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+        .hero-visual { position: relative; }
+        .hero-card { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
+        .hero-card-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .hero-card-logo { width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; }
+        .hero-card-title { color: white; font-weight: 600; font-size: 1.125rem; }
+        .hero-card-subtitle { color: rgba(255,255,255,0.5); font-size: 0.875rem; }
+        .hero-card-btn { display: block; width: 100%; padding: 1rem; border-radius: 12px; text-align: center; font-weight: 600; margin-bottom: 0.75rem; transition: all 0.2s; text-decoration: none; }
+        .hero-card-btn.green { background: var(--accent); color: white; }
+        .hero-card-btn.gray { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+        .floating-badge { position: absolute; background: white; border-radius: 12px; padding: 0.75rem 1rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 0.5rem; animation: float 3s ease-in-out infinite; }
+        .floating-badge.top { top: -20px; right: 20px; }
+        .floating-badge.bottom { bottom: 20px; left: -20px; animation-delay: 1.5s; }
+        .floating-badge i { color: var(--accent); }
+        .floating-badge span { font-weight: 600; font-size: 0.875rem; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        /* Features */
+        .features { padding: 6rem 2rem; background: #F8FAFC; }
+        .features-inner { max-width: 1200px; margin: 0 auto; }
+        .section-header { text-align: center; margin-bottom: 4rem; }
+        .section-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(55, 80, 240, 0.1); color: var(--primary); padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem; }
+        .section-header h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+        .section-header p { color: var(--text-light); max-width: 600px; margin: 0 auto; font-size: 1.125rem; }
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+        .feature-card { background: white; border-radius: 20px; padding: 2rem; transition: all 0.3s; border: 1px solid #E2E8F0; }
+        .feature-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .feature-icon { width: 56px; height: 56px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; font-size: 1.5rem; color: white; }
+        .feature-card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .feature-card p { color: var(--text-light); font-size: 0.95rem; line-height: 1.7; }
+        
+        /* How it works */
+        .how-it-works { padding: 6rem 2rem; background: var(--bg-dark); }
+        .how-it-works-inner { max-width: 1000px; margin: 0 auto; }
+        .how-it-works .section-header h2 { color: white; }
+        .how-it-works .section-header p { color: rgba(255,255,255,0.6); }
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; margin-top: 4rem; }
+        .step { text-align: center; position: relative; }
+        .step::after { content: ''; position: absolute; top: 30px; right: -50%; width: 100%; height: 2px; background: linear-gradient(90deg, var(--primary), transparent); }
+        .step:last-child::after { display: none; }
+        .step-number { width: 60px; height: 60px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; color: white; margin: 0 auto 1rem; position: relative; z-index: 1; }
+        .step h3 { color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .step p { color: rgba(255,255,255,0.5); font-size: 0.875rem; }
+        
+        /* Pricing */
+        .pricing { padding: 6rem 2rem; background: linear-gradient(180deg, #F8FAFC 0%, white 100%); }
+        .pricing-inner { max-width: 500px; margin: 0 auto; }
+        .pricing-card { background: white; border-radius: 24px; padding: 3rem; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.1); border: 2px solid var(--primary); position: relative; overflow: hidden; }
+        .pricing-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
+        .pricing-badge { position: absolute; top: 1.5rem; right: -2rem; background: var(--accent); color: white; padding: 0.375rem 2.5rem; font-size: 0.75rem; font-weight: 700; transform: rotate(45deg); }
+        .pricing-price { margin: 1.5rem 0; }
+        .pricing-price .currency { font-size: 1.5rem; font-weight: 600; color: var(--text-light); vertical-align: top; }
+        .pricing-price .value { font-size: 4rem; font-weight: 800; color: var(--text); }
+        .pricing-price .period { font-size: 1rem; color: var(--text-light); }
+        .pricing-trial { background: rgba(55, 80, 240, 0.1); color: var(--primary); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; margin-bottom: 2rem; display: inline-block; }
+        .pricing-features { text-align: left; margin: 2rem 0; list-style: none; }
+        .pricing-features li { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; font-size: 0.95rem; color: var(--text-light); border-bottom: 1px solid #F1F5F9; }
+        .pricing-features li:last-child { border-bottom: none; }
+        .pricing-features li i { color: var(--accent); font-size: 1rem; }
+        
+        /* CTA */
+        .cta { padding: 6rem 2rem; background: linear-gradient(135deg, var(--primary) 0%, #1E1B4B 100%); text-align: center; position: relative; overflow: hidden; }
+        .cta::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.1) 0%, transparent 50%); }
+        .cta-inner { max-width: 700px; margin: 0 auto; position: relative; z-index: 1; }
+        .cta h2 { font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 1rem; }
+        .cta p { color: rgba(255,255,255,0.8); font-size: 1.125rem; margin-bottom: 2rem; }
+        
+        /* Footer */
+        .footer { padding: 3rem 2rem; background: var(--bg-darker); text-align: center; border-top: 1px solid rgba(255,255,255,0.05); }
+        .footer p { color: rgba(255,255,255,0.4); font-size: 0.875rem; }
+        
+        /* Mobile */
+        .mobile-nav { display: none; }
+        @media (max-width: 1024px) {
+            .hero-inner { grid-template-columns: 1fr; text-align: center; }
+            .hero-content p { margin: 0 auto 2rem; }
+            .hero-buttons { justify-content: center; }
+            .hero-stats { justify-content: center; }
+            .hero-visual { display: none; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .steps { grid-template-columns: repeat(2, 1fr); }
+            .step::after { display: none; }
+        }
+        @media (max-width: 768px) {
+            .header-nav { display: none; }
+            .mobile-nav { display: flex; gap: 0.5rem; }
+            .hero-content h1 { font-size: 2.5rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; }
+            .hero-stats { flex-direction: column; gap: 1.5rem; }
+            .section-header h2 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header" id="header">
+        <div class="header-inner">
+            <a href="/" class="logo">
+                <div class="logo-icon">OJ</div>
+                <span class="logo-text">Opina Já!</span>
+            </a>
+            <nav class="header-nav">
+                <a href="#features">Recursos</a>
+                <a href="#how-it-works">Como funciona</a>
+                <a href="#pricing">Preços</a>
+                <a href="/login" class="btn btn-outline">Entrar</a>
+                <a href="/register" class="btn btn-primary">Começar teste grátis</a>
+            </nav>
+            <div class="mobile-nav">
+                <a href="/login" class="btn btn-outline">Entrar</a>
+                <a href="/register" class="btn btn-primary">Testar</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-inner">
+            <div class="hero-content">
+                <h1>Transforme feedback em <span>crescimento</span></h1>
+                <p>Proteja sua reputação online direcionando elogios para o Google e capturando reclamações de forma privada. Resolva problemas antes que virem avaliações negativas.</p>
+                <div class="hero-buttons">
+                    <a href="/register" class="btn btn-primary btn-lg">Começar teste grátis de 14 dias</a>
+                    <a href="#how-it-works" class="btn btn-outline btn-lg">Ver como funciona</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">98%</div>
+                        <div class="hero-stat-label">Satisfação dos clientes</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">+500</div>
+                        <div class="hero-stat-label">Empresas ativas</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value">24h</div>
+                        <div class="hero-stat-label">Tempo médio de resposta</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-card">
+                    <div class="hero-card-header">
+                        <div class="hero-card-logo"><i class="fas fa-store"></i></div>
+                        <div>
+                            <div class="hero-card-title">Restaurante Sabor & Arte</div>
+                            <div class="hero-card-subtitle">Sua opinião é importante</div>
+                        </div>
+                    </div>
+                    <a href="#" class="hero-card-btn green"><i class="fas fa-thumbs-up"></i> Fazer um elogio</a>
+                    <a href="#" class="hero-card-btn gray"><i class="fas fa-comment-alt"></i> Fazer uma reclamação</a>
+                </div>
+                <div class="floating-badge top">
+                    <i class="fas fa-star"></i>
+                    <span>+47 avaliações 5★</span>
+                </div>
+                <div class="floating-badge bottom">
+                    <i class="fas fa-check-circle"></i>
+                    <span>12 problemas resolvidos</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="features-inner">
+            <div class="section-header">
+                <div class="section-badge"><i class="fas fa-sparkles"></i> Recursos poderosos</div>
+                <h2>Tudo que você precisa para gerenciar sua reputação</h2>
+                <p>Ferramentas intuitivas e eficazes que transformam a forma como você lida com feedback de clientes</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-filter"></i></div>
+                    <h3>Filtro Inteligente</h3>
+                    <p>Elogios vão direto para o Google Reviews, aumentando sua nota. Reclamações ficam privadas para você resolver.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-link"></i></div>
+                    <h3>Links Personalizados</h3>
+                    <p>Cada cliente tem um link único e amigável, fácil de compartilhar via QR Code, WhatsApp ou redes sociais.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-globe"></i></div>
+                    <h3>Domínio Próprio</h3>
+                    <p>Configure um subdomínio do seu cliente para uma experiência 100% profissional e personalizada.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-palette"></i></div>
+                    <h3>Marca Própria</h3>
+                    <p>Logo, cores e informações do estabelecimento na página de avaliação. Sua marca em primeiro lugar.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>Dashboard Completo</h3>
+                    <p>Acompanhe todas as reclamações em um único lugar. Filtre por cliente, status e período.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fab fa-whatsapp"></i></div>
+                    <h3>Integração WhatsApp</h3>
+                    <p>Receba notificações de novas reclamações diretamente no WhatsApp. Responda mais rápido. (Em breve)</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="how-it-works" id="how-it-works">
+        <div class="how-it-works-inner">
+            <div class="section-header">
+                <div class="section-badge"><i class="fas fa-play-circle"></i> Como funciona</div>
+                <h2>Simples de usar, resultados poderosos</h2>
+                <p>Em poucos minutos você estará protegendo a reputação dos seus clientes</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Cadastre</h3>
+                    <p>Adicione as informações do estabelecimento e link do Google</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Compartilhe</h3>
+                    <p>Envie o link personalizado para os clientes</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Filtre</h3>
+                    <p>Elogios vão pro Google, reclamações ficam privadas</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Resolva</h3>
+                    <p>Entre em contato e fidelize clientes</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="pricing-inner">
+            <div class="section-header">
+                <div class="section-badge"><i class="fas fa-tag"></i> Preço único</div>
+                <h2>Investimento que se paga</h2>
+                <p>Uma única avaliação negativa evitada já paga meses de assinatura</p>
+            </div>
+            <div class="pricing-card">
+                <div class="pricing-badge">Popular</div>
+                <div class="pricing-trial">14 dias grátis para testar</div>
+                <div class="pricing-price">
+                    <span class="currency">R$</span>
+                    <span class="value">89</span>
+                    <span class="period">,90/mês</span>
+                </div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check"></i> Clientes ilimitados</li>
+                    <li><i class="fas fa-check"></i> Reclamações ilimitadas</li>
+                    <li><i class="fas fa-check"></i> Links personalizados</li>
+                    <li><i class="fas fa-check"></i> Domínio próprio</li>
+                    <li><i class="fas fa-check"></i> Dashboard completo</li>
+                    <li><i class="fas fa-check"></i> Exportação de dados</li>
+                    <li><i class="fas fa-check"></i> Integração WhatsApp</li>
+                    <li><i class="fas fa-check"></i> Suporte prioritário</li>
+                </ul>
+                <a href="/register" class="btn btn-primary btn-lg" style="width:100%">Começar teste grátis</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <div class="cta-inner">
+            <h2>Pronto para proteger sua reputação?</h2>
+            <p>Comece seu teste gratuito de 14 dias hoje. Sem cartão de crédito, sem compromisso.</p>
+            <a href="/register" class="btn btn-white btn-lg">Criar minha conta grátis</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2024 Opina Já! Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) header.classList.add('scrolled');
+            else header.classList.remove('scrolled');
+        });
+    </script>
+</body>
+</html>

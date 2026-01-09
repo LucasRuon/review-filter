@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .main-content { opacity: 1; transition: opacity 0.15s ease; }
+        .main-content.loading { opacity: 0; }
+        .empty-state-centered { display: flex; align-items: center; justify-content: center; min-height: 60vh; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Carregando...</p>
+    </div>
+
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo">OJ</div>
+                    <span class="sidebar-title">Opina Já!</span>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item" data-page="complaints"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item" data-page="clients"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item" data-page="integrations"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item" data-page="profile"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" data-page="profile" style="text-decoration:none">
+                    <div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="user-name" id="user-name">Carregando...</div>
+                        <div class="user-email" id="user-email"></div>
+                    </div>
+                </a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <!-- Conteúdo carregado dinamicamente -->
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        // SPA Router
+        const routes = {
+            '/dashboard': 'dashboard',
+            '/clients': 'clients',
+            '/clients/new': 'client-form',
+            '/complaints': 'all-complaints',
+            '/integrations': 'integrations',
+            '/profile': 'profile'
+        };
+
+        // Cache de páginas carregadas
+        const pageCache = {};
+        let currentPage = null;
+
+        // Inicialização
+        async function initApp() {
+            const user = await checkAuth();
+            if (!user) return;
+            
+            await loadUserInfo();
+            loadUserAvatar();
+            
+            // Configurar navegação SPA
+            setupNavigation();
+            
+            // Carregar página inicial baseada na URL
+            const path = window.location.pathname;
+            await navigateTo(path, false);
+            
+            hideLoading();
+        }
+
+        function loadUserAvatar() {
+            const photoData = localStorage.getItem('profilePhoto');
+            if (photoData) {
+                document.getElementById('user-avatar').innerHTML = `<img src="${photoData}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+        }
+
+        function setupNavigation() {
+            // Interceptar cliques em links de navegação
+            document.addEventListener('click', async (e) => {
+                const link = e.target.closest('a[data-page], a[href^="/clients"], a[href^="/dashboard"], a[href^="/complaints"], a[href^="/integrations"], a[href^="/profile"]');
+                
+                if (link && !link.getAttribute('target')) {
+                    const href = link.getAttribute('href');
+                    
+                    // Ignorar links externos e de logout
+                    if (href.startsWith('http') || href === '#' || link.onclick) return;
+                    
+                    e.preventDefault();
+                    await navigateTo(href, true);
+                }
+            });
+
+            // Suportar botão voltar do navegador
+            window.addEventListener('popstate', async (e) => {
+                const path = window.location.pathname;
+                await navigateTo(path, false);
+            });
+        }
+
+        async function navigateTo(path, pushState = true) {
+            // Mostrar loading suave
+            const mainContent = document.getElementById('main-content');
+            mainContent.classList.add('loading');
+            
+            // Determinar qual página carregar
+            let pageName = getPageName(path);
+            
+            try {
+                // Carregar conteúdo da página
+                const content = await loadPageContent(pageName, path);
+                
+                // Pequeno delay para transição suave
+                await new Promise(r => setTimeout(r, 150));
+                
+                // Inserir conteúdo
+                mainContent.innerHTML = content;
+                
+                // Atualizar URL se necessário
+                if (pushState && window.location.pathname !== path) {
+                    history.pushState({ page: pageName }, '', path);
+                }
+                
+                // Atualizar menu ativo
+                updateActiveMenu(path);
+                
+                // Executar scripts da página
+                await executePageScripts(pageName, path);
+                
+                // Atualizar título
+                updatePageTitle(pageName);
+                
+                currentPage = pageName;
+                
+            } catch (error) {
+                console.error('Erro ao carregar página:', error);
+                mainContent.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><h3>Erro ao carregar</h3><p>Não foi possível carregar esta página.</p></div>';
+            }
+            
+            // Remover loading
+            mainContent.classList.remove('loading');
+            
+            // Fechar menu mobile se estiver aberto
+            document.querySelector('.sidebar').classList.remove('mobile-open');
+            document.querySelector('.sidebar-overlay').classList.remove('active');
+        }
+
+        function getPageName(path) {
+            // Rotas dinâmicas
+            if (path.match(/^\/clients\/\d+\/edit$/)) return 'client-form';
+            if (path.match(/^\/clients\/\d+\/topics$/)) return 'client-topics';
+            if (path.match(/^\/clients\/\d+\/complaints$/)) return 'client-complaints';
+            if (path === '/clients/new') return 'client-form';
+            
+            // Rotas estáticas
+            return routes[path] || 'dashboard';
+        }
+
+        async function loadPageContent(pageName, path) {
+            // Buscar template da página
+            const response = await fetch(`/spa/${pageName}`);
+            if (!response.ok) throw new Error('Página não encontrada');
+            
+            let content = await response.text();
+            
+            return content;
+        }
+
+        function updateActiveMenu(path) {
+            // Remover active de todos
+            document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Determinar qual item deve estar ativo
+            let activeSelector = '/dashboard';
+            if (path.startsWith('/clients')) activeSelector = '/clients';
+            else if (path.startsWith('/complaints') || path === '/complaints') activeSelector = '/complaints';
+            else if (path.startsWith('/integrations')) activeSelector = '/integrations';
+            else if (path.startsWith('/profile')) activeSelector = '/profile';
+            else if (path === '/dashboard') activeSelector = '/dashboard';
+            
+            // Adicionar active ao item correto
+            const activeItem = document.querySelector(`.sidebar-nav .nav-item[href="${activeSelector}"]`);
+            if (activeItem) activeItem.classList.add('active');
+        }
+
+        async function executePageScripts(pageName, path) {
+            // Executar lógica específica de cada página
+            switch (pageName) {
+                case 'dashboard':
+                    await loadDashboardData();
+                    break;
+                case 'clients':
+                    await loadClientsData();
+                    break;
+                case 'client-form':
+                    await loadClientFormData(path);
+                    break;
+                case 'client-topics':
+                    await loadClientTopicsData(path);
+                    break;
+                case 'client-complaints':
+                    await loadClientComplaintsData(path);
+                    break;
+                case 'all-complaints':
+                    await loadAllComplaintsData();
+                    break;
+                case 'integrations':
+                    await loadIntegrationsData();
+                    break;
+                case 'profile':
+                    await loadProfileData();
+                    break;
+            }
+        }
+
+        function updatePageTitle(pageName) {
+            const titles = {
+                'dashboard': 'Dashboard',
+                'clients': 'Clientes',
+                'client-form': 'Cliente',
+                'client-topics': 'Tópicos',
+                'client-complaints': 'Reclamações',
+                'all-complaints': 'Reclamações',
+                'integrations': 'Integrações',
+                'profile': 'Perfil'
+            };
+            document.title = `${titles[pageName] || 'Opina Já!'} - Opina Já!`;
+        }
+
+        // ========== FUNÇÕES DE DADOS DAS PÁGINAS ==========
+
+        async function loadDashboardData() {
+            const stats = await api.get('/api/auth/stats');
+            if (stats) {
+                document.getElementById('total-clients').textContent = stats.totalClients;
+                document.getElementById('total-complaints').textContent = stats.totalComplaints;
+                document.getElementById('pending-complaints').textContent = stats.pendingComplaints;
+                document.getElementById('resolved-complaints').textContent = stats.resolvedComplaints || 0;
+                
+                const container = document.getElementById('complaints-container');
+                if (stats.recentComplaints.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">As reclamações aparecerão aqui quando forem recebidas.</p></div>';
+                } else {
+                    container.innerHTML = '<div class="table-container"><table><thead><tr><th>Cliente</th><th>Nome</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>' + 
+                        stats.recentComplaints.map(c => `<tr><td><strong>${c.client_name}</strong></td><td>${c.customer_name}</td><td><span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado'}</span></td><td>${formatDate(c.created_at)}</td><td><a href="/complaints" class="btn btn-link btn-sm">Ver</a></td></tr>`).join('') + 
+                        '</tbody></table></div><div style="padding:1rem;text-align:center;border-top:1px solid var(--border)"><a href="/complaints" class="btn btn-link">Ver todas as reclamações</a></div>';
+                }
+            }
+        }
+
+        async function loadClientsData() {
+            const clients = await api.get('/api/clients');
+            const grid = document.getElementById('clients-grid');
+            
+            if (!clients || clients.length === 0) {
+                grid.innerHTML = '<div class="empty-state-centered"><div class="empty-state"><div class="empty-icon">🏢</div><h3 class="empty-title">Nenhum cliente cadastrado</h3><p class="empty-description">Adicione seu primeiro cliente para começar.</p><a href="/clients/new" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar cliente</a></div></div>';
+            } else {
+                grid.innerHTML = clients.map(c => `
+                    <div class="client-card">
+                        <div class="client-card-content">
+                            <div class="client-header">
+                                <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'has-logo' : ''}" style="${c.logo_url ? '' : 'background:var(--primary);color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}">` : c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
+                                <div><div class="client-name">${c.name}</div><div class="client-phone">${c.phone}</div></div>
+                            </div>
+                            <div class="client-info">
+                                <p><i class="fas fa-map-marker-alt"></i>${c.address}</p>
+                                <p><i class="fas fa-clock"></i>${c.business_hours}</p>
+                            </div>
+                            <div class="client-card-footer">
+                                <div class="client-link-row"><span class="client-link-label">Link de avaliação</span><button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')">Copiar</button></div>
+                                <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
+                                ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
+                                <div class="client-actions">
+                                    <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
+                                    <a href="/clients/${c.id}/complaints" class="btn btn-link">Ver reclamações</a>
+                                    <div><a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a><button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function loadClientFormData(path) {
+            const match = path.match(/\/clients\/(\d+)\/edit/);
+            const clientId = match ? match[1] : null;
+            
+            // Carregar templates de nicho
+            const niches = await api.get('/api/clients/templates/niches') || [];
+            const nicheGrid = document.getElementById('nicheGrid');
+            let selectedNiche = 'general';
+            
+            nicheGrid.innerHTML = niches.map(n => `
+                <div class="niche-option ${n.id === selectedNiche ? 'selected' : ''}" data-id="${n.id}" onclick="selectNiche('${n.id}')">
+                    <div class="niche-option-name">${n.name}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('server-host').textContent = window.location.host;
+            
+            if (clientId) {
+                document.getElementById('page-title').textContent = 'Editar cliente';
+                document.getElementById('client-id').value = clientId;
+                
+                const c = await api.get('/api/clients/' + clientId);
+                if (c && !c.error) {
+                    const f = document.getElementById('clientForm');
+                    f.name.value = c.name;
+                    f.address.value = c.address;
+                    f.phone.value = c.phone;
+                    f.google_review_link.value = c.google_review_link;
+                    f.business_hours.value = c.business_hours;
+                    f.primary_color.value = c.primary_color || '#3750F0';
+                    f.custom_domain.value = c.custom_domain || '';
+                    selectedNiche = c.niche || 'general';
+                    document.getElementById('nicheInput').value = selectedNiche;
+                    
+                    if (c.logo_url) {
+                        document.getElementById('logoUrlInput').value = c.logo_url;
+                        document.getElementById('logoPreview').innerHTML = `<img src="${c.logo_url}" alt="Logo"><div class="overlay"><i class="fas fa-upload"></i></div>`;
+                        document.getElementById('removeLogoBtn').style.display = '';
+                    }
+                    
+                    // Atualizar seleção do nicho
+                    document.querySelectorAll('.niche-option').forEach(el => {
+                        el.classList.toggle('selected', el.dataset.id === selectedNiche);
+                    });
+                }
+            }
+            
+            // Definir funções globais para esta página
+            window.currentClientId = clientId;
+            window.selectedNiche = selectedNiche;
+        }
+
+        async function loadClientTopicsData(path) {
+            const match = path.match(/\/clients\/(\d+)\/topics/);
+            if (!match) return;
+            
+            const clientId = match[1];
+            window.currentClientId = clientId;
+            
+            // Carregar dados do cliente
+            const client = await api.get(`/api/clients/${clientId}`);
+            if (!client || client.error) {
+                showToast('Cliente não encontrado', 'error');
+                setTimeout(() => navigateTo('/clients'), 1500);
+                return;
+            }
+            document.getElementById('client-name-subtitle').textContent = client.name;
+            
+            // Carregar templates
+            window.niches = await api.get('/api/clients/templates/niches') || [];
+            renderNicheTemplates();
+            
+            // Renderizar emoji picker
+            renderEmojiPicker();
+            
+            // Carregar tópicos
+            await loadTopics();
+        }
+
+        async function loadClientComplaintsData(path) {
+            const match = path.match(/\/clients\/(\d+)\/complaints/);
+            if (!match) return;
+
+            const clientId = match[1];
+
+            const data = await api.get(`/api/clients/${clientId}/complaints`);
+            if (data && data.client) {
+                document.getElementById('client-name').textContent = data.client.name;
+            }
+
+            const complaints = data ? data.complaints : [];
+            const container = document.getElementById('complaints-container');
+
+            if (!complaints || complaints.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">As reclamações deste cliente aparecerão aqui.</p></div>';
+            } else {
+                container.innerHTML = complaints.map(c => `
+                    <div class="card" style="margin-bottom:1rem">
+                        <div class="card-body">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:0.75rem">
+                                <div>
+                                    <strong>${c.customer_name}</strong>
+                                    <div style="font-size:0.8rem;color:var(--text-muted)">${c.customer_email} • ${c.customer_phone}</div>
+                                </div>
+                                <span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado'}</span>
+                            </div>
+                            ${c.topic_name ? `<div style="margin-bottom:0.5rem"><span class="badge badge-info">📌 ${c.topic_name}</span></div>` : ''}
+                            <p style="margin-bottom:0.75rem">${c.complaint_text}</p>
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                                <small style="color:var(--text-muted)">${formatDate(c.created_at)}</small>
+                                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                                    ${c.status !== 'pending' ? `<button class="btn btn-warning btn-sm" onclick="updateComplaintStatus(${clientId}, ${c.id}, 'pending')">Pendente</button>` : ''}
+                                    ${c.status !== 'in_progress' ? `<button class="btn btn-info btn-sm" onclick="updateComplaintStatus(${clientId}, ${c.id}, 'in_progress')">Em andamento</button>` : ''}
+                                    ${c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="updateComplaintStatus(${clientId}, ${c.id}, 'resolved')">Resolvido</button>` : ''}
+                                    ${c.status !== 'dismissed' ? `<button class="btn btn-secondary btn-sm" onclick="updateComplaintStatus(${clientId}, ${c.id}, 'dismissed')">Dispensar</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            window.currentClientId = clientId;
+        }
+
+        async function loadAllComplaintsData() {
+            const clients = await api.get('/api/clients') || [];
+            const complaints = await api.get('/api/complaints') || [];
+            
+            // Popular filtro de clientes
+            const clientFilter = document.getElementById('clientFilter');
+            clientFilter.innerHTML = '<option value="">Todos os clientes</option>' + 
+                clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            
+            window.allComplaints = complaints;
+            window.allClients = clients;
+            renderComplaints(complaints);
+        }
+
+        let statusCheckInterval = null;
+
+        async function loadIntegrationsData() {
+            try {
+                const data = await api.get('/api/integrations');
+
+                // WhatsApp
+                if (data && (data.whatsapp_status === 'open' || data.whatsapp_status === 'connected')) {
+                    document.getElementById('whatsapp-status-dot').className = 'status-dot connected';
+                    document.getElementById('whatsapp-status-text').textContent = 'Conectado';
+                    document.getElementById('whatsapp-disconnected').style.display = 'none';
+                    document.getElementById('whatsapp-connected').style.display = 'block';
+
+                    if (data.whatsapp_message) {
+                        document.getElementById('whatsappMessage').value = data.whatsapp_message;
+                    }
+                    if (data.whatsapp_send_to_type) {
+                        document.getElementById('whatsappSendToType').value = data.whatsapp_send_to_type;
+                    }
+
+                    if (data.whatsapp_send_to_type === 'group') {
+                        toggleWhatsAppDestination();
+                        await loadWhatsAppGroups(data.whatsapp_send_to_jid || '');
+                    } else {
+                        document.getElementById('whatsappContactNumber').value = data.whatsapp_send_to_jid || '';
+                    }
+
+                    // Carregar configurações de notificação
+                    const notifyNewComplaint = document.getElementById('whatsappNotifyNewComplaint');
+                    const notifyStatusChange = document.getElementById('whatsappNotifyStatusChange');
+                    const messageInProgress = document.getElementById('whatsappMessageInProgress');
+                    const messageResolved = document.getElementById('whatsappMessageResolved');
+
+                    if (notifyNewComplaint) {
+                        notifyNewComplaint.checked = data.whatsapp_notify_new_complaint !== 0;
+                        toggleNewComplaintConfig();
+                    }
+                    if (notifyStatusChange) {
+                        notifyStatusChange.checked = data.whatsapp_notify_status_change !== 0;
+                        toggleStatusChangeConfig();
+                    }
+                    if (messageInProgress && data.whatsapp_message_in_progress) {
+                        messageInProgress.value = data.whatsapp_message_in_progress;
+                    }
+                    if (messageResolved && data.whatsapp_message_resolved) {
+                        messageResolved.value = data.whatsapp_message_resolved;
+                    }
+
+                    // Adicionar listeners para os toggles
+                    if (notifyNewComplaint && !notifyNewComplaint.dataset.listenerAdded) {
+                        notifyNewComplaint.addEventListener('change', toggleNewComplaintConfig);
+                        notifyNewComplaint.dataset.listenerAdded = 'true';
+                    }
+                    if (notifyStatusChange && !notifyStatusChange.dataset.listenerAdded) {
+                        notifyStatusChange.addEventListener('change', toggleStatusChangeConfig);
+                        notifyStatusChange.dataset.listenerAdded = 'true';
+                    }
+                } else {
+                    document.getElementById('whatsapp-status-dot').className = 'status-dot disconnected';
+                    document.getElementById('whatsapp-status-text').textContent = 'Desconectado';
+                    document.getElementById('whatsapp-disconnected').style.display = 'block';
+                    document.getElementById('whatsapp-connected').style.display = 'none';
+                }
+
+                // Webhook
+                if (data && data.webhook_url) {
+                    document.getElementById('webhook-status-dot').className = 'status-dot connected';
+                    document.getElementById('webhook-status-text').textContent = 'Configurado';
+                    document.getElementById('webhookUrl').value = data.webhook_url;
+                    document.getElementById('webhookHeader').value = data.webhook_header || '';
+                } else {
+                    document.getElementById('webhook-status-dot').className = 'status-dot disconnected';
+                    document.getElementById('webhook-status-text').textContent = 'Não configurado';
+                }
+
+                // Adicionar event listener ao botão de conectar
+                const btnConnect = document.getElementById('btn-connect-whatsapp');
+                if (btnConnect && !btnConnect.dataset.listenerAdded) {
+                    btnConnect.addEventListener('click', connectWhatsApp);
+                    btnConnect.dataset.listenerAdded = 'true';
+                }
+
+                // Adicionar event listener ao botão de salvar WhatsApp
+                const btnSave = document.getElementById('btn-save-whatsapp');
+
+                if (btnSave && !btnSave.dataset.listenerAdded) {
+                    btnSave.addEventListener('click', () => window.saveWhatsAppConfig());
+                    btnSave.dataset.listenerAdded = 'true';
+                }
+            } catch (error) {
+                console.error('Error loading integrations:', error);
+            }
+        }
+
+        async function connectWhatsApp() {
+            try {
+                // Desabilitar botão para evitar múltiplos cliques
+                const btn = document.getElementById('btn-connect-whatsapp');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando...';
+
+                // Verificar se já existe uma instância
+                const checkRes = await fetch('/api/integrations');
+                const currentData = await checkRes.json();
+
+                let needsCreate = !currentData.whatsapp_token;
+
+                if (needsCreate) {
+                    showToast('Criando instância WhatsApp...', 'info');
+
+                    const createRes = await fetch('/api/whatsapp/instance/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const createData = await createRes.json();
+                    if (!createData.success) {
+                        showToast(createData.error || 'Erro ao criar instância', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+                        return;
+                    }
+                } else {
+                    showToast('Conectando WhatsApp...', 'info');
+                }
+
+                const connectRes = await fetch('/api/whatsapp/instance/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const connectData = await connectRes.json();
+
+                if (!connectData.success) {
+                    showToast(connectData.error || 'Erro ao conectar', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+                    return;
+                }
+
+                // Se já está conectado, atualizar interface imediatamente
+                if (connectData.alreadyConnected) {
+                    showToast('WhatsApp já está conectado!', 'success');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+                    await loadIntegrationsData();
+                    return;
+                }
+
+                // Se tem QR Code, mostra ele
+                if (connectData.qrcode) {
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <div style="text-align: center;">
+                            <img src="${connectData.qrcode}" alt="QR Code" style="max-width: 250px; width: 100%; height: auto; margin-bottom: 1rem;">
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem; text-align: left; max-width: 300px; margin-left: auto; margin-right: auto;">
+                                <strong>Como conectar:</strong><br>
+                                1. Abra o WhatsApp no seu celular<br>
+                                2. Toque em <strong>Menu</strong> ou <strong>Configurações</strong><br>
+                                3. Toque em <strong>Aparelhos conectados</strong><br>
+                                4. Toque em <strong>Conectar um aparelho</strong><br>
+                                5. Aponte seu celular para esta tela para escanear o código
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('qrCodeModal').classList.add('show');
+                }
+                // Se não tem QR Code mas tem paircode, mostra o código de pareamento
+                else if (connectData.paircode) {
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <div style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-mobile-alt" style="font-size: 3rem; color: #25D366; margin-bottom: 1rem;"></i>
+                            <h3 style="margin-bottom: 1rem;">Código de Pareamento</h3>
+                            <div style="font-size: 2rem; font-weight: bold; letter-spacing: 0.5rem; color: #25D366; background: #f0f0f0; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                ${connectData.paircode}
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">
+                                1. Abra o WhatsApp no seu celular<br>
+                                2. Vá em Aparelhos conectados<br>
+                                3. Conectar um aparelho<br>
+                                4. Digite o código acima
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('qrCodeModal').classList.add('show');
+                }
+                // Se não tem nem QR Code nem paircode, mostra erro
+                else {
+                    showToast('QR Code não disponível. Tente novamente.', 'error');
+                    console.error('Nem QR Code nem paircode disponíveis');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+                    return;
+                }
+
+                // Reabilitar botão quando fechar o modal
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+
+                statusCheckInterval = setInterval(checkWhatsAppStatus, 3000);
+            } catch (error) {
+                showToast('Erro ao conectar WhatsApp', 'error');
+                console.error(error);
+                const btn = document.getElementById('btn-connect-whatsapp');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fab fa-whatsapp"></i> Conectar WhatsApp';
+            }
+        }
+
+        async function checkWhatsAppStatus() {
+            try {
+                const res = await fetch('/api/whatsapp/instance/status');
+                const data = await res.json();
+
+                if (data.connected) {
+                    clearInterval(statusCheckInterval);
+                    closeQRModal();
+                    showToast('WhatsApp conectado com sucesso!', 'success');
+                    await loadIntegrationsData();
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        window.closeQRModal = function() {
+            document.getElementById('qrCodeModal').classList.remove('show');
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+        };
+
+        window.disconnectWhatsApp = async function() {
+            if (!confirm('Deseja realmente desconectar o WhatsApp?')) return;
+
+            try {
+                const res = await fetch('/api/whatsapp/instance', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast('WhatsApp desconectado', 'success');
+                    await loadIntegrationsData();
+                } else {
+                    showToast('Erro ao desconectar', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao desconectar WhatsApp', 'error');
+            }
+        };
+
+        async function loadWhatsAppGroups(selectedJid = null) {
+            try {
+                const select = document.getElementById('whatsappGroupJid');
+                // Preservar o valor atual se não foi passado um JID específico
+                const currentValue = selectedJid || select.value;
+                select.innerHTML = '<option value="">Carregando...</option>';
+
+                const res = await fetch('/api/whatsapp/groups');
+                const data = await res.json();
+
+                if (data.success && data.groups) {
+                    select.innerHTML = '<option value="">Selecione um grupo</option>';
+                    data.groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.JID || group.id;
+                        option.textContent = group.Name || group.JID || 'Sem nome';
+                        select.appendChild(option);
+                    });
+
+                    // Restaurar o valor selecionado após carregar os grupos
+                    if (currentValue) {
+                        select.value = currentValue;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Nenhum grupo encontrado</option>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar grupos:', error);
+                showToast('Erro ao carregar grupos', 'error');
+            }
+        }
+
+        window.toggleWhatsAppDestination = function() {
+            const type = document.getElementById('whatsappSendToType').value;
+            const contactGroup = document.getElementById('contact-group');
+            const groupGroup = document.getElementById('group-group');
+
+            if (type === 'group') {
+                contactGroup.style.display = 'none';
+                groupGroup.style.display = 'block';
+                loadWhatsAppGroups();
+            } else {
+                contactGroup.style.display = 'block';
+                groupGroup.style.display = 'none';
+            }
+        };
+
+        function toggleNewComplaintConfig() {
+            const checkbox = document.getElementById('whatsappNotifyNewComplaint');
+            const config = document.getElementById('new-complaint-config');
+            if (checkbox && config) {
+                config.style.opacity = checkbox.checked ? '1' : '0.5';
+                config.style.pointerEvents = checkbox.checked ? 'auto' : 'none';
+            }
+        }
+
+        function toggleStatusChangeConfig() {
+            const checkbox = document.getElementById('whatsappNotifyStatusChange');
+            const config = document.getElementById('status-change-config');
+            if (checkbox && config) {
+                config.style.opacity = checkbox.checked ? '1' : '0.5';
+                config.style.pointerEvents = checkbox.checked ? 'auto' : 'none';
+            }
+        }
+
+        window.saveWhatsAppConfig = async function() {
+            try {
+                console.log('=== saveWhatsAppConfig - Início ===');
+
+                const typeElement = document.getElementById('whatsappSendToType');
+                const messageElement = document.getElementById('whatsappMessage');
+
+                if (!typeElement || !messageElement) {
+                    console.error('Elementos não encontrados:', {
+                        typeElement: !!typeElement,
+                        messageElement: !!messageElement
+                    });
+                    showToast('Erro: elementos do formulário não encontrados', 'error');
+                    return;
+                }
+
+                const type = typeElement.value;
+                const message = messageElement.value;
+                let jid = '';
+
+                console.log('type:', type);
+                console.log('message (primeiros 100 chars):', message ? message.substring(0, 100) : 'vazio');
+
+                if (type === 'group') {
+                    const groupElement = document.getElementById('whatsappGroupJid');
+                    if (!groupElement) {
+                        console.error('Elemento whatsappGroupJid não encontrado');
+                        showToast('Erro: campo de grupo não encontrado', 'error');
+                        return;
+                    }
+                    jid = groupElement.value;
+                    console.log('Tipo: group, JID selecionado:', jid);
+                } else {
+                    const contactElement = document.getElementById('whatsappContactNumber');
+                    if (!contactElement) {
+                        console.error('Elemento whatsappContactNumber não encontrado');
+                        showToast('Erro: campo de contato não encontrado', 'error');
+                        return;
+                    }
+                    jid = contactElement.value;
+                    console.log('Tipo: contact, número:', jid);
+                }
+
+                // Campos de notificação
+                const notifyNewComplaint = document.getElementById('whatsappNotifyNewComplaint')?.checked ?? true;
+                const notifyStatusChange = document.getElementById('whatsappNotifyStatusChange')?.checked ?? true;
+                const messageInProgress = document.getElementById('whatsappMessageInProgress')?.value || '';
+                const messageResolved = document.getElementById('whatsappMessageResolved')?.value || '';
+
+                // Validação apenas se notificação de nova reclamação estiver habilitada
+                if (notifyNewComplaint && (!message || !jid)) {
+                    console.log('Validação falhou - message:', !!message, 'jid:', !!jid);
+                    showToast('Preencha a mensagem e o destinatário para notificações', 'error');
+                    return;
+                }
+
+                const payload = {
+                    whatsapp_message: message,
+                    whatsapp_send_to_type: type,
+                    whatsapp_send_to_jid: jid,
+                    whatsapp_notify_new_complaint: notifyNewComplaint,
+                    whatsapp_notify_status_change: notifyStatusChange,
+                    whatsapp_message_in_progress: messageInProgress,
+                    whatsapp_message_resolved: messageResolved
+                };
+
+                console.log('Enviando payload:', JSON.stringify(payload, null, 2));
+
+                const res = await fetch('/api/whatsapp/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                console.log('Response status:', res.status);
+                console.log('Response ok:', res.ok);
+
+                const data = await res.json();
+                console.log('Response data:', data);
+
+                if (data.success) {
+                    console.log('=== saveWhatsAppConfig - Sucesso ===');
+                    showToast('Configuração salva com sucesso!', 'success');
+                } else {
+                    console.log('=== saveWhatsAppConfig - Erro na resposta ===');
+                    showToast(data.error || 'Erro ao salvar', 'error');
+                }
+            } catch (error) {
+                console.error('=== saveWhatsAppConfig - ERRO ===');
+                console.error('Erro:', error);
+                console.error('Stack:', error.stack);
+                showToast('Erro ao salvar configuração', 'error');
+            }
+        };
+
+        window.loadWhatsAppGroups = loadWhatsAppGroups;
+
+        async function loadProfileData() {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            document.querySelector('[name="name"]').value = user.name || '';
+            document.querySelector('[name="email"]').value = user.email || '';
+            
+            const photoData = localStorage.getItem('profilePhoto');
+            if (photoData) {
+                document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
+                document.getElementById('removePhotoBtn').style.display = '';
+            }
+        }
+
+        // ========== FUNÇÕES AUXILIARES GLOBAIS ==========
+
+        window.deleteClient = async function(id) {
+            if (!confirm('Excluir este cliente?')) return;
+            const res = await api.delete('/api/clients/' + id);
+            if (res.success) { 
+                showToast('Cliente excluído'); 
+                await loadClientsData(); 
+            } else {
+                showToast(res.error, 'error');
+            }
+        };
+
+        window.updateComplaintStatus = async function(clientId, complaintId, status) {
+            const res = await api.put(`/api/clients/${clientId}/complaints/${complaintId}/status`, { status });
+            if (res.success) {
+                showToast('Status atualizado');
+                const path = window.location.pathname;
+                if (path.includes('/complaints')) {
+                    if (path.match(/\/clients\/\d+\/complaints/)) {
+                        await loadClientComplaintsData(path);
+                    } else {
+                        await loadAllComplaintsData();
+                    }
+                }
+            } else {
+                showToast(res.error, 'error');
+            }
+        };
+
+        // Funções de integrações (saveWhatsAppConfig já definida acima na linha 742)
+
+        window.saveWebhookConfig = async function() {
+            const url = document.getElementById('webhookUrl').value.trim();
+            const header = document.getElementById('webhookHeader').value.trim();
+            
+            const res = await api.put('/api/integrations', {
+                webhook_url: url,
+                webhook_header: header
+            });
+            
+            if (res.success) {
+                showToast('Webhook configurado!');
+                document.getElementById('webhook-status-dot').classList.remove('inactive');
+                if (url) {
+                    document.getElementById('webhook-status-dot').classList.add('active');
+                    document.getElementById('webhook-status-text').textContent = 'Ativo';
+                } else {
+                    document.getElementById('webhook-status-dot').classList.add('inactive');
+                    document.getElementById('webhook-status-text').textContent = 'Não configurado';
+                }
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        };
+
+        window.testWebhook = async function() {
+            const url = document.getElementById('webhookUrl').value.trim();
+            if (!url) {
+                showToast('Configure a URL primeiro', 'error');
+                return;
+            }
+            
+            const res = await api.post('/api/integrations/test-webhook');
+            if (res.success) {
+                showToast('Webhook enviado com sucesso!');
+            } else {
+                showToast(res.error || 'Erro ao testar', 'error');
+            }
+        };
+
+        window.selectNiche = function(id) {
+            window.selectedNiche = id;
+            document.getElementById('nicheInput').value = id;
+            document.querySelectorAll('.niche-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.id === id);
+            });
+        };
+
+        window.uploadLogo = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('A imagem deve ter no máximo 2MB', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('logoUrlInput').value = e.target.result;
+                document.getElementById('logoPreview').innerHTML = `<img src="${e.target.result}" alt="Logo"><div class="overlay"><i class="fas fa-upload"></i></div>`;
+                document.getElementById('removeLogoBtn').style.display = '';
+                showToast('Logo carregado');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removeLogo = function() {
+            document.getElementById('logoUrlInput').value = '';
+            document.getElementById('logoPreview').innerHTML = '<i class="fas fa-image"></i><div class="overlay"><i class="fas fa-upload"></i></div>';
+            document.getElementById('removeLogoBtn').style.display = 'none';
+            document.getElementById('logoInput').value = '';
+            showToast('Logo removido');
+        };
+
+        window.submitClientForm = async function(e) {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            
+            const data = {
+                name: f.name.value,
+                address: f.address.value,
+                phone: f.phone.value,
+                google_review_link: f.google_review_link.value,
+                business_hours: f.business_hours.value,
+                logo_url: document.getElementById('logoUrlInput').value || null,
+                primary_color: f.primary_color.value,
+                custom_domain: f.custom_domain.value,
+                niche: window.selectedNiche || 'general'
+            };
+            
+            const clientId = document.getElementById('client-id').value;
+            let res;
+            if (clientId) {
+                res = await api.put('/api/clients/' + clientId, data);
+            } else {
+                res = await api.post('/api/clients', data);
+            }
+            
+            if (res.success) {
+                showToast(clientId ? 'Cliente atualizado!' : 'Cliente criado!');
+                setTimeout(() => navigateTo('/clients'), 500);
+            } else {
+                showToast(res.error, 'error');
+                btn.innerHTML = 'Salvar cliente';
+                btn.disabled = false;
+            }
+        };
+
+        // Funções para tópicos
+        window.emojis = ['👋', '💬', '⭐', '🍽️', '⏱️', '🧹', '💰', '🛵', '📦', '🔄', '📋', '🚚', '👨‍⚕️', '📅', '✨', '🛏️', '☕', '🔑', '🏊', '📶', '🔧', '⚙️', '📜', '🛠️', '🐛', '📱', '⚡', '📝', '❓', '🎯', '💡', '🔔'];
+        window.selectedEmoji = '💬';
+        window.editingTopicId = null;
+        window.topics = [];
+
+        window.renderEmojiPicker = function() {
+            const picker = document.getElementById('emoji-picker');
+            if (picker) {
+                picker.innerHTML = window.emojis.map(e => 
+                    `<button type="button" class="emoji-btn ${e === window.selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</button>`
+                ).join('');
+            }
+        };
+
+        window.selectEmoji = function(emoji) {
+            window.selectedEmoji = emoji;
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.textContent === emoji);
+            });
+        };
+
+        window.renderNicheTemplates = function() {
+            const container = document.getElementById('niche-templates');
+            if (container && window.niches) {
+                container.innerHTML = window.niches.map(n => `
+                    <button class="niche-btn" onclick="showResetModal('${n.id}', '${n.name}')">
+                        <div class="niche-btn-name">${n.name}</div>
+                        <div class="niche-btn-count">${n.topics.length} tópicos</div>
+                    </button>
+                `).join('');
+            }
+        };
+
+        window.loadTopics = async function() {
+            window.topics = await api.get(`/api/clients/${window.currentClientId}/topics`) || [];
+            renderTopicsGrid();
+        };
+
+        window.renderTopicsGrid = function() {
+            const grid = document.getElementById('topics-grid');
+            let html = window.topics.map(t => `
+                <div class="topic-card ${t.active ? '' : 'inactive'}">
+                    <div class="topic-icon-display">${t.icon}</div>
+                    <div class="topic-info">
+                        <div class="topic-name">${t.name}</div>
+                        <div class="topic-status">${t.active ? 'Ativo' : 'Inativo'}</div>
+                    </div>
+                    <div class="topic-actions">
+                        <button title="${t.active ? 'Desativar' : 'Ativar'}" onclick="toggleTopic(${t.id}, ${t.active ? 0 : 1})">
+                            <i class="fas fa-${t.active ? 'eye' : 'eye-slash'}"></i>
+                        </button>
+                        <button title="Editar" onclick="editTopic(${t.id})">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button title="Excluir" onclick="deleteTopic(${t.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            html += `<div class="add-topic-card" onclick="openAddModal()"><i class="fas fa-plus"></i><span>Adicionar tópico</span></div>`;
+            grid.innerHTML = html;
+        };
+
+        window.openAddModal = function() {
+            window.editingTopicId = null;
+            window.selectedEmoji = '💬';
+            document.getElementById('modal-title').textContent = 'Novo tópico';
+            document.getElementById('topicName').value = '';
+            renderEmojiPicker();
+            document.getElementById('topicModal').classList.remove('hidden');
+        };
+
+        window.editTopic = function(id) {
+            const topic = window.topics.find(t => t.id === id);
+            if (!topic) return;
+            window.editingTopicId = id;
+            window.selectedEmoji = topic.icon;
+            document.getElementById('modal-title').textContent = 'Editar tópico';
+            document.getElementById('topicName').value = topic.name;
+            renderEmojiPicker();
+            document.getElementById('topicModal').classList.remove('hidden');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('topicModal').classList.add('hidden');
+        };
+
+        window.saveTopic = async function() {
+            const name = document.getElementById('topicName').value.trim();
+            if (!name) {
+                showToast('Digite o nome do tópico', 'error');
+                return;
+            }
+            
+            let res;
+            if (window.editingTopicId) {
+                const topic = window.topics.find(t => t.id === window.editingTopicId);
+                res = await api.put(`/api/clients/${window.currentClientId}/topics/${window.editingTopicId}`, { 
+                    name, icon: window.selectedEmoji, active: topic.active
+                });
+            } else {
+                res = await api.post(`/api/clients/${window.currentClientId}/topics`, { name, icon: window.selectedEmoji });
+            }
+            
+            if (res.success || res.id) {
+                showToast(window.editingTopicId ? 'Tópico atualizado' : 'Tópico criado');
+                closeModal();
+                await loadTopics();
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        };
+
+        window.toggleTopic = async function(id, active) {
+            const topic = window.topics.find(t => t.id === id);
+            await api.put(`/api/clients/${window.currentClientId}/topics/${id}`, { ...topic, active });
+            await loadTopics();
+        };
+
+        window.deleteTopic = async function(id) {
+            if (!confirm('Excluir este tópico?')) return;
+            await api.delete(`/api/clients/${window.currentClientId}/topics/${id}`);
+            showToast('Tópico excluído');
+            await loadTopics();
+        };
+
+        window.pendingResetNiche = null;
+
+        window.showResetModal = function(nicheId, nicheName) {
+            window.pendingResetNiche = nicheId;
+            document.getElementById('reset-niche-name').textContent = nicheName;
+            document.getElementById('resetModal').classList.remove('hidden');
+        };
+
+        window.closeResetModal = function() {
+            document.getElementById('resetModal').classList.add('hidden');
+            window.pendingResetNiche = null;
+        };
+
+        window.confirmReset = async function() {
+            if (!window.pendingResetNiche) return;
+            const res = await api.post(`/api/clients/${window.currentClientId}/topics/reset`, { niche: window.pendingResetNiche });
+            if (res.success) {
+                showToast('Tópicos substituídos');
+                closeResetModal();
+                await loadTopics();
+            } else {
+                showToast(res.error || 'Erro ao resetar', 'error');
+            }
+        };
+
+        // Funções para todas as reclamações
+        window.renderComplaints = function(complaints) {
+            const container = document.getElementById('complaints-list');
+            document.getElementById('complaints-count').textContent = complaints.length;
+            
+            if (!complaints || complaints.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">As reclamações aparecerão aqui.</p></div>';
+                return;
+            }
+            
+            container.innerHTML = complaints.map(c => `
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="card-body">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:0.75rem">
+                            <div>
+                                <strong>${c.customer_name}</strong> <span style="color:var(--text-muted)">• ${c.client_name}</span>
+                                <div style="font-size:0.8rem;color:var(--text-muted)">${c.customer_email} • ${c.customer_phone}</div>
+                            </div>
+                            <span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado'}</span>
+                        </div>
+                        ${c.topic_name ? `<div style="margin-bottom:0.5rem"><span class="badge badge-info">📌 ${c.topic_name}</span></div>` : ''}
+                        <p style="margin-bottom:0.75rem">${c.complaint_text}</p>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                            <small style="color:var(--text-muted)">${formatDate(c.created_at)}</small>
+                            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                                ${c.status !== 'pending' ? `<button class="btn btn-warning btn-sm" onclick="updateComplaintStatus(${c.client_id}, ${c.id}, 'pending')">Pendente</button>` : ''}
+                                ${c.status !== 'in_progress' ? `<button class="btn btn-info btn-sm" onclick="updateComplaintStatus(${c.client_id}, ${c.id}, 'in_progress')">Em andamento</button>` : ''}
+                                ${c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="updateComplaintStatus(${c.client_id}, ${c.id}, 'resolved')">Resolvido</button>` : ''}
+                                ${c.status !== 'dismissed' ? `<button class="btn btn-secondary btn-sm" onclick="updateComplaintStatus(${c.client_id}, ${c.id}, 'dismissed')">Dispensar</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.filterComplaints = function() {
+            const clientId = document.getElementById('clientFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            let filtered = window.allComplaints || [];
+            if (clientId) filtered = filtered.filter(c => c.client_id == clientId);
+            if (status) filtered = filtered.filter(c => c.status === status);
+            
+            renderComplaints(filtered);
+        };
+
+        window.exportCSV = function() {
+            const complaints = window.allComplaints || [];
+            if (complaints.length === 0) {
+                showToast('Nenhuma reclamação para exportar', 'error');
+                return;
+            }
+            
+            const headers = ['Cliente', 'Nome', 'Email', 'Telefone', 'Tópico', 'Reclamação', 'Status', 'Data'];
+            const rows = complaints.map(c => [
+                c.client_name, c.customer_name, c.customer_email, c.customer_phone,
+                c.topic_name || '', c.complaint_text.replace(/"/g, '""'),
+                c.status === 'pending' ? 'Pendente' : c.status === 'resolved' ? 'Resolvido' : c.status === 'in_progress' ? 'Em andamento' : 'Dispensado',
+                new Date(c.created_at).toLocaleString('pt-BR')
+            ]);
+            
+            const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `reclamacoes_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            showToast('CSV exportado!');
+        };
+
+        // Funções do perfil
+        window.uploadPhoto = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('A imagem deve ter no máximo 2MB', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const photoData = e.target.result;
+                localStorage.setItem('profilePhoto', photoData);
+                document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
+                document.getElementById('removePhotoBtn').style.display = '';
+                document.getElementById('user-avatar').innerHTML = `<img src="${photoData}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                showToast('Foto atualizada');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removePhoto = function() {
+            localStorage.removeItem('profilePhoto');
+            document.getElementById('profile-photo').innerHTML = '<i class="fas fa-user"></i><div class="photo-overlay"><i class="fas fa-camera"></i></div>';
+            document.getElementById('removePhotoBtn').style.display = 'none';
+            document.getElementById('user-avatar').innerHTML = '<i class="fas fa-user"></i>';
+            showToast('Foto removida');
+        };
+
+        window.submitProfileForm = async function(e) {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('profileBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/profile', { name: f.name.value, email: f.email.value });
+            if (res.success) { 
+                showToast('Perfil atualizado'); 
+                await loadUserInfo();
+            } else {
+                showToast(res.error, 'error');
+            }
+            btn.textContent = 'Salvar alterações';
+            btn.disabled = false;
+        };
+
+        window.submitPasswordForm = async function(e) {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('passwordBtn');
+            if (f.newPassword.value !== f.confirmPassword.value) {
+                showToast('As senhas não coincidem', 'error');
+                return;
+            }
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            const res = await api.put('/api/auth/password', { currentPassword: f.currentPassword.value, newPassword: f.newPassword.value });
+            if (res.success) { showToast('Senha alterada'); f.reset(); }
+            else showToast(res.error, 'error');
+            btn.textContent = 'Alterar senha';
+            btn.disabled = false;
+        };
+
+        // Iniciar
+        initApp();
+    </script>
+</body>
+</html>

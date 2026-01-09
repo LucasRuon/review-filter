@@ -1,0 +1,212 @@
+<style>
+    .integrations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
+    .integration-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .integration-header { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; }
+    .integration-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+    .integration-icon.whatsapp { background: #25D366; color: white; }
+    .integration-icon.webhook { background: #6366F1; color: white; }
+    .integration-info h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .integration-info p { font-size: 0.85rem; color: var(--text-secondary); }
+    .integration-body { padding: 1.5rem; }
+    .integration-status { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .status-dot.connected { background: #22C55E; }
+    .status-dot.disconnected { background: #EF4444; }
+    .status-dot.connecting { background: #F59E0B; animation: pulse 1.5s ease-in-out infinite; }
+    .status-text { font-size: 0.85rem; font-weight: 500; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: var(--bg-secondary); border-radius: var(--radius); padding: 2rem; max-width: 400px; width: 90%; text-align: center; }
+    .modal-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; }
+    .qrcode-container { background: white; padding: 1rem; border-radius: 8px; display: inline-block; margin: 1rem 0; }
+    .qrcode-container img { max-width: 250px; width: 100%; }
+    .btn-group { display: flex; gap: 0.5rem; margin-top: 1rem; }
+
+    .toggle-switch { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 0.75rem; }
+    .toggle-switch-label { font-size: 0.9rem; font-weight: 500; }
+    .toggle-switch-hint { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .toggle-input { width: 44px; height: 24px; background: var(--border); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.2s; appearance: none; -webkit-appearance: none; }
+    .toggle-input:checked { background: #25D366; }
+    .toggle-input::before { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; }
+    .toggle-input:checked::before { transform: translateX(20px); }
+
+    .section-divider { border-top: 1px solid var(--border); margin: 1.25rem 0; padding-top: 1.25rem; }
+    .section-title { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+
+<div class="page-header">
+    <h1 class="page-title">🔗 Integrações</h1>
+    <p class="page-subtitle">Conecte com outras plataformas</p>
+</div>
+
+<div class="integrations-grid">
+    <!-- WhatsApp -->
+    <div class="integration-card">
+        <div class="integration-header">
+            <div class="integration-icon whatsapp"><i class="fab fa-whatsapp"></i></div>
+            <div class="integration-info">
+                <h3>WhatsApp</h3>
+                <p>Envie notificações automáticas de novas reclamações</p>
+            </div>
+        </div>
+        <div class="integration-body">
+            <div class="integration-status">
+                <div class="status-dot disconnected" id="whatsapp-status-dot"></div>
+                <span class="status-text" id="whatsapp-status-text">Desconectado</span>
+            </div>
+
+            <div id="whatsapp-disconnected">
+                <button class="btn btn-primary" id="btn-connect-whatsapp" style="width: 100%;">
+                    <i class="fab fa-whatsapp"></i> Conectar WhatsApp
+                </button>
+            </div>
+
+            <div id="whatsapp-connected" style="display: none;">
+                <!-- Seção: Notificação de Nova Reclamação -->
+                <div class="section-title">Notificação de Nova Reclamação</div>
+
+                <div class="toggle-switch">
+                    <div>
+                        <div class="toggle-switch-label">Notificar novas reclamações</div>
+                        <div class="toggle-switch-hint">Envia mensagem quando uma nova reclamação é recebida</div>
+                    </div>
+                    <input type="checkbox" class="toggle-input" id="whatsappNotifyNewComplaint" checked>
+                </div>
+
+                <div id="new-complaint-config">
+                    <div class="form-group">
+                        <label class="form-label">Mensagem de nova reclamação</label>
+                        <textarea id="whatsappMessage" class="form-input" rows="4" placeholder="Digite a mensagem...">🔔 *Nova reclamação recebida!*
+
+📍 Cliente: {cliente}
+👤 Nome: {nome}
+📧 Email: {email}
+📱 Telefone: {telefone}
+📋 Tópico: {topico}
+
+💬 *Reclamação:*
+{reclamacao}</textarea>
+                        <p class="form-hint">Variáveis: {cliente}, {nome}, {email}, {telefone}, {topico}, {reclamacao}</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Enviar para</label>
+                        <select id="whatsappSendToType" class="form-input" onchange="toggleWhatsAppDestination()">
+                            <option value="contact">Contato individual</option>
+                            <option value="group">Grupo do WhatsApp</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="contact-group">
+                        <label class="form-label">Número do contato</label>
+                        <input type="tel" id="whatsappContactNumber" class="form-input" placeholder="5511999999999" pattern="[0-9]{11,13}">
+                        <p class="form-hint">
+                            Exemplos: <strong>5511999999999</strong> ou <strong>551199999999</strong><br>
+                            <em style="font-size: 0.85rem;">Pode incluir ou não o 9 extra - o sistema ajusta automaticamente</em>
+                        </p>
+                    </div>
+
+                    <div class="form-group" id="group-group" style="display: none;">
+                        <label class="form-label">Selecione o grupo</label>
+                        <select id="whatsappGroupJid" class="form-input">
+                            <option value="">Carregando grupos...</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadWhatsAppGroups()" style="margin-top: 0.5rem; width: 100%;">
+                            <i class="fas fa-sync"></i> Recarregar grupos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Seção: Notificação de Mudança de Status -->
+                <div class="section-divider"></div>
+                <div class="section-title">Notificação de Status ao Cliente</div>
+
+                <div class="toggle-switch">
+                    <div>
+                        <div class="toggle-switch-label">Notificar mudança de status</div>
+                        <div class="toggle-switch-hint">Envia mensagem ao cliente quando o status muda</div>
+                    </div>
+                    <input type="checkbox" class="toggle-input" id="whatsappNotifyStatusChange" checked>
+                </div>
+
+                <div id="status-change-config">
+                    <div class="form-group">
+                        <label class="form-label">Mensagem "Em andamento"</label>
+                        <textarea id="whatsappMessageInProgress" class="form-input" rows="3" placeholder="Digite a mensagem...">Olá {nome}! 👋
+
+Sua solicitação está *em andamento*. Nossa equipe já está trabalhando para resolver.
+
+Agradecemos sua paciência! 🙏</textarea>
+                        <p class="form-hint">Enviada ao cliente quando o status muda para "Em andamento"</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Mensagem "Resolvido"</label>
+                        <textarea id="whatsappMessageResolved" class="form-input" rows="3" placeholder="Digite a mensagem...">Olá {nome}! ✅
+
+Sua solicitação foi *resolvida*! Esperamos ter atendido suas expectativas.
+
+Obrigado por nos ajudar a melhorar! 💚</textarea>
+                        <p class="form-hint">Enviada ao cliente quando o status muda para "Resolvido"</p>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="btn-save-whatsapp" style="flex: 1;">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                    <button class="btn btn-danger" onclick="disconnectWhatsApp()">
+                        <i class="fas fa-times"></i> Desconectar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Webhook -->
+    <div class="integration-card">
+        <div class="integration-header">
+            <div class="integration-icon webhook"><i class="fas fa-plug"></i></div>
+            <div class="integration-info">
+                <h3>Webhook</h3>
+                <p>Integre com seu sistema via HTTP POST</p>
+            </div>
+        </div>
+        <div class="integration-body">
+            <div class="integration-status">
+                <div class="status-dot" id="webhook-status-dot"></div>
+                <span class="status-text" id="webhook-status-text">Não configurado</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL do Webhook</label>
+                <input type="url" id="webhookUrl" class="form-input" placeholder="https://seu-sistema.com/webhook" value="">
+                <p class="form-hint">Recebe POST com JSON contendo os dados da reclamação</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Header de autenticação (opcional)</label>
+                <input type="text" id="webhookHeader" class="form-input" placeholder="Bearer seu-token-aqui" value="">
+                <p class="form-hint">Enviado no header Authorization</p>
+            </div>
+            <button class="btn btn-primary" onclick="saveWebhookConfig()"><i class="fas fa-save"></i> Salvar</button>
+            <button class="btn btn-secondary" onclick="testWebhook()" style="margin-top:0.5rem"><i class="fas fa-vial"></i> Testar webhook</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal QR Code / Pareamento -->
+<div class="modal" id="qrCodeModal">
+    <div class="modal-content">
+        <h2 class="modal-title">Conectar WhatsApp</h2>
+        <div class="qrcode-container" id="qrCodeContainer">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #25D366;"></i>
+        </div>
+        <button class="btn btn-secondary" onclick="closeQRModal()" style="width: 100%; margin-top: 1rem;">
+            <i class="fas fa-times"></i> Cancelar
+        </button>
+    </div>
+</div>

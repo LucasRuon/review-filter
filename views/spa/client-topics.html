@@ -1,0 +1,104 @@
+<style>
+    .topics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .topic-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; overflow: hidden; }
+    .topic-card:hover { border-color: var(--primary); }
+    .topic-card.inactive { opacity: 0.5; }
+    .topic-icon-display { font-size: 1.75rem; width: 45px; height: 45px; background: var(--bg-tertiary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .topic-info { flex: 1; min-width: 0; }
+    .topic-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topic-status { font-size: 0.75rem; color: var(--text-muted); }
+    .topic-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+    .topic-actions button { background: var(--bg-tertiary); border: none; width: 28px; height: 28px; border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; font-size: 0.75rem; }
+    .topic-actions button:hover { background: var(--primary); color: white; }
+    .add-topic-card { background: var(--bg-tertiary); border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 77px; }
+    .add-topic-card:hover { border-color: var(--primary); background: rgba(55, 80, 240, 0.05); }
+    .add-topic-card i { font-size: 1.25rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .add-topic-card span { display: block; font-size: 0.8rem; color: var(--text-secondary); }
+    .niche-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .niche-btn { padding: 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; }
+    .niche-btn:hover { border-color: var(--primary); background: rgba(55, 80, 240, 0.05); }
+    .niche-btn-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem; }
+    .niche-btn-count { font-size: 0.75rem; color: var(--text-muted); }
+    .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal.hidden { display: none; }
+    .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+    .modal-content { background: var(--bg-secondary); border-radius: var(--radius); width: 100%; max-width: 400px; position: relative; z-index: 1; border: 1px solid var(--border); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; font-weight: 600; }
+    .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+    .modal-body { padding: 1rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem; border-top: 1px solid var(--border); }
+    .emoji-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.25rem; margin-bottom: 1rem; max-height: 150px; overflow-y: auto; }
+    .emoji-btn { padding: 0.5rem; font-size: 1.25rem; background: var(--bg-tertiary); border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.1s; }
+    .emoji-btn:hover, .emoji-btn.selected { border-color: var(--primary); background: rgba(55, 80, 240, 0.1); }
+</style>
+
+<div class="page-header">
+    <a href="/clients" class="back-link"><i class="fas fa-arrow-left"></i> Voltar para clientes</a>
+    <h1 class="page-title">📌 Tópicos de Reclamação</h1>
+    <p class="page-subtitle" id="client-name-subtitle">Carregando...</p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem">
+    <div class="card-body">
+        <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem">
+            <i class="fas fa-info-circle"></i> Os tópicos ajudam a categorizar as reclamações. O cliente seleciona um tópico antes de descrever o problema.
+        </p>
+    </div>
+</div>
+
+<div class="topics-grid" id="topics-grid"></div>
+
+<div class="card">
+    <div class="card-header"><h2 class="card-title">Carregar template de nicho</h2></div>
+    <div class="card-body">
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem">
+            Substitua todos os tópicos pelos de um template pré-definido:
+        </p>
+        <div class="niche-templates" id="niche-templates"></div>
+    </div>
+</div>
+
+<!-- Modal Adicionar/Editar Tópico -->
+<div id="topicModal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Novo tópico</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Ícone</label>
+                <div class="emoji-picker" id="emoji-picker"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nome do tópico</label>
+                <input type="text" id="topicName" class="form-input" placeholder="Ex: Atendimento, Entrega, Qualidade...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveTopic()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Reset -->
+<div id="resetModal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeResetModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Substituir tópicos?</h3>
+            <button class="modal-close" onclick="closeResetModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:1rem">Isso irá <strong>remover todos os tópicos atuais</strong> e substituir pelos do template selecionado.</p>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Template: <strong id="reset-niche-name"></strong></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeResetModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmReset()">Substituir</button>
+        </div>
+    </div>
+</div>

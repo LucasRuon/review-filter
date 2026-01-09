@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrações - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item active"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">🔗 Integrações</h1>
+                <p class="page-subtitle">Conecte com outras plataformas</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="construction-page">
+                        <div class="construction-icon">🚧</div>
+                        <h2 class="construction-title">Em construção</h2>
+                        <p class="construction-text">Estamos trabalhando na integração com WhatsApp. Em breve você poderá receber notificações de novas reclamações diretamente no seu celular.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="max-width:400px;margin-top:1.5rem">
+                <div class="card" style="opacity:0.6">
+                    <div class="card-body" style="display:flex;align-items:center;gap:1rem">
+                        <div style="width:48px;height:48px;background:#25D366;border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <div style="flex:1">
+                            <div style="font-weight:600;color:var(--text-primary)">WhatsApp</div>
+                            <div style="font-size:0.8rem;color:var(--text-secondary)">Notificações em tempo real</div>
+                        </div>
+                        <span class="badge badge-warning">Em breve</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function init() {
+            await checkAuth();
+            await loadUserInfo();
+            hideLoading();
+        }
+        init();
+    </script>
+</body>
+</html>

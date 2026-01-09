@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reclamações - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item active"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <a href="/clients" class="back-link"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <h1 class="page-title">Reclamações</h1>
+                <p class="page-subtitle" id="client-name"></p>
+            </div>
+            <div id="complaints-container"></div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let clientId = null;
+        async function loadComplaints() {
+            await checkAuth();
+            const match = window.location.pathname.match(/\/clients\/(\d+)\/complaints/);
+            if (!match) { window.location.href = '/clients'; return; }
+            clientId = match[1];
+            const data = await api.get('/api/clients/' + clientId + '/complaints');
+            if (!data || data.error) { window.location.href = '/clients'; return; }
+            document.getElementById('client-name').textContent = data.client.name;
+            const container = document.getElementById('complaints-container');
+            if (data.complaints.length === 0) {
+                container.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-icon" style="background:#D1FAE5;color:#047857">✓</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">Este cliente não possui reclamações.</p></div></div>';
+            } else {
+                container.innerHTML = data.complaints.map((c, i) => `
+                    <div class="complaint-card animate-fadeInUp" style="animation-delay:${0.05*i}s">
+                        <div class="card-body">
+                            <div class="complaint-header">
+                                <div class="complaint-customer">
+                                    <div class="complaint-avatar"><i class="fas fa-user"></i></div>
+                                    <div>
+                                        <div class="complaint-name">${c.customer_name}</div>
+                                        <div class="complaint-contact"><span>${c.customer_email}</span><span>${c.customer_phone}</span></div>
+                                    </div>
+                                </div>
+                                <span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':'Dispensado'}</span>
+                            </div>
+                            <div class="complaint-text">${c.complaint_text}</div>
+                            <div class="complaint-footer">
+                                <span class="complaint-date">${formatDate(c.created_at)}</span>
+                                <div class="complaint-actions">
+                                    ${c.status==='pending'?`<button class="btn btn-success btn-sm" onclick="updateStatus(${c.id},'resolved')">Resolver</button><button class="btn btn-secondary btn-sm" onclick="updateStatus(${c.id},'dismissed')">Dispensar</button>`:`<button class="btn btn-secondary btn-sm" onclick="updateStatus(${c.id},'pending')">Reabrir</button>`}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            hideLoading();
+        }
+
+        async function updateStatus(complaintId, status) {
+            const res = await api.put('/api/clients/' + clientId + '/complaints/' + complaintId + '/status', { status });
+            if (res.success) { showToast('Status atualizado'); loadComplaints(); }
+            else showToast(res.error, 'error');
+        }
+
+        loadComplaints();
+    </script>
+</body>
+</html>

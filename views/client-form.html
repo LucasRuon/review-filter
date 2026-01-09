@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .niche-select-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+        .niche-option { padding: 0.75rem; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .niche-option:hover { border-color: var(--text-muted); }
+        .niche-option.selected { border-color: var(--primary); background: rgba(55, 80, 240, 0.1); }
+        .niche-option-name { font-size: 0.8rem; font-weight: 500; }
+        .logo-upload-section { display: flex; align-items: center; gap: 1.25rem; }
+        .logo-preview { width: 80px; height: 80px; border-radius: 12px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--text-muted); overflow: hidden; flex-shrink: 0; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; position: relative; }
+        .logo-preview:hover { border-color: var(--primary); }
+        .logo-preview img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+        .logo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 10px; }
+        .logo-preview:hover .overlay { opacity: 1; }
+        .logo-preview .overlay i { color: white; font-size: 1.5rem; }
+        .logo-upload-info { flex: 1; }
+        .logo-upload-info h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .logo-upload-info p { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .logo-input { display: none; }
+        @media (max-width: 480px) { .niche-select-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item active"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <a href="/clients" class="back-link"><i class="fas fa-arrow-left"></i> Voltar</a>
+                <h1 class="page-title" id="page-title">Novo cliente</h1>
+            </div>
+
+            <div style="max-width:600px">
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="card-header"><h2 class="card-title">Informações básicas</h2></div>
+                    <div class="card-body">
+                        <form id="clientForm">
+                            <div class="form-group">
+                                <label class="form-label">Nome do cliente *</label>
+                                <input type="text" name="name" class="form-input" placeholder="Ex: Restaurante Bom Sabor" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Endereço *</label>
+                                <input type="text" name="address" class="form-input" placeholder="Ex: Rua das Flores, 123" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Telefone *</label>
+                                <input type="tel" name="phone" class="form-input" placeholder="(00) 00000-0000" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Link de avaliação do Google *</label>
+                                <input type="url" name="google_review_link" class="form-input" placeholder="https://g.page/r/..." required>
+                                <p class="form-hint">Cole o link direto para avaliação do Google</p>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Horário de funcionamento *</label>
+                                <input type="text" name="business_hours" class="form-input" placeholder="Seg-Sex: 08h às 18h" required>
+                            </div>
+                            <input type="hidden" name="niche" id="nicheInput" value="general">
+                            <input type="hidden" name="logo_url" id="logoUrlInput">
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Seleção de Nicho -->
+                <div class="card" style="margin-bottom:1rem" id="nicheCard">
+                    <div class="card-header"><h2 class="card-title">Tipo de negócio</h2></div>
+                    <div class="card-body">
+                        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem">Selecione o nicho para criar tópicos de reclamação pré-definidos:</p>
+                        <div class="niche-select-grid" id="nicheGrid"></div>
+                        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.75rem"><i class="fas fa-info-circle"></i> Você pode personalizar os tópicos depois em "Tópicos" na lista de clientes.</p>
+                    </div>
+                </div>
+
+                <!-- Personalização -->
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="card-header"><h2 class="card-title">Personalização</h2></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Logo</label>
+                            <div class="logo-upload-section">
+                                <div class="logo-preview" id="logoPreview" onclick="document.getElementById('logoInput').click()">
+                                    <i class="fas fa-image"></i>
+                                    <div class="overlay"><i class="fas fa-upload"></i></div>
+                                </div>
+                                <input type="file" id="logoInput" class="logo-input" accept="image/*" onchange="uploadLogo(this)">
+                                <div class="logo-upload-info">
+                                    <h4>Enviar logo</h4>
+                                    <p>Clique para enviar. PNG, JPG ou GIF. Max 2MB.</p>
+                                    <div style="display:flex;gap:0.5rem">
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('logoInput').click()"><i class="fas fa-upload"></i> Enviar</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="removeLogoBtn" onclick="removeLogo()" style="display:none"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cor principal</label>
+                            <div style="display:flex;align-items:center;gap:0.75rem">
+                                <input type="color" name="primary_color" form="clientForm" value="#3750F0" style="width:50px;height:38px;border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                                <span style="font-size:0.8rem;color:var(--text-secondary)">Cor da página de avaliação</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Domínio personalizado -->
+                <div class="card" style="margin-bottom:1rem">
+                    <div class="card-header"><h2 class="card-title">Domínio personalizado</h2></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Domínio próprio</label>
+                            <input type="text" name="custom_domain" class="form-input" form="clientForm" placeholder="avaliacao.seucliente.com.br">
+                        </div>
+                        <div class="info-box">
+                            <div class="info-box-title">Configuração DNS</div>
+                            <p>Para usar domínio próprio, crie um registro CNAME apontando para o servidor:</p>
+                            <code><strong>Tipo:</strong> CNAME<br><strong>Nome:</strong> avaliacao<br><strong>Valor:</strong> <span id="server-host"></span></code>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-bottom:2rem">
+                    <a href="/clients" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" form="clientForm" class="btn btn-primary" id="submitBtn">Salvar cliente</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let clientId = null;
+        let niches = [];
+        let selectedNiche = 'general';
+        let uploadedLogoData = null;
+
+        async function init() {
+            await checkAuth();
+            await loadUserInfo();
+            document.getElementById('server-host').textContent = window.location.host;
+            
+            // Carregar templates de nicho
+            niches = await api.get('/api/clients/templates/niches') || [];
+            renderNicheGrid();
+            
+            // Verificar se é edição
+            const match = window.location.pathname.match(/\/clients\/(\d+)\/edit/);
+            if (match) {
+                clientId = match[1];
+                document.getElementById('page-title').textContent = 'Editar cliente';
+                
+                const c = await api.get('/api/clients/' + clientId);
+                if (c && !c.error) {
+                    const f = document.getElementById('clientForm');
+                    f.name.value = c.name;
+                    f.address.value = c.address;
+                    f.phone.value = c.phone;
+                    f.google_review_link.value = c.google_review_link;
+                    f.business_hours.value = c.business_hours;
+                    f.primary_color.value = c.primary_color || '#3750F0';
+                    f.custom_domain.value = c.custom_domain || '';
+                    selectedNiche = c.niche || 'general';
+                    document.getElementById('nicheInput').value = selectedNiche;
+                    
+                    // Mostrar logo se existir
+                    if (c.logo_url) {
+                        uploadedLogoData = c.logo_url;
+                        document.getElementById('logoUrlInput').value = c.logo_url;
+                        document.getElementById('logoPreview').innerHTML = `<img src="${c.logo_url}" alt="Logo"><div class="overlay"><i class="fas fa-upload"></i></div>`;
+                        document.getElementById('removeLogoBtn').style.display = '';
+                    }
+                    
+                    // Atualizar seleção do nicho
+                    updateNicheSelection();
+                }
+            }
+            
+            hideLoading();
+        }
+
+        function renderNicheGrid() {
+            const grid = document.getElementById('nicheGrid');
+            grid.innerHTML = niches.map(n => `
+                <div class="niche-option ${n.id === selectedNiche ? 'selected' : ''}" data-id="${n.id}" onclick="selectNiche('${n.id}')">
+                    <div class="niche-option-name">${n.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateNicheSelection() {
+            document.querySelectorAll('.niche-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.id === selectedNiche);
+            });
+        }
+
+        function selectNiche(id) {
+            selectedNiche = id;
+            document.getElementById('nicheInput').value = id;
+            updateNicheSelection();
+        }
+
+        function uploadLogo(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('A imagem deve ter no máximo 2MB', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedLogoData = e.target.result;
+                document.getElementById('logoUrlInput').value = uploadedLogoData;
+                document.getElementById('logoPreview').innerHTML = `<img src="${uploadedLogoData}" alt="Logo"><div class="overlay"><i class="fas fa-upload"></i></div>`;
+                document.getElementById('removeLogoBtn').style.display = '';
+                showToast('Logo carregado');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeLogo() {
+            uploadedLogoData = null;
+            document.getElementById('logoUrlInput').value = '';
+            document.getElementById('logoPreview').innerHTML = '<i class="fas fa-image"></i><div class="overlay"><i class="fas fa-upload"></i></div>';
+            document.getElementById('removeLogoBtn').style.display = 'none';
+            document.getElementById('logoInput').value = '';
+            showToast('Logo removido');
+        }
+
+        document.getElementById('clientForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            
+            const data = {
+                name: f.name.value,
+                address: f.address.value,
+                phone: f.phone.value,
+                google_review_link: f.google_review_link.value,
+                business_hours: f.business_hours.value,
+                logo_url: document.getElementById('logoUrlInput').value || null,
+                primary_color: f.primary_color.value,
+                custom_domain: f.custom_domain.value,
+                niche: selectedNiche
+            };
+            
+            let res;
+            if (clientId) {
+                res = await api.put('/api/clients/' + clientId, data);
+            } else {
+                res = await api.post('/api/clients', data);
+            }
+            
+            if (res.success) {
+                showToast(clientId ? 'Cliente atualizado!' : 'Cliente criado!');
+                setTimeout(() => window.location.href = '/clients', 1000);
+            } else {
+                showToast(res.error, 'error');
+                btn.innerHTML = 'Salvar cliente';
+                btn.disabled = false;
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

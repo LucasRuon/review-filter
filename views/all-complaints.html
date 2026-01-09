@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reclamações - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen"><div class="loading-spinner"></div><p class="loading-text">Carregando...</p></div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand"><div class="sidebar-logo">OJ</div><span class="sidebar-title">Opina Já!</span></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item active"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header-actions">
+                <div>
+                    <h1 class="page-title">💬 Reclamações</h1>
+                    <p class="page-subtitle">Gerencie todas as reclamações recebidas</p>
+                </div>
+                <button class="btn btn-secondary" onclick="exportComplaints()"><i class="fas fa-download"></i> Exportar CSV</button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card" style="margin-bottom:1.5rem">
+                <div class="card-body" style="padding:1rem">
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label class="filter-label">Cliente</label>
+                            <select id="filterClient" class="filter-select" onchange="applyFilters()">
+                                <option value="">Todos os clientes</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Status</label>
+                            <select id="filterStatus" class="filter-select" onchange="applyFilters()">
+                                <option value="">Todos</option>
+                                <option value="pending">Pendente</option>
+                                <option value="in_progress">Em andamento</option>
+                                <option value="resolved">Resolvido</option>
+                                <option value="dismissed">Dispensado</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Período</label>
+                            <select id="filterPeriod" class="filter-select" onchange="applyFilters()">
+                                <option value="">Todo período</option>
+                                <option value="today">Hoje</option>
+                                <option value="week">Últimos 7 dias</option>
+                                <option value="month">Últimos 30 dias</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Buscar</label>
+                            <input type="text" id="filterSearch" class="filter-input" placeholder="Nome, email..." oninput="applyFilters()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats resumo -->
+            <div class="stats-grid" style="margin-bottom:1.5rem">
+                <div class="stat-card stat-card-sm">
+                    <div><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+                    <div class="stat-icon blue"><i class="fas fa-comments"></i></div>
+                </div>
+                <div class="stat-card stat-card-sm">
+                    <div><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pendentes</div></div>
+                    <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+                </div>
+                <div class="stat-card stat-card-sm">
+                    <div><div class="stat-value" id="stat-progress">0</div><div class="stat-label">Em andamento</div></div>
+                    <div class="stat-icon blue"><i class="fas fa-spinner"></i></div>
+                </div>
+                <div class="stat-card stat-card-sm">
+                    <div><div class="stat-value" id="stat-resolved">0</div><div class="stat-label">Resolvidos</div></div>
+                    <div class="stat-icon green"><i class="fas fa-check"></i></div>
+                </div>
+            </div>
+
+            <!-- Lista de reclamações -->
+            <div id="complaints-container"></div>
+        </main>
+    </div>
+
+    <style>
+        .filters-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { flex: 1; min-width: 150px; }
+        .filter-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.375rem; }
+        .filter-select, .filter-input { width: 100%; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); }
+        .filter-select:focus, .filter-input:focus { outline: none; border-color: var(--primary); }
+        .stat-card-sm { padding: 1rem; }
+        .stat-card-sm .stat-value { font-size: 1.5rem; }
+        .stat-card-sm .stat-icon { width: 40px; height: 40px; font-size: 1rem; }
+        @media (max-width: 768px) { .filters-row { flex-direction: column; } .filter-group { min-width: 100%; } }
+    </style>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let allComplaints = [];
+        let clients = [];
+
+        async function loadData() {
+            await checkAuth();
+            await loadUserInfo();
+            
+            // Carregar clientes para o filtro
+            clients = await api.get('/api/clients') || [];
+            const filterClient = document.getElementById('filterClient');
+            clients.forEach(c => {
+                filterClient.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+
+            // Carregar todas as reclamações
+            allComplaints = await api.get('/api/complaints') || [];
+            applyFilters();
+            hideLoading();
+        }
+
+        function applyFilters() {
+            const clientId = document.getElementById('filterClient').value;
+            const status = document.getElementById('filterStatus').value;
+            const period = document.getElementById('filterPeriod').value;
+            const search = document.getElementById('filterSearch').value.toLowerCase();
+
+            let filtered = [...allComplaints];
+
+            if (clientId) filtered = filtered.filter(c => c.client_id == clientId);
+            if (status) filtered = filtered.filter(c => c.status === status);
+            if (search) filtered = filtered.filter(c => 
+                c.customer_name.toLowerCase().includes(search) || 
+                c.customer_email.toLowerCase().includes(search) ||
+                c.complaint_text.toLowerCase().includes(search)
+            );
+            if (period) {
+                const now = new Date();
+                let startDate;
+                if (period === 'today') startDate = new Date(now.setHours(0,0,0,0));
+                else if (period === 'week') startDate = new Date(now.setDate(now.getDate() - 7));
+                else if (period === 'month') startDate = new Date(now.setDate(now.getDate() - 30));
+                filtered = filtered.filter(c => new Date(c.created_at) >= startDate);
+            }
+
+            // Atualizar stats
+            document.getElementById('stat-total').textContent = filtered.length;
+            document.getElementById('stat-pending').textContent = filtered.filter(c => c.status === 'pending').length;
+            document.getElementById('stat-progress').textContent = filtered.filter(c => c.status === 'in_progress').length;
+            document.getElementById('stat-resolved').textContent = filtered.filter(c => c.status === 'resolved').length;
+
+            renderComplaints(filtered);
+        }
+
+        function renderComplaints(complaints) {
+            const container = document.getElementById('complaints-container');
+            if (complaints.length === 0) {
+                container.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação encontrada</h3><p class="empty-description">Ajuste os filtros ou aguarde novas reclamações.</p></div></div>';
+                return;
+            }
+
+            container.innerHTML = complaints.map((c, i) => `
+                <div class="complaint-card animate-fadeInUp" style="animation-delay:${0.03*i}s">
+                    <div class="card-body">
+                        <div class="complaint-header">
+                            <div class="complaint-customer">
+                                <div class="complaint-avatar"><i class="fas fa-user"></i></div>
+                                <div>
+                                    <div class="complaint-name">${c.customer_name}</div>
+                                    <div class="complaint-contact">
+                                        <span><i class="fas fa-envelope"></i> ${c.customer_email}</span>
+                                        <span><i class="fas fa-phone"></i> ${c.customer_phone}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align:right">
+                                <span class="badge badge-${getStatusBadge(c.status)}">${getStatusLabel(c.status)}</span>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">${c.client_name}</div>
+                            </div>
+                        </div>
+                        ${c.topic_name ? `<div class="complaint-topic"><span class="topic-badge">📌 ${c.topic_name}</span></div>` : ''}
+                        <div class="complaint-text">${c.complaint_text}</div>
+                        <div class="complaint-footer">
+                            <span class="complaint-date"><i class="fas fa-calendar"></i> ${formatDate(c.created_at)}</span>
+                            <div class="complaint-actions">
+                                <select class="status-select" onchange="updateStatus(${c.id}, ${c.client_id}, this.value)">
+                                    <option value="pending" ${c.status==='pending'?'selected':''}>Pendente</option>
+                                    <option value="in_progress" ${c.status==='in_progress'?'selected':''}>Em andamento</option>
+                                    <option value="resolved" ${c.status==='resolved'?'selected':''}>Resolvido</option>
+                                    <option value="dismissed" ${c.status==='dismissed'?'selected':''}>Dispensado</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusBadge(status) {
+            const badges = { pending: 'warning', in_progress: 'info', resolved: 'success', dismissed: 'secondary' };
+            return badges[status] || 'secondary';
+        }
+
+        function getStatusLabel(status) {
+            const labels = { pending: 'Pendente', in_progress: 'Em andamento', resolved: 'Resolvido', dismissed: 'Dispensado' };
+            return labels[status] || status;
+        }
+
+        async function updateStatus(complaintId, clientId, status) {
+            const res = await api.put(`/api/clients/${clientId}/complaints/${complaintId}/status`, { status });
+            if (res.success) {
+                showToast('Status atualizado');
+                // Atualizar localmente
+                const complaint = allComplaints.find(c => c.id === complaintId);
+                if (complaint) complaint.status = status;
+                applyFilters();
+            } else {
+                showToast(res.error, 'error');
+            }
+        }
+
+        function exportComplaints() {
+            const clientId = document.getElementById('filterClient').value;
+            const status = document.getElementById('filterStatus').value;
+            
+            let filtered = [...allComplaints];
+            if (clientId) filtered = filtered.filter(c => c.client_id == clientId);
+            if (status) filtered = filtered.filter(c => c.status === status);
+
+            if (filtered.length === 0) {
+                showToast('Nenhuma reclamação para exportar', 'error');
+                return;
+            }
+
+            const headers = ['Cliente', 'Nome', 'Email', 'Telefone', 'Reclamação', 'Status', 'Data'];
+            const rows = filtered.map(c => [
+                c.client_name,
+                c.customer_name,
+                c.customer_email,
+                c.customer_phone,
+                `"${c.complaint_text.replace(/"/g, '""')}"`,
+                getStatusLabel(c.status),
+                formatDate(c.created_at)
+            ]);
+
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reclamacoes_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Exportação concluída');
+        }
+
+        loadData();
+    </script>
+    <style>
+        .status-select { padding: 0.375rem 0.625rem; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
+        .status-select:focus { outline: none; border-color: var(--primary); }
+        .complaint-contact i { margin-right: 0.25rem; font-size: 0.7rem; color: var(--text-muted); }
+        .badge-info { background: #DBEAFE; color: #1D4ED8; }
+        .complaint-topic { margin-bottom: 0.75rem; }
+        .topic-badge { display: inline-flex; align-items: center; gap: 0.25rem; background: var(--bg-tertiary); color: var(--text-secondary); padding: 0.25rem 0.625rem; border-radius: 6px; font-size: 0.8rem; font-weight: 500; }
+    </style>
+</body>
+</html>

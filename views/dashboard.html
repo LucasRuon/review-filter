@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Opina Já!</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Carregando...</p>
+    </div>
+
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo">OJ</div>
+                    <span class="sidebar-title">Opina Já!</span>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+            </div>
+                        <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item active"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
+                <a href="/profile" class="nav-item"><span class="nav-icon">👤</span><span class="nav-text">Perfil</span></a>
+            </nav>
+                        <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
+                <a href="/profile" class="user-info" style="text-decoration:none"><div class="user-avatar" id="user-avatar"><i class="fas fa-user"></i></div><div class="user-details"><div class="user-name" id="user-name">Carregando...</div><div class="user-email" id="user-email"></div></div></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">📊 Dashboard</h1>
+                <p class="page-subtitle">Visão geral do sistema</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card animate-fadeInUp">
+                    <div><div class="stat-value" id="total-clients">-</div><div class="stat-label">Clientes</div></div>
+                    <div class="stat-icon blue"><i class="fas fa-building"></i></div>
+                </div>
+                <div class="stat-card animate-fadeInUp" style="animation-delay:0.1s">
+                    <div><div class="stat-value" id="total-complaints">-</div><div class="stat-label">Reclamações</div></div>
+                    <div class="stat-icon orange"><i class="fas fa-comments"></i></div>
+                </div>
+                <div class="stat-card animate-fadeInUp" style="animation-delay:0.2s">
+                    <div><div class="stat-value" id="pending-complaints">-</div><div class="stat-label">Pendentes</div></div>
+                    <div class="stat-icon red"><i class="fas fa-clock"></i></div>
+                </div>
+                <div class="stat-card animate-fadeInUp" style="animation-delay:0.3s">
+                    <div><div class="stat-value" id="resolved-complaints">-</div><div class="stat-label">Resolvidos</div></div>
+                    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                </div>
+            </div>
+
+            <div class="card animate-fadeInUp" style="animation-delay:0.4s">
+                <div class="card-header"><h2 class="card-title">Reclamações recentes</h2></div>
+                <div id="complaints-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadDashboard() {
+            await checkAuth();
+            await loadUserInfo();
+            const stats = await api.get('/api/auth/stats');
+            if (stats) {
+                document.getElementById('total-clients').textContent = stats.totalClients;
+                document.getElementById('total-complaints').textContent = stats.totalComplaints;
+                document.getElementById('pending-complaints').textContent = stats.pendingComplaints;
+                document.getElementById('resolved-complaints').textContent = stats.resolvedComplaints || 0;
+                const container = document.getElementById('complaints-container');
+                if (stats.recentComplaints.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">As reclamações aparecerão aqui quando forem recebidas.</p></div>';
+                } else {
+                    container.innerHTML = '<div class="table-container"><table><thead><tr><th>Cliente</th><th>Nome</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>' + stats.recentComplaints.map(c => '<tr><td><strong>' + c.client_name + '</strong></td><td>' + c.customer_name + '</td><td><span class="badge badge-' + (c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary') + '">' + (c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado') + '</span></td><td>' + formatDate(c.created_at) + '</td><td><a href="/complaints" class="btn btn-link btn-sm">Ver</a></td></tr>').join('') + '</tbody></table></div><div style="padding:1rem;text-align:center;border-top:1px solid var(--border)"><a href="/complaints" class="btn btn-link">Ver todas as reclamações</a></div>';
+                }
+            }
+            hideLoading();
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>

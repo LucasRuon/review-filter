@@ -1,0 +1,113 @@
+<style>
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-grid .form-group { margin-bottom: 0; }
+    .form-grid .full-width { grid-column: 1 / -1; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .niche-select-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+    .niche-option { padding: 0.75rem; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .niche-option:hover { border-color: var(--text-muted); }
+    .niche-option.selected { border-color: var(--primary); background: rgba(55, 80, 240, 0.1); }
+    .niche-option-name { font-size: 0.8rem; font-weight: 500; }
+    .logo-upload-section { display: flex; align-items: center; gap: 1.25rem; }
+    .logo-preview { width: 80px; height: 80px; border-radius: 12px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--text-muted); overflow: hidden; flex-shrink: 0; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; position: relative; }
+    .logo-preview:hover { border-color: var(--primary); }
+    .logo-preview img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+    .logo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 10px; }
+    .logo-preview:hover .overlay { opacity: 1; }
+    .logo-preview .overlay i { color: white; font-size: 1.5rem; }
+    .logo-upload-info { flex: 1; }
+    .logo-upload-info h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .logo-upload-info p { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+    .logo-input { display: none; }
+    @media (max-width: 600px) { .niche-select-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+
+<div class="page-header">
+    <a href="/clients" class="back-link"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <h1 class="page-title" id="page-title">Novo cliente</h1>
+</div>
+
+<input type="hidden" id="client-id" value="">
+
+<div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2 class="card-title">Informações básicas</h2></div>
+    <div class="card-body">
+        <form id="clientForm" onsubmit="submitClientForm(event)">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Nome do cliente *</label>
+                    <input type="text" name="name" class="form-input" placeholder="Ex: Restaurante Bom Sabor" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefone *</label>
+                    <input type="tel" name="phone" class="form-input" placeholder="(00) 00000-0000" required>
+                </div>
+                <div class="form-group full-width">
+                    <label class="form-label">Endereço *</label>
+                    <input type="text" name="address" class="form-input" placeholder="Ex: Rua das Flores, 123" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Horário de funcionamento *</label>
+                    <input type="text" name="business_hours" class="form-input" placeholder="Seg-Sex: 08h às 18h" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Link de avaliação do Google *</label>
+                    <input type="url" name="google_review_link" class="form-input" placeholder="https://g.page/r/..." required>
+                </div>
+            </div>
+            <input type="hidden" name="niche" id="nicheInput" value="general">
+            <input type="hidden" id="logoUrlInput">
+        </form>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2 class="card-title">Tipo de negócio</h2></div>
+    <div class="card-body">
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem">Selecione o nicho para criar tópicos de reclamação pré-definidos:</p>
+        <div class="niche-select-grid" id="nicheGrid"></div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2 class="card-title">Personalização</h2></div>
+    <div class="card-body">
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Logo</label>
+                <div class="logo-upload-section">
+                    <div class="logo-preview" id="logoPreview" onclick="document.getElementById('logoInput').click()">
+                        <i class="fas fa-image"></i>
+                        <div class="overlay"><i class="fas fa-upload"></i></div>
+                    </div>
+                    <input type="file" id="logoInput" class="logo-input" accept="image/*" onchange="uploadLogo(this)">
+                    <div class="logo-upload-info">
+                        <h4>Enviar logo</h4>
+                        <p>PNG, JPG ou GIF. Max 2MB.</p>
+                        <div style="display:flex;gap:0.5rem">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('logoInput').click()"><i class="fas fa-upload"></i> Enviar</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="removeLogoBtn" onclick="removeLogo()" style="display:none"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Cor principal</label>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
+                    <input type="color" name="primary_color" form="clientForm" value="#3750F0" style="width:60px;height:45px;border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                    <span style="font-size:0.85rem;color:var(--text-secondary)">Cor da página de avaliação</span>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label class="form-label">Domínio personalizado</label>
+                <input type="text" name="custom_domain" class="form-input" form="clientForm" placeholder="avaliacao.seucliente.com.br">
+                <p class="form-hint">Configure um CNAME apontando para: <strong id="server-host"></strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-bottom:2rem">
+    <a href="/clients" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" form="clientForm" class="btn btn-primary" id="submitBtn">Salvar cliente</button>
+</div>
