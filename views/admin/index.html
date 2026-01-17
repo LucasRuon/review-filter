@@ -245,6 +245,50 @@
         </div>
     </div>
 
+    <!-- Modal criar usuario/admin -->
+    <div id="createUserModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Criar Usuario</h3>
+                <button class="modal-close" onclick="closeCreateUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm" onsubmit="createUser(event)">
+                    <div class="form-group">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" name="type" onchange="toggleAdminFields(this.value)">
+                            <option value="user">Usuario comum</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-input" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Senha</label>
+                        <input type="password" class="form-input" name="password" required minlength="6">
+                    </div>
+                    <div id="adminRoleField" class="form-group" style="display:none;">
+                        <label class="form-label">Funcao do Admin</label>
+                        <select class="form-select" name="role">
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Superadmin</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer" style="padding: 0; border: none; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Criar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== STATE ==========
         let currentAdmin = null;
@@ -490,9 +534,12 @@
                         <h1 class="page-title">Usuarios</h1>
                         <p class="page-subtitle">${data.pagination.total} usuarios cadastrados</p>
                     </div>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Buscar usuario..." id="searchInput" value="${search}" onkeyup="handleSearch(event)">
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Buscar usuario..." id="searchInput" value="${search}" onkeyup="handleSearch(event)">
+                        </div>
+                        <button class="btn btn-primary" onclick="openCreateUserModal()"><i class="fas fa-plus"></i> Novo</button>
                     </div>
                 </div>
 
@@ -656,6 +703,47 @@
 
         function closeUserModal() {
             document.getElementById('userModal').classList.add('hidden');
+        }
+
+        // ========== CREATE USER ==========
+        function openCreateUserModal() {
+            document.getElementById('createUserModal').classList.remove('hidden');
+            document.getElementById('createUserForm').reset();
+            document.getElementById('adminRoleField').style.display = 'none';
+        }
+
+        function closeCreateUserModal() {
+            document.getElementById('createUserModal').classList.add('hidden');
+        }
+
+        function toggleAdminFields(type) {
+            document.getElementById('adminRoleField').style.display = type === 'admin' ? 'block' : 'none';
+        }
+
+        async function createUser(e) {
+            e.preventDefault();
+            const form = e.target;
+            const type = form.type.value;
+            const data = {
+                name: form.name.value,
+                email: form.email.value,
+                password: form.password.value
+            };
+
+            if (type === 'admin') {
+                data.role = form.role.value;
+            }
+
+            const endpoint = type === 'admin' ? '/admin/api/admins' : '/admin/api/users/create';
+            const res = await api.post(endpoint, data);
+
+            if (res.success) {
+                showToast(`${type === 'admin' ? 'Admin' : 'Usuario'} criado com sucesso`);
+                closeCreateUserModal();
+                loadUsers();
+            } else {
+                showToast(res.error || 'Erro ao criar', 'error');
+            }
         }
 
         async function toggleUserStatus(userId, currentStatus) {

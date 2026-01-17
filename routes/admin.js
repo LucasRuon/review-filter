@@ -284,6 +284,58 @@ router.get('/api/logs', requireAdmin, async (req, res) => {
     }
 });
 
+// ========== CREATE USER/ADMIN ==========
+
+// Create new user (from admin panel)
+router.post('/api/users/create', requireAdmin, async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
+        }
+
+        const existingUser = await db.getUserByEmail(email);
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email já cadastrado' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.createUser(name, email, passwordHash);
+        await logAction(req, 'USER_CREATED', `Usuario ${email} criado pelo admin`);
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('Error creating user', { error: error.message });
+        res.status(500).json({ error: 'Erro ao criar usuário' });
+    }
+});
+
+// Create new admin
+router.post('/api/admins', requireAdmin, async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
+        }
+
+        const existingAdmin = await db.getAdminByEmail(email);
+        if (existingAdmin) {
+            return res.status(400).json({ error: 'Email já cadastrado' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.createAdmin(email, passwordHash, name, role || 'admin');
+        await logAction(req, 'ADMIN_CREATED', `Admin ${email} criado`);
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('Error creating admin', { error: error.message });
+        res.status(500).json({ error: 'Erro ao criar admin' });
+    }
+});
+
 // ========== ADMIN MANAGEMENT ==========
 
 // Create initial admin (only if no admins exist)

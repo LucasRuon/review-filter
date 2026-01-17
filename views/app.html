@@ -6,7 +6,7 @@
     <title>Opina Já!</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" onerror="console.error('Failed to load QRCode library')"></script>
     <style>
         .main-content { opacity: 1; transition: opacity 0.15s ease; }
         .main-content.loading { opacity: 0; }
@@ -63,8 +63,8 @@
     <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
     <div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
 
-    <!-- Botão de Suporte WhatsApp -->
-    <a href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20o%20Opina%20J%C3%A1!" target="_blank" class="support-btn" title="Suporte via WhatsApp">
+    <!-- Botão de Suporte WhatsApp (carregado dinamicamente) -->
+    <a id="support-btn" href="#" target="_blank" class="support-btn" title="Suporte via WhatsApp" style="display:none;">
         <span class="support-tooltip">Precisa de ajuda?</span>
         <i class="fab fa-whatsapp"></i>
     </a>
@@ -123,18 +123,34 @@
         async function initApp() {
             const user = await checkAuth();
             if (!user) return;
-            
+
             await loadUserInfo();
             loadUserAvatar();
-            
+            loadSupportButton();
+
             // Configurar navegação SPA
             setupNavigation();
-            
+
             // Carregar página inicial baseada na URL
             const path = window.location.pathname;
             await navigateTo(path, false);
-            
+
             hideLoading();
+        }
+
+        // Carregar botão de suporte com número do admin
+        async function loadSupportButton() {
+            try {
+                const res = await fetch('/api/support-info');
+                const data = await res.json();
+                if (data.whatsapp) {
+                    const btn = document.getElementById('support-btn');
+                    btn.href = `https://wa.me/${data.whatsapp}?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20o%20Opina%20J%C3%A1!`;
+                    btn.style.display = 'flex';
+                }
+            } catch (e) {
+                console.log('Suporte não configurado');
+            }
         }
 
         function loadUserAvatar() {
@@ -332,12 +348,13 @@
             } else {
                 grid.innerHTML = clients.map(c => `
                     <div class="client-card">
-                        <div class="client-card-content">
+                        <div class="client-card-header" style="background: ${c.primary_color || 'var(--primary)'}"></div>
+                        <div class="client-card-body">
                             <div class="client-header">
-                                <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'has-logo' : ''}" style="${c.logo_url ? '' : 'background:var(--primary);color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}">` : c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
-                                <div>
+                                <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'client-logo-transparent' : 'client-logo-placeholder'}" style="${c.logo_url ? '' : 'background:' + (c.primary_color || 'var(--primary)') + ';color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}">` : c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
+                                <div style="flex:1;min-width:0;">
                                     <div class="client-name">${c.name}</div>
-                                    <div class="client-phone">${c.phone}</div>
+                                    <div class="client-phone"><i class="fas fa-phone" style="margin-right:0.35rem;font-size:0.75rem;"></i>${c.phone}</div>
                                 </div>
                             </div>
                             <div class="client-info">
@@ -347,16 +364,18 @@
                             <div class="client-card-footer">
                                 <div class="client-link-row">
                                     <span class="client-link-label">Link de avaliação</span>
-                                    <button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')">Copiar</button>
+                                    <button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-copy"></i> Copiar</button>
                                 </div>
                                 <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
-                                    <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
-                                    <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
-                                    <a href="/clients/${c.id}/branches" class="btn btn-secondary btn-sm"><i class="fas fa-store"></i> Filiais</a>
-                                    <a href="/clients/${c.id}/complaints" class="btn btn-link">Ver reclamações</a>
-                                    <div>
+                                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                                        <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
+                                        <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
+                                        <a href="/clients/${c.id}/branches" class="btn btn-secondary btn-sm"><i class="fas fa-store"></i> Filiais</a>
+                                    </div>
+                                    <div style="display:flex;gap:0.25rem;align-items:center;">
+                                        <a href="/clients/${c.id}/complaints" class="btn btn-link btn-sm">Ver reclamações</a>
                                         <a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a>
                                         <button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button>
                                     </div>
@@ -992,9 +1011,21 @@
             try {
                 // Garantir que QRCode está carregado
                 if (typeof QRCode === 'undefined') {
-                    showToast('Biblioteca QR Code não carregada', 'error');
+                    // Tentar carregar dinamicamente
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                if (typeof QRCode === 'undefined') {
+                    showToast('Erro ao carregar biblioteca QR Code', 'error');
                     return;
                 }
+
                 await QRCode.toCanvas(canvas, link, {
                     width: 280,
                     margin: 2,
@@ -1003,7 +1034,7 @@
                 modal.classList.remove('hidden');
             } catch (error) {
                 console.error('Erro ao gerar QR Code:', error);
-                showToast('Erro ao gerar QR Code: ' + error.message, 'error');
+                showToast('Erro ao gerar QR Code. Tente recarregar a página.', 'error');
             }
         };
 

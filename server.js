@@ -59,6 +59,17 @@ app.use('/r', reviewRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/admin', adminRoutes);
 
+// API para informações de suporte (público)
+app.get('/api/support-info', async (req, res) => {
+    try {
+        const whatsapp = await db.getPlatformSetting('support_whatsapp');
+        const email = await db.getPlatformSetting('support_email');
+        res.json({ whatsapp, email });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar informações' });
+    }
+});
+
 // API routes for integrations
 app.get('/api/integrations', require('./middleware/auth').authMiddleware, async (req, res) => {
     try {
