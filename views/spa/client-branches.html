@@ -1,27 +1,19 @@
 <style>
     .branches-grid { display: grid; gap: 1rem; }
-    .branch-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+    .branch-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
     .branch-card.main { border-left: 4px solid var(--primary); }
     .branch-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-    .branch-name { font-weight: 600; font-size: 1rem; }
+    .branch-name { font-weight: 600; font-size: 1rem; color: var(--text-primary); }
     .branch-badge { font-size: 0.7rem; background: var(--primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
-    .branch-info { font-size: 0.85rem; color: var(--text-muted); }
+    .branch-info { font-size: 0.85rem; color: var(--text-secondary); }
     .branch-info p { margin-bottom: 0.25rem; display: flex; align-items: flex-start; gap: 0.5rem; }
     .branch-info i { width: 14px; margin-top: 0.15rem; color: var(--text-muted); }
     .branch-actions { display: flex; gap: 0.5rem; }
     .branch-actions button { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
-    .add-branch-card { background: var(--bg-secondary); border: 2px dashed var(--border); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
-    .add-branch-card:hover { border-color: var(--primary); background: var(--card-bg); }
+    .add-branch-card { background: var(--bg-tertiary); border: 2px dashed var(--border); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .add-branch-card:hover { border-color: var(--primary); background: var(--bg-secondary); }
     .add-branch-card i { font-size: 1.5rem; color: var(--text-muted); margin-bottom: 0.5rem; }
     .add-branch-card span { display: block; color: var(--text-muted); font-size: 0.9rem; }
-
-    .modal.hidden { display: none; }
-    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
-    .modal-content { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
-    .modal-header h3 { margin: 0; font-size: 1.1rem; }
-    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-    .modal-body { padding: 1.5rem; }
 </style>
 
 <div class="page-header">

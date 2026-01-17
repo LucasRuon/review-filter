@@ -252,7 +252,7 @@
                 document.getElementById('client-hours').textContent = data.business_hours;
 
                 // Se tem filiais, mostrar seletor para permitir escolha de unidade
-                if (branches.length > 1) {
+                if (branches.length >= 1) {
                     renderBranches();
                 }
 
@@ -263,7 +263,7 @@
         }
 
         function renderBranches() {
-            if (branches.length <= 1) return;
+            if (branches.length < 1) return;
 
             const selector = document.getElementById('branch-selector');
             const select = document.getElementById('branch-select');
