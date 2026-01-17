@@ -6,7 +6,7 @@
     <title>Opina Já!</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" onerror="console.error('Failed to load QRCode library')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         .main-content { opacity: 1; transition: opacity 0.15s ease; }
         .main-content.loading { opacity: 0; }
@@ -996,10 +996,10 @@
 
             const modalTitle = document.getElementById('qr-modal-title');
             const linkText = document.getElementById('qr-link-text');
-            const canvas = document.getElementById('qr-canvas');
+            const qrContainer = document.getElementById('qr-canvas');
             const modal = document.getElementById('qrCodeClientModal');
 
-            if (!modalTitle || !linkText || !canvas || !modal) {
+            if (!modalTitle || !linkText || !qrContainer || !modal) {
                 console.error('Elementos do modal QR Code não encontrados');
                 showToast('Erro ao abrir QR Code. Recarregue a página.', 'error');
                 return;
@@ -1009,28 +1009,25 @@
             linkText.textContent = link;
 
             try {
-                // Garantir que QRCode está carregado
-                if (typeof QRCode === 'undefined') {
-                    // Tentar carregar dinamicamente
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
-                }
+                // Limpar QR Code anterior
+                qrContainer.innerHTML = '';
 
+                // Verificar se QRCode está disponível
                 if (typeof QRCode === 'undefined') {
                     showToast('Erro ao carregar biblioteca QR Code', 'error');
                     return;
                 }
 
-                await QRCode.toCanvas(canvas, link, {
-                    width: 280,
-                    margin: 2,
-                    color: { dark: '#000000', light: '#ffffff' }
+                // Usar qrcodejs (API diferente)
+                new QRCode(qrContainer, {
+                    text: link,
+                    width: 256,
+                    height: 256,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
                 });
+
                 modal.classList.remove('hidden');
             } catch (error) {
                 console.error('Erro ao gerar QR Code:', error);
@@ -1043,17 +1040,40 @@
         };
 
         window.downloadQRCode = function() {
-            const canvas = document.getElementById('qr-canvas');
-            const link = document.createElement('a');
-            link.download = `qrcode-${window.currentQRClientName.replace(/\s+/g, '-').toLowerCase()}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+            const container = document.getElementById('qr-canvas');
+            const img = container.querySelector('img');
+            const canvas = container.querySelector('canvas');
+
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `qrcode-${window.currentQRClientName.replace(/\s+/g, '-').toLowerCase()}.png`;
+
+            if (img) {
+                downloadLink.href = img.src;
+            } else if (canvas) {
+                downloadLink.href = canvas.toDataURL('image/png');
+            } else {
+                showToast('Erro ao baixar QR Code', 'error');
+                return;
+            }
+
+            downloadLink.click();
             showToast('QR Code baixado!');
         };
 
         window.printQRCode = function() {
-            const canvas = document.getElementById('qr-canvas');
-            const dataUrl = canvas.toDataURL('image/png');
+            const container = document.getElementById('qr-canvas');
+            const img = container.querySelector('img');
+            const canvas = container.querySelector('canvas');
+
+            let dataUrl;
+            if (img) {
+                dataUrl = img.src;
+            } else if (canvas) {
+                dataUrl = canvas.toDataURL('image/png');
+            } else {
+                showToast('Erro ao imprimir QR Code', 'error');
+                return;
+            }
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <!DOCTYPE html>
