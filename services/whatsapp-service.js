@@ -190,6 +190,28 @@ class WhatsAppService {
         }
     }
 
+    async disconnectInstance(token) {
+        try {
+            const response = await fetch(`${this.baseUrl}/instance/logout`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'token': token
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Erro ao desconectar instância: ${error}`);
+            }
+
+            return { success: true };
+        } catch (error) {
+            logger.error('WhatsApp disconnectInstance error', { error: error.message });
+            throw error;
+        }
+    }
+
     async deleteInstance(token) {
         try {
             const response = await fetch(`${this.baseUrl}/instance`, {

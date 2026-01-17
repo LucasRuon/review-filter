@@ -105,6 +105,32 @@ router.get('/instance/status', authMiddleware, async (req, res) => {
     }
 });
 
+// Desconectar WhatsApp (logout) - mantém a instância mas desconecta
+router.post('/instance/disconnect', authMiddleware, async (req, res) => {
+    try {
+        const integrations = await db.getIntegrationsByUserId(req.userId);
+
+        if (!integrations || !integrations.whatsapp_token) {
+            return res.status(400).json({ error: 'Nenhuma instância encontrada' });
+        }
+
+        // Apenas desconecta (logout) sem deletar a instância
+        await whatsappService.disconnectInstance(integrations.whatsapp_token);
+
+        await db.updateIntegrations(req.userId, {
+            whatsapp_status: 'disconnected',
+            whatsapp_qrcode: null
+        });
+
+        logger.info('WhatsApp instance disconnected', { userId: req.userId });
+        res.json({ success: true, message: 'WhatsApp desconectado com sucesso' });
+    } catch (error) {
+        logger.error('Disconnect WhatsApp instance error', { userId: req.userId, error: error.message });
+        res.status(500).json({ error: error.message || 'Erro ao desconectar WhatsApp' });
+    }
+});
+
+// Deletar instância completamente (remove tudo)
 router.delete('/instance', authMiddleware, async (req, res) => {
     try {
         const integrations = await db.getIntegrationsByUserId(req.userId);
@@ -119,11 +145,13 @@ router.delete('/instance', authMiddleware, async (req, res) => {
             whatsapp_instance_name: null,
             whatsapp_token: null,
             whatsapp_status: 'disconnected',
-            whatsapp_qrcode: null
+            whatsapp_qrcode: null,
+            whatsapp_send_to_jid: null,
+            whatsapp_send_to_type: 'contact'
         });
 
         logger.info('WhatsApp instance deleted', { userId: req.userId });
-        res.json({ success: true });
+        res.json({ success: true, message: 'Instância removida completamente' });
     } catch (error) {
         logger.error('Delete WhatsApp instance error', { userId: req.userId, error: error.message });
         res.status(500).json({ error: error.message || 'Erro ao deletar instância' });

@@ -397,8 +397,17 @@ async function getComplaintsByClientId(clientId) {
     return result.rows;
 }
 
-async function getComplaintById(id) {
+async function getComplaintById(id, clientId = null) {
+    if (clientId) {
+        const result = await pool.query('SELECT * FROM complaints WHERE id = $1 AND client_id = $2', [id, clientId]);
+        return result.rows[0] || null;
+    }
     const result = await pool.query('SELECT * FROM complaints WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
+
+async function getTopicById(id, clientId) {
+    const result = await pool.query('SELECT * FROM complaint_topics WHERE id = $1 AND client_id = $2', [id, clientId]);
     return result.rows[0] || null;
 }
 
@@ -587,6 +596,7 @@ module.exports = {
     deleteClient,
     getTopicsByClientId,
     getAllTopicsByClientId,
+    getTopicById,
     createTopic,
     updateTopic,
     deleteTopic,

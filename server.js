@@ -101,11 +101,18 @@ app.get('/api/complaints', require('./middleware/auth').authMiddleware, async (r
     }
 });
 
-// Webhook endpoint for WhatsApp events
+// Webhook endpoint for WhatsApp events (validado por token da instância)
 app.post('/api/whatsapp-webhook/:userId', express.json(), async (req, res) => {
     try {
         const { userId } = req.params;
         const event = req.body;
+
+        // Validar que o usuário existe e tem integração configurada
+        const integrations = await db.getIntegrationsByUserId(parseInt(userId));
+        if (!integrations || !integrations.whatsapp_token) {
+            logger.warn('WhatsApp webhook received for user without integration', { userId });
+            return res.status(404).json({ error: 'Integração não encontrada' });
+        }
 
         logger.info('WhatsApp webhook received', { userId, event: event.event });
 
@@ -190,6 +197,14 @@ app.get('/login', (req, res) => {
 
 app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'register.html'));
+});
+
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'privacy.html'));
+});
+
+app.get('/terms', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'terms.html'));
 });
 
 // SPA - Todas as rotas autenticadas vão para app.html

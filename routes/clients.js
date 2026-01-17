@@ -155,8 +155,11 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
 
-        // Buscar reclamação antes de atualizar
-        const complaint = await db.getComplaintById(req.params.complaintId);
+        // Buscar reclamação antes de atualizar (validando que pertence ao cliente)
+        const complaint = await db.getComplaintById(req.params.complaintId, req.params.clientId);
+        if (!complaint) {
+            return res.status(404).json({ error: 'Reclamação não encontrada' });
+        }
 
         await db.updateComplaintStatus(req.params.complaintId, req.params.clientId, status);
         logger.info('Complaint status updated', { clientId: req.params.clientId, complaintId: req.params.complaintId, status });
@@ -275,6 +278,11 @@ router.put('/:clientId/topics/:topicId', authMiddleware, async (req, res) => {
         if (!client) {
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
+        // Validar que o tópico pertence ao cliente
+        const topic = await db.getTopicById(req.params.topicId, req.params.clientId);
+        if (!topic) {
+            return res.status(404).json({ error: 'Tópico não encontrado' });
+        }
         await db.updateTopic(req.params.topicId, req.params.clientId, req.body);
         res.json({ success: true });
     } catch (error) {
@@ -288,6 +296,11 @@ router.delete('/:clientId/topics/:topicId', authMiddleware, async (req, res) => 
         const client = await db.getClientById(req.params.clientId, req.userId);
         if (!client) {
             return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+        // Validar que o tópico pertence ao cliente
+        const topic = await db.getTopicById(req.params.topicId, req.params.clientId);
+        if (!topic) {
+            return res.status(404).json({ error: 'Tópico não encontrado' });
         }
         await db.deleteTopic(req.params.topicId, req.params.clientId);
         res.json({ success: true });
