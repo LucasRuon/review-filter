@@ -52,6 +52,89 @@ app.use((req, res, next) => {
     next();
 });
 
+// Maintenance mode middleware
+app.use(async (req, res, next) => {
+    // Skip maintenance check for admin routes, static files, and landing page
+    if (req.path.startsWith('/admin') ||
+        req.path.startsWith('/css') ||
+        req.path.startsWith('/js') ||
+        req.path.startsWith('/api/support-info') ||
+        req.path === '/' ||
+        req.path === '/privacy' ||
+        req.path === '/terms') {
+        return next();
+    }
+
+    try {
+        const maintenanceMode = await db.getPlatformSetting('maintenance_mode');
+        if (maintenanceMode === 'true') {
+            // Return maintenance page for HTML requests
+            if (req.accepts('html')) {
+                return res.status(503).send(`
+                    <!DOCTYPE html>
+                    <html lang="pt-BR">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Manutenção - Opina Já!</title>
+                        <style>
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+                                color: white;
+                                min-height: 100vh;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                text-align: center;
+                                padding: 2rem;
+                            }
+                            .container { max-width: 500px; }
+                            .icon { font-size: 4rem; margin-bottom: 1.5rem; }
+                            h1 { font-size: 2rem; margin-bottom: 1rem; }
+                            p { color: rgba(255,255,255,0.7); font-size: 1.1rem; line-height: 1.6; }
+                            .logo {
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 0.5rem;
+                                margin-bottom: 2rem;
+                            }
+                            .logo-icon {
+                                width: 40px; height: 40px;
+                                background: #EF4444;
+                                border-radius: 10px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: 800;
+                            }
+                            .logo-text { font-weight: 700; font-size: 1.25rem; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="logo">
+                                <div class="logo-icon">OJ</div>
+                                <span class="logo-text">Opina Já!</span>
+                            </div>
+                            <div class="icon">🔧</div>
+                            <h1>Estamos em manutenção</h1>
+                            <p>Estamos fazendo algumas melhorias na plataforma. Voltaremos em breve!</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+            }
+            // Return JSON for API requests
+            return res.status(503).json({ error: 'Sistema em manutenção', maintenance: true });
+        }
+    } catch (error) {
+        logger.error('Error checking maintenance mode', { error: error.message });
+    }
+    next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
