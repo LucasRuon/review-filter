@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
 const path = require('path');
 const db = require('./database');
 const logger = require('./logger');
@@ -8,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const reviewRoutes = require('./routes/review');
 const whatsappRoutes = require('./routes/whatsapp');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +18,19 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Session middleware (para admin)
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'opinaja-secret-key-2024',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    }
+}));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Request logging middleware
@@ -36,6 +51,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/r', reviewRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/admin', adminRoutes);
 
 // API routes for integrations
 app.get('/api/integrations', require('./middleware/auth').authMiddleware, async (req, res) => {

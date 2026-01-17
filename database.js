@@ -203,6 +203,83 @@ async function init() {
             )
         `);
 
+        // Tabela de administradores
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS admins (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                role TEXT DEFAULT 'admin',
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW(),
+                last_login TIMESTAMP
+            )
+        `);
+
+        // Tabela de logs do sistema
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS admin_logs (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER REFERENCES admins(id) ON DELETE SET NULL,
+                action TEXT NOT NULL,
+                details TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                target_user_id INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        // Tabela de configurações da plataforma
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS platform_settings (
+                id SERIAL PRIMARY KEY,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        // Campos de assinatura na tabela de usuários (preparação para Stripe)
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'free'
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'free'
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS active INTEGER DEFAULT 1
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP
+        `);
+
+        // Inserir configurações padrão
+        const defaultSettings = [
+            ['support_whatsapp', '5548999999999'],
+            ['support_email', 'contato@opinaja.com.br'],
+            ['maintenance_mode', 'false'],
+            ['landing_title', 'Proteja sua reputação online'],
+            ['landing_subtitle', 'Direcione avaliações negativas para um canal privado']
+        ];
+        for (const [key, value] of defaultSettings) {
+            await client.query(`
+                INSERT INTO platform_settings (key, value)
+                VALUES ($1, $2)
+                ON CONFLICT (key) DO NOTHING
+            `, [key, value]);
+        }
+
         // Migrations para adicionar colunas que podem não existir
         const migrations = [
             'ALTER TABLE clients ADD COLUMN IF NOT EXISTS niche TEXT DEFAULT \'general\'',
@@ -632,6 +709,215 @@ async function updateIntegrations(userId, data) {
     return { success: true };
 }
 
+// ========== ADMIN FUNCTIONS ==========
+
+// Admin authentication
+async function getAdminByEmail(email) {
+    const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email]);
+    return result.rows[0] || null;
+}
+
+async function getAdminById(id) {
+    const result = await pool.query('SELECT id, email, name, role, active, created_at, last_login FROM admins WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
+
+async function createAdmin(email, passwordHash, name, role = 'admin') {
+    const result = await pool.query(
+        'INSERT INTO admins (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+        [email, passwordHash, name, role]
+    );
+    return { id: result.rows[0].id };
+}
+
+async function updateAdminLastLogin(id) {
+    await pool.query('UPDATE admins SET last_login = NOW() WHERE id = $1', [id]);
+}
+
+// Admin logs
+async function createAdminLog(adminId, action, details, ipAddress, userAgent, targetUserId = null) {
+    await pool.query(
+        'INSERT INTO admin_logs (admin_id, action, details, ip_address, user_agent, target_user_id) VALUES ($1, $2, $3, $4, $5, $6)',
+        [adminId, action, details, ipAddress, userAgent, targetUserId]
+    );
+}
+
+async function getAdminLogs(limit = 100, offset = 0) {
+    const result = await pool.query(`
+        SELECT l.*, a.name as admin_name, a.email as admin_email, u.name as target_user_name
+        FROM admin_logs l
+        LEFT JOIN admins a ON l.admin_id = a.id
+        LEFT JOIN users u ON l.target_user_id = u.id
+        ORDER BY l.created_at DESC
+        LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    return result.rows;
+}
+
+// Platform settings
+async function getPlatformSetting(key) {
+    const result = await pool.query('SELECT value FROM platform_settings WHERE key = $1', [key]);
+    return result.rows[0]?.value || null;
+}
+
+async function getAllPlatformSettings() {
+    const result = await pool.query('SELECT key, value FROM platform_settings');
+    const settings = {};
+    for (const row of result.rows) {
+        settings[row.key] = row.value;
+    }
+    return settings;
+}
+
+async function updatePlatformSetting(key, value) {
+    await pool.query(`
+        INSERT INTO platform_settings (key, value, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
+    `, [key, value]);
+}
+
+// Admin user management
+async function getAllUsers(limit = 50, offset = 0, search = null) {
+    let query = `
+        SELECT u.id, u.name, u.email, u.phone, u.created_at, u.last_login, u.active,
+               u.subscription_status, u.subscription_plan, u.subscription_ends_at,
+               (SELECT COUNT(*) FROM clients WHERE user_id = u.id) as clients_count,
+               (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = u.id) as complaints_count
+        FROM users u
+    `;
+    const params = [];
+
+    if (search) {
+        query += ` WHERE u.name ILIKE $1 OR u.email ILIKE $1`;
+        params.push(`%${search}%`);
+    }
+
+    query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+    return result.rows;
+}
+
+async function getTotalUsersCount(search = null) {
+    let query = 'SELECT COUNT(*) as count FROM users';
+    const params = [];
+
+    if (search) {
+        query += ` WHERE name ILIKE $1 OR email ILIKE $1`;
+        params.push(`%${search}%`);
+    }
+
+    const result = await pool.query(query, params);
+    return parseInt(result.rows[0]?.count) || 0;
+}
+
+async function getUserByIdAdmin(id) {
+    const result = await pool.query(`
+        SELECT u.*,
+               (SELECT COUNT(*) FROM clients WHERE user_id = u.id) as clients_count,
+               (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = u.id) as complaints_count
+        FROM users u WHERE u.id = $1
+    `, [id]);
+    return result.rows[0] || null;
+}
+
+async function updateUserStatus(userId, active) {
+    await pool.query('UPDATE users SET active = $1 WHERE id = $2', [active ? 1 : 0, userId]);
+}
+
+async function deleteUserAdmin(userId) {
+    // Deletar em ordem: complaints -> topics -> branches -> clients -> integrations -> user
+    await pool.query(`
+        DELETE FROM complaints WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+    `, [userId]);
+    await pool.query(`
+        DELETE FROM complaint_topics WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+    `, [userId]);
+    await pool.query(`
+        DELETE FROM client_branches WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+    `, [userId]);
+    await pool.query('DELETE FROM clients WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM integrations WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+}
+
+async function updateUserLastLogin(userId) {
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [userId]);
+}
+
+// Admin statistics
+async function getAdminStats() {
+    const totalUsersResult = await pool.query('SELECT COUNT(*) as count FROM users');
+    const totalUsers = parseInt(totalUsersResult.rows[0]?.count) || 0;
+
+    const newUsersWeekResult = await pool.query(`
+        SELECT COUNT(*) as count FROM users
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+    `);
+    const newUsersWeek = parseInt(newUsersWeekResult.rows[0]?.count) || 0;
+
+    const newUsersMonthResult = await pool.query(`
+        SELECT COUNT(*) as count FROM users
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+    `);
+    const newUsersMonth = parseInt(newUsersMonthResult.rows[0]?.count) || 0;
+
+    const totalClientsResult = await pool.query('SELECT COUNT(*) as count FROM clients');
+    const totalClients = parseInt(totalClientsResult.rows[0]?.count) || 0;
+
+    const totalComplaintsResult = await pool.query('SELECT COUNT(*) as count FROM complaints');
+    const totalComplaints = parseInt(totalComplaintsResult.rows[0]?.count) || 0;
+
+    const activeUsersResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE active = 1');
+    const activeUsers = parseInt(activeUsersResult.rows[0]?.count) || 0;
+
+    // Crescimento por dia (últimos 30 dias)
+    const growthResult = await pool.query(`
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM users
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date
+    `);
+    const userGrowth = growthResult.rows;
+
+    // Reclamações por dia (últimos 30 dias)
+    const complaintsGrowthResult = await pool.query(`
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM complaints
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date
+    `);
+    const complaintsGrowth = complaintsGrowthResult.rows;
+
+    // Últimos usuários cadastrados
+    const recentUsersResult = await pool.query(`
+        SELECT id, name, email, created_at FROM users ORDER BY created_at DESC LIMIT 10
+    `);
+    const recentUsers = recentUsersResult.rows;
+
+    return {
+        totalUsers,
+        newUsersWeek,
+        newUsersMonth,
+        totalClients,
+        totalComplaints,
+        activeUsers,
+        userGrowth,
+        complaintsGrowth,
+        recentUsers
+    };
+}
+
+// Get user's full data for impersonation
+async function getUserFullData(userId) {
+    const user = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    return user.rows[0] || null;
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -640,6 +926,7 @@ module.exports = {
     getUserById,
     updateUser,
     updateUserPassword,
+    updateUserLastLogin,
     createClient,
     getClientsByUserId,
     getClientById,
@@ -666,5 +953,22 @@ module.exports = {
     getStats,
     getAllComplaintsByUserId,
     getIntegrationsByUserId,
-    updateIntegrations
+    updateIntegrations,
+    // Admin functions
+    getAdminByEmail,
+    getAdminById,
+    createAdmin,
+    updateAdminLastLogin,
+    createAdminLog,
+    getAdminLogs,
+    getPlatformSetting,
+    getAllPlatformSettings,
+    updatePlatformSetting,
+    getAllUsers,
+    getTotalUsersCount,
+    getUserByIdAdmin,
+    updateUserStatus,
+    deleteUserAdmin,
+    getAdminStats,
+    getUserFullData
 };

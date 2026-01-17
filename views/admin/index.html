@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Opina Ja!</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #EF4444;
+            --primary-dark: #DC2626;
+            --bg-primary: #0F172A;
+            --bg-secondary: #1E293B;
+            --bg-tertiary: #334155;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border: #334155;
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --sidebar-width: 250px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+        /* Layout */
+        .app-container { display: flex; min-height: 100vh; }
+        .sidebar { width: var(--sidebar-width); background: var(--bg-secondary); border-right: 1px solid var(--border); position: fixed; height: 100vh; display: flex; flex-direction: column; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid var(--border); }
+        .sidebar-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .sidebar-logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; }
+        .sidebar-title { font-weight: 700; font-size: 1.1rem; }
+        .admin-badge { background: var(--primary); color: white; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600; margin-left: 0.5rem; }
+
+        .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; color: var(--text-secondary); text-decoration: none; border-radius: 8px; margin-bottom: 0.25rem; transition: all 0.2s; font-weight: 500; font-size: 0.9rem; cursor: pointer; }
+        .nav-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+        .nav-item.active { color: white; background: var(--primary); }
+        .nav-icon { width: 20px; text-align: center; }
+
+        .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); }
+        .admin-info { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 0.75rem; }
+        .admin-avatar { width: 36px; height: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.9rem; }
+        .admin-name { font-size: 0.85rem; font-weight: 600; }
+        .admin-role { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Page Header */
+        .page-header { margin-bottom: 2rem; }
+        .page-title { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .page-subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--bg-secondary); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--border); }
+        .stat-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
+        .stat-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.2); color: #3B82F6; }
+        .stat-icon.green { background: rgba(34, 197, 94, 0.2); color: #22C55E; }
+        .stat-icon.orange { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+        .stat-icon.red { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+        .stat-value { font-size: 2rem; font-weight: 700; }
+        .stat-change { font-size: 0.8rem; margin-top: 0.25rem; }
+        .stat-change.positive { color: var(--success); }
+        .stat-change.negative { color: var(--danger); }
+
+        /* Cards */
+        .card { background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        .card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 1rem; font-weight: 600; }
+        .card-body { padding: 1.25rem; }
+
+        /* Grid */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); background: var(--bg-tertiary); }
+        td { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-ghost { background: transparent; color: var(--text-secondary); padding: 0.5rem; }
+        .btn-ghost:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+        .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+
+        /* Badge */
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; font-size: 0.7rem; font-weight: 600; border-radius: 9999px; }
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: #22C55E; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+        .badge-info { background: rgba(59, 130, 246, 0.2); color: #3B82F6; }
+
+        /* Forms */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 0.75rem 1rem; font-size: 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        /* Search */
+        .search-box { position: relative; max-width: 300px; }
+        .search-box input { width: 100%; padding: 0.625rem 1rem 0.625rem 2.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.9rem; }
+        .search-box input:focus { outline: none; border-color: var(--primary); }
+        .search-box i { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+        /* Pagination */
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.5rem; }
+        .pagination-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; }
+        .pagination-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .pagination-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        .modal.hidden { display: none; }
+        .modal-content { background: var(--bg-secondary); border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+        .modal-header h3 { font-size: 1.1rem; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+        /* User Details */
+        .user-detail-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+        .user-avatar-lg { width: 64px; height: 64px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: 600; }
+        .user-detail-info h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .user-detail-info p { color: var(--text-secondary); font-size: 0.9rem; }
+        .user-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .user-stat { text-align: center; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; }
+        .user-stat-value { font-size: 1.5rem; font-weight: 700; }
+        .user-stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; right: 24px; padding: 1rem 1.5rem; border-radius: 10px; color: white; font-weight: 500; z-index: 9999; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+
+        /* Chart container */
+        .chart-container { height: 250px; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+        .empty-state p { font-size: 0.95rem; }
+
+        /* Loading */
+        .loading { display: flex; align-items: center; justify-content: center; padding: 3rem; }
+        .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Action buttons in table */
+        .action-btns { display: flex; gap: 0.25rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo">OJ</div>
+                    <span class="sidebar-title">Opina Ja!</span>
+                    <span class="admin-badge">ADMIN</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item" data-page="dashboard" onclick="navigateTo('/admin')">
+                    <i class="fas fa-chart-line nav-icon"></i> Dashboard
+                </a>
+                <a class="nav-item" data-page="users" onclick="navigateTo('/admin/users')">
+                    <i class="fas fa-users nav-icon"></i> Usuarios
+                </a>
+                <a class="nav-item" data-page="settings" onclick="navigateTo('/admin/settings')">
+                    <i class="fas fa-cog nav-icon"></i> Configuracoes
+                </a>
+                <a class="nav-item" data-page="logs" onclick="navigateTo('/admin/logs')">
+                    <i class="fas fa-history nav-icon"></i> Logs
+                </a>
+                <a class="nav-item" data-page="billing" onclick="navigateTo('/admin/billing')">
+                    <i class="fas fa-credit-card nav-icon"></i> Faturamento
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="admin-info">
+                    <div class="admin-avatar"><i class="fas fa-shield-alt"></i></div>
+                    <div>
+                        <div class="admin-name" id="admin-name">Admin</div>
+                        <div class="admin-role" id="admin-role">Superadmin</div>
+                    </div>
+                </div>
+                <a class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt nav-icon"></i> Sair
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <div class="loading"><div class="spinner"></div></div>
+        </main>
+    </div>
+
+    <!-- Modal de detalhes do usuario -->
+    <div id="userModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Detalhes do Usuario</h3>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="user-modal-body">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmacao -->
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 id="confirm-title">Confirmar</h3>
+                <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancelar</button>
+                <button class="btn btn-danger" id="confirm-btn" onclick="confirmAction()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== STATE ==========
+        let currentAdmin = null;
+        let currentPage = 'dashboard';
+        let usersData = { users: [], pagination: {} };
+        let pendingAction = null;
+
+        // ========== API ==========
+        const api = {
+            async get(url) {
+                const res = await fetch(url);
+                if (res.status === 401) { window.location.href = '/admin/login'; return null; }
+                return res.json();
+            },
+            async post(url, data) {
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                return res.json();
+            },
+            async put(url, data) {
+                const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                return res.json();
+            },
+            async delete(url) {
+                const res = await fetch(url, { method: 'DELETE' });
+                return res.json();
+            }
+        };
+
+        // ========== TOAST ==========
+        function showToast(message, type = 'success') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        // ========== NAVIGATION ==========
+        function navigateTo(path) {
+            window.history.pushState({}, '', path);
+            loadPage(path);
+        }
+
+        async function loadPage(path) {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            // Update active nav
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            if (path === '/admin' || path === '/admin/') {
+                document.querySelector('[data-page="dashboard"]').classList.add('active');
+                await loadDashboard();
+            } else if (path === '/admin/users') {
+                document.querySelector('[data-page="users"]').classList.add('active');
+                await loadUsers();
+            } else if (path.match(/\/admin\/users\/\d+/)) {
+                document.querySelector('[data-page="users"]').classList.add('active');
+                const userId = path.split('/').pop();
+                await loadUserDetail(userId);
+            } else if (path === '/admin/settings') {
+                document.querySelector('[data-page="settings"]').classList.add('active');
+                await loadSettings();
+            } else if (path === '/admin/logs') {
+                document.querySelector('[data-page="logs"]').classList.add('active');
+                await loadLogs();
+            } else if (path === '/admin/billing') {
+                document.querySelector('[data-page="billing"]').classList.add('active');
+                loadBilling();
+            } else {
+                await loadDashboard();
+            }
+        }
+
+        // ========== DASHBOARD ==========
+        async function loadDashboard() {
+            const stats = await api.get('/admin/api/stats');
+            if (!stats) return;
+
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-subtitle">Visao geral da plataforma</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Total de Usuarios</span>
+                            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.totalUsers}</div>
+                        <div class="stat-change positive">+${stats.newUsersWeek} esta semana</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Usuarios Ativos</span>
+                            <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.activeUsers}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Total de Clientes</span>
+                            <div class="stat-icon orange"><i class="fas fa-building"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.totalClients}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Reclamacoes</span>
+                            <div class="stat-icon red"><i class="fas fa-comment-dots"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.totalComplaints}</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Crescimento de Usuarios (30 dias)</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="usersChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Reclamacoes (30 dias)</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="complaintsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Usuarios Recentes</h3>
+                        <a class="btn btn-secondary btn-sm" onclick="navigateTo('/admin/users')">Ver todos</a>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Nome</th><th>Email</th><th>Data de cadastro</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    ${stats.recentUsers.map(u => `
+                                        <tr>
+                                            <td><strong>${u.name}</strong></td>
+                                            <td>${u.email}</td>
+                                            <td>${formatDate(u.created_at)}</td>
+                                            <td><button class="btn btn-ghost btn-sm" onclick="openUserModal(${u.id})"><i class="fas fa-eye"></i></button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render charts
+            renderCharts(stats);
+        }
+
+        function renderCharts(stats) {
+            // Users chart
+            const usersCtx = document.getElementById('usersChart');
+            if (usersCtx) {
+                new Chart(usersCtx, {
+                    type: 'line',
+                    data: {
+                        labels: stats.userGrowth.map(d => formatDateShort(d.date)),
+                        datasets: [{
+                            label: 'Novos usuarios',
+                            data: stats.userGrowth.map(d => d.count),
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94A3B8' } },
+                            x: { grid: { display: false }, ticks: { color: '#94A3B8' } }
+                        }
+                    }
+                });
+            }
+
+            // Complaints chart
+            const complaintsCtx = document.getElementById('complaintsChart');
+            if (complaintsCtx) {
+                new Chart(complaintsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: stats.complaintsGrowth.map(d => formatDateShort(d.date)),
+                        datasets: [{
+                            label: 'Reclamacoes',
+                            data: stats.complaintsGrowth.map(d => d.count),
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94A3B8' } },
+                            x: { grid: { display: false }, ticks: { color: '#94A3B8' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ========== USERS ==========
+        async function loadUsers(page = 1, search = '') {
+            const data = await api.get(`/admin/api/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`);
+            if (!data) return;
+
+            usersData = data;
+
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h1 class="page-title">Usuarios</h1>
+                        <p class="page-subtitle">${data.pagination.total} usuarios cadastrados</p>
+                    </div>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Buscar usuario..." id="searchInput" value="${search}" onkeyup="handleSearch(event)">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Clientes</th>
+                                        <th>Reclamacoes</th>
+                                        <th>Plano</th>
+                                        <th>Status</th>
+                                        <th>Cadastro</th>
+                                        <th>Acoes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.users.map(u => `
+                                        <tr>
+                                            <td>
+                                                <strong>${u.name}</strong><br>
+                                                <span style="color: var(--text-muted); font-size: 0.8rem;">${u.email}</span>
+                                            </td>
+                                            <td>${u.clients_count}</td>
+                                            <td>${u.complaints_count}</td>
+                                            <td><span class="badge badge-${u.subscription_plan === 'free' ? 'info' : 'success'}">${u.subscription_plan || 'free'}</span></td>
+                                            <td><span class="badge badge-${u.active === 1 ? 'success' : 'danger'}">${u.active === 1 ? 'Ativo' : 'Inativo'}</span></td>
+                                            <td>${formatDate(u.created_at)}</td>
+                                            <td>
+                                                <div class="action-btns">
+                                                    <button class="btn btn-ghost btn-sm" onclick="openUserModal(${u.id})" title="Ver detalhes"><i class="fas fa-eye"></i></button>
+                                                    <button class="btn btn-ghost btn-sm" onclick="impersonateUser(${u.id})" title="Login como usuario"><i class="fas fa-sign-in-alt"></i></button>
+                                                    <button class="btn btn-ghost btn-sm" onclick="toggleUserStatus(${u.id}, ${u.active})" title="${u.active === 1 ? 'Desativar' : 'Ativar'}"><i class="fas fa-${u.active === 1 ? 'ban' : 'check'}"></i></button>
+                                                    <button class="btn btn-ghost btn-sm" onclick="confirmDeleteUser(${u.id}, '${u.name}')" title="Excluir" style="color: var(--danger);"><i class="fas fa-trash"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                ${renderPagination(data.pagination)}
+            `;
+        }
+
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                const search = document.getElementById('searchInput').value;
+                loadUsers(1, search);
+            }
+        }
+
+        function renderPagination(pagination) {
+            if (pagination.pages <= 1) return '';
+
+            let html = '<div class="pagination">';
+            html += `<button class="pagination-btn" onclick="loadUsers(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+
+            for (let i = 1; i <= pagination.pages; i++) {
+                if (i === 1 || i === pagination.pages || (i >= pagination.page - 2 && i <= pagination.page + 2)) {
+                    html += `<button class="pagination-btn ${i === pagination.page ? 'active' : ''}" onclick="loadUsers(${i})">${i}</button>`;
+                } else if (i === pagination.page - 3 || i === pagination.page + 3) {
+                    html += '<span style="color: var(--text-muted);">...</span>';
+                }
+            }
+
+            html += `<button class="pagination-btn" onclick="loadUsers(${pagination.page + 1})" ${pagination.page === pagination.pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+            html += '</div>';
+            return html;
+        }
+
+        async function openUserModal(userId) {
+            document.getElementById('userModal').classList.remove('hidden');
+            document.getElementById('user-modal-body').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            const data = await api.get(`/admin/api/users/${userId}`);
+            if (!data) return;
+
+            const u = data.user;
+            document.getElementById('user-modal-body').innerHTML = `
+                <div class="user-detail-header">
+                    <div class="user-avatar-lg">${u.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}</div>
+                    <div class="user-detail-info">
+                        <h2>${u.name}</h2>
+                        <p>${u.email}</p>
+                        <p style="margin-top: 0.5rem;">
+                            <span class="badge badge-${u.active === 1 ? 'success' : 'danger'}">${u.active === 1 ? 'Ativo' : 'Inativo'}</span>
+                            <span class="badge badge-${u.subscription_plan === 'free' ? 'info' : 'success'}" style="margin-left: 0.5rem;">${u.subscription_plan || 'free'}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="user-stats-row">
+                    <div class="user-stat">
+                        <div class="user-stat-value">${data.clients.length}</div>
+                        <div class="user-stat-label">Clientes</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">${data.complaints.length}</div>
+                        <div class="user-stat-label">Reclamacoes</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">${formatDateShort(u.created_at)}</div>
+                        <div class="user-stat-label">Cadastro</div>
+                    </div>
+                    <div class="user-stat">
+                        <div class="user-stat-value">${u.last_login ? formatDateShort(u.last_login) : '-'}</div>
+                        <div class="user-stat-label">Ultimo login</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem;">
+                    <button class="btn btn-primary" onclick="impersonateUser(${u.id})"><i class="fas fa-sign-in-alt"></i> Login como usuario</button>
+                    <button class="btn btn-secondary" onclick="toggleUserStatus(${u.id}, ${u.active})">${u.active === 1 ? 'Desativar' : 'Ativar'} conta</button>
+                    <button class="btn btn-danger" onclick="confirmDeleteUser(${u.id}, '${u.name}')"><i class="fas fa-trash"></i> Excluir</button>
+                </div>
+
+                <h4 style="margin-bottom: 1rem;">Clientes (${data.clients.length})</h4>
+                ${data.clients.length > 0 ? `
+                    <div class="table-container" style="margin-bottom: 1.5rem;">
+                        <table>
+                            <thead><tr><th>Nome</th><th>Telefone</th><th>Slug</th></tr></thead>
+                            <tbody>
+                                ${data.clients.slice(0, 10).map(c => `
+                                    <tr>
+                                        <td>${c.name}</td>
+                                        <td>${c.phone}</td>
+                                        <td><code>${c.slug}</code></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<p style="color: var(--text-muted); margin-bottom: 1.5rem;">Nenhum cliente cadastrado</p>'}
+
+                <h4 style="margin-bottom: 1rem;">Ultimas reclamacoes (${data.complaints.length})</h4>
+                ${data.complaints.length > 0 ? `
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Cliente</th><th>Nome</th><th>Status</th><th>Data</th></tr></thead>
+                            <tbody>
+                                ${data.complaints.slice(0, 10).map(c => `
+                                    <tr>
+                                        <td>${c.client_name}</td>
+                                        <td>${c.customer_name}</td>
+                                        <td><span class="badge badge-${c.status === 'pending' ? 'warning' : c.status === 'resolved' ? 'success' : 'info'}">${c.status}</span></td>
+                                        <td>${formatDate(c.created_at)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<p style="color: var(--text-muted);">Nenhuma reclamacao</p>'}
+            `;
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+        }
+
+        async function toggleUserStatus(userId, currentStatus) {
+            const newStatus = currentStatus === 1 ? 0 : 1;
+            const res = await api.put(`/admin/api/users/${userId}/status`, { active: newStatus });
+            if (res.success) {
+                showToast(`Usuario ${newStatus ? 'ativado' : 'desativado'} com sucesso`);
+                loadUsers();
+                closeUserModal();
+            } else {
+                showToast(res.error || 'Erro ao atualizar status', 'error');
+            }
+        }
+
+        function confirmDeleteUser(userId, userName) {
+            document.getElementById('confirm-title').textContent = 'Excluir usuario';
+            document.getElementById('confirm-message').textContent = `Tem certeza que deseja excluir o usuario "${userName}"? Esta acao nao pode ser desfeita.`;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            pendingAction = async () => {
+                const res = await api.delete(`/admin/api/users/${userId}`);
+                if (res.success) {
+                    showToast('Usuario excluido com sucesso');
+                    loadUsers();
+                    closeUserModal();
+                } else {
+                    showToast(res.error || 'Erro ao excluir usuario', 'error');
+                }
+            };
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingAction = null;
+        }
+
+        async function confirmAction() {
+            if (pendingAction) {
+                await pendingAction();
+                closeConfirmModal();
+            }
+        }
+
+        async function impersonateUser(userId) {
+            const res = await api.post(`/admin/api/users/${userId}/impersonate`);
+            if (res.success) {
+                window.location.href = res.redirectTo;
+            } else {
+                showToast(res.error || 'Erro ao fazer login como usuario', 'error');
+            }
+        }
+
+        // ========== SETTINGS ==========
+        async function loadSettings() {
+            const settings = await api.get('/admin/api/settings');
+            if (!settings) return;
+
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Configuracoes</h1>
+                    <p class="page-subtitle">Configuracoes gerais da plataforma</p>
+                </div>
+
+                <div class="card" style="max-width: 600px;">
+                    <div class="card-header">
+                        <h3 class="card-title">Suporte</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="settingsForm" onsubmit="saveSettings(event)">
+                            <div class="form-group">
+                                <label class="form-label">WhatsApp de suporte</label>
+                                <input type="text" class="form-input" name="support_whatsapp" value="${settings.support_whatsapp || ''}" placeholder="5548999999999">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email de contato</label>
+                                <input type="email" class="form-input" name="support_email" value="${settings.support_email || ''}" placeholder="contato@opinaja.com.br">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card" style="max-width: 600px; margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Manutencao</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox" id="maintenanceMode" ${settings.maintenance_mode === 'true' ? 'checked' : ''} onchange="toggleMaintenance()">
+                                <span>Modo de manutencao ativado</span>
+                            </label>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Quando ativado, usuarios nao conseguirao acessar a plataforma.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="max-width: 600px; margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Landing Page</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="landingForm" onsubmit="saveLandingSettings(event)">
+                            <div class="form-group">
+                                <label class="form-label">Titulo principal</label>
+                                <input type="text" class="form-input" name="landing_title" value="${settings.landing_title || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Subtitulo</label>
+                                <input type="text" class="form-input" name="landing_subtitle" value="${settings.landing_subtitle || ''}">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveSettings(e) {
+            e.preventDefault();
+            const form = e.target;
+            const res = await api.put('/admin/api/settings', {
+                support_whatsapp: form.support_whatsapp.value,
+                support_email: form.support_email.value
+            });
+            if (res.success) {
+                showToast('Configuracoes salvas');
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        async function saveLandingSettings(e) {
+            e.preventDefault();
+            const form = e.target;
+            const res = await api.put('/admin/api/settings', {
+                landing_title: form.landing_title.value,
+                landing_subtitle: form.landing_subtitle.value
+            });
+            if (res.success) {
+                showToast('Configuracoes salvas');
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        async function toggleMaintenance() {
+            const checked = document.getElementById('maintenanceMode').checked;
+            const res = await api.put('/admin/api/settings', {
+                maintenance_mode: checked ? 'true' : 'false'
+            });
+            if (res.success) {
+                showToast(`Modo de manutencao ${checked ? 'ativado' : 'desativado'}`);
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        // ========== LOGS ==========
+        async function loadLogs() {
+            const data = await api.get('/admin/api/logs');
+            if (!data) return;
+
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Logs de Atividade</h1>
+                    <p class="page-subtitle">Historico de acoes administrativas</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Admin</th>
+                                        <th>Acao</th>
+                                        <th>Detalhes</th>
+                                        <th>IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.logs.length > 0 ? data.logs.map(log => `
+                                        <tr>
+                                            <td>${formatDate(log.created_at)}</td>
+                                            <td>${log.admin_name || '-'}</td>
+                                            <td><span class="badge badge-info">${log.action}</span></td>
+                                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${log.details || '-'}</td>
+                                            <td><code>${log.ip_address || '-'}</code></td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Nenhum log encontrado</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ========== BILLING ==========
+        function loadBilling() {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Faturamento</h1>
+                    <p class="page-subtitle">Gestao de assinaturas e pagamentos</p>
+                </div>
+
+                <div class="card" style="max-width: 600px;">
+                    <div class="card-body" style="text-align: center; padding: 3rem;">
+                        <i class="fas fa-credit-card" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                        <h3 style="margin-bottom: 0.5rem;">Stripe nao configurado</h3>
+                        <p style="color: var(--text-muted);">A integracao com Stripe sera configurada em breve. Adicione as variaveis de ambiente STRIPE_SECRET_KEY e STRIPE_WEBHOOK_SECRET para habilitar.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ========== HELPERS ==========
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatDateShort(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        }
+
+        async function logout() {
+            await api.post('/admin/api/logout');
+            window.location.href = '/admin/login';
+        }
+
+        // ========== INIT ==========
+        async function init() {
+            currentAdmin = await api.get('/admin/api/me');
+            if (!currentAdmin) return;
+
+            document.getElementById('admin-name').textContent = currentAdmin.name;
+            document.getElementById('admin-role').textContent = currentAdmin.role === 'superadmin' ? 'Superadmin' : 'Admin';
+
+            // Handle browser navigation
+            window.addEventListener('popstate', () => {
+                loadPage(window.location.pathname);
+            });
+
+            // Load initial page
+            loadPage(window.location.pathname);
+        }
+
+        init();
+    </script>
+</body>
+</html>
