@@ -369,15 +369,15 @@
                                 <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
-                                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                                        <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
-                                        <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
-                                        <a href="/clients/${c.id}/branches" class="btn btn-secondary btn-sm"><i class="fas fa-store"></i> Filiais</a>
+                                    <div class="client-main-actions">
+                                        <button class="btn btn-secondary" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
+                                        <a href="/clients/${c.id}/complaints" class="btn btn-primary"><i class="fas fa-comments"></i> Reclamações</a>
                                     </div>
-                                    <div style="display:flex;gap:0.25rem;align-items:center;">
-                                        <a href="/clients/${c.id}/complaints" class="btn btn-link btn-sm">Ver reclamações</a>
-                                        <a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a>
-                                        <button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button>
+                                    <div class="client-quick-actions">
+                                        <a href="/clients/${c.id}/topics" class="btn-icon" title="Tópicos"><i class="fas fa-tags"></i></a>
+                                        <a href="/clients/${c.id}/branches" class="btn-icon" title="Filiais"><i class="fas fa-store"></i></a>
+                                        <a href="/clients/${c.id}/edit" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a>
+                                        <button class="btn-icon danger" onclick="deleteClient(${c.id})" title="Excluir"><i class="fas fa-trash"></i></button>
                                     </div>
                                 </div>
                             </div>
