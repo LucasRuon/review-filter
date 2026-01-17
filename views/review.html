@@ -97,6 +97,15 @@
         .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #334155; }
         
         @media (max-width: 400px) { .topics-grid { grid-template-columns: repeat(2, 1fr); } .topic-btn { padding: 0.75rem 0.25rem; min-height: 70px; } }
+
+        /* Branch Cards */
+        .branches-container { margin-bottom: 1rem; }
+        .branches-label { font-size: 0.75rem; color: #9CA3AF; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+        .branches-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .branch-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.875rem; background: #334155; border: 2px solid transparent; border-radius: 20px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; color: #D1D5DB; }
+        .branch-chip:hover { background: #475569; }
+        .branch-chip.active { background: rgba(55, 80, 240, 0.15); border-color: var(--accent); color: white; }
+        .branch-chip i { font-size: 0.75rem; }
     </style>
 </head>
 <body>
@@ -135,9 +144,9 @@
             </div>
             <div class="footer">
                 <div class="footer-header"><div class="footer-logo" id="footer-logo"></div><span class="footer-name" id="client-name"></span></div>
-                <div id="branch-selector" class="branch-selector hidden" style="margin-bottom:1rem;">
-                    <label class="form-label" style="color:#9CA3AF;margin-bottom:0.5rem;display:block;font-size:0.8rem;"><i class="fas fa-store"></i> Selecione a unidade:</label>
-                    <select id="branch-select" class="form-select" style="padding:0.75rem;font-size:0.9rem;" onchange="selectBranch(this.value)"></select>
+                <div id="branch-selector" class="branches-container hidden">
+                    <div class="branches-label"><i class="fas fa-store"></i> Unidade</div>
+                    <div class="branches-grid" id="branches-grid"></div>
                 </div>
                 <div class="footer-info">
                     <p><i class="fas fa-map-marker-alt"></i><span id="client-address"></span></p>
@@ -266,17 +275,22 @@
             if (branches.length < 1) return;
 
             const selector = document.getElementById('branch-selector');
-            const select = document.getElementById('branch-select');
+            const grid = document.getElementById('branches-grid');
 
-            // Adicionar opção da sede principal primeiro, depois as filiais
-            let options = `<option value="main" selected>Sede principal</option>`;
-            options += branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            // Criar chips para sede principal e filiais
+            let html = `<div class="branch-chip active" data-id="main" onclick="selectBranch('main')"><i class="fas fa-building"></i> Sede</div>`;
+            html += branches.map(b => `<div class="branch-chip" data-id="${b.id}" onclick="selectBranch('${b.id}')"><i class="fas fa-store"></i> ${b.name}</div>`).join('');
 
-            select.innerHTML = options;
+            grid.innerHTML = html;
             selector.classList.remove('hidden');
         }
 
         function selectBranch(branchId) {
+            // Atualizar visual dos chips
+            document.querySelectorAll('.branch-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.id === String(branchId));
+            });
+
             if (branchId === 'main') {
                 // Mostrar dados da sede principal (cliente)
                 document.getElementById('client-address').textContent = clientData.address;
