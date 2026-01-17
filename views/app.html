@@ -335,22 +335,31 @@
                         <div class="client-card-content">
                             <div class="client-header">
                                 <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'has-logo' : ''}" style="${c.logo_url ? '' : 'background:var(--primary);color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}">` : c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
-                                <div><div class="client-name">${c.name}</div><div class="client-phone">${c.phone}</div></div>
+                                <div>
+                                    <div class="client-name">${c.name}</div>
+                                    <div class="client-phone">${c.phone}</div>
+                                </div>
                             </div>
                             <div class="client-info">
-                                <p><i class="fas fa-map-marker-alt"></i>${c.address}</p>
-                                <p><i class="fas fa-clock"></i>${c.business_hours}</p>
+                                <p><i class="fas fa-map-marker-alt"></i><span>${c.address}</span></p>
+                                <p><i class="fas fa-clock"></i><span>${c.business_hours}</span></p>
                             </div>
                             <div class="client-card-footer">
-                                <div class="client-link-row"><span class="client-link-label">Link de avaliação</span><button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')">Copiar</button></div>
+                                <div class="client-link-row">
+                                    <span class="client-link-label">Link de avaliação</span>
+                                    <button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')">Copiar</button>
+                                </div>
                                 <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
-                                    <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
                                     <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
                                     <a href="/clients/${c.id}/branches" class="btn btn-secondary btn-sm"><i class="fas fa-store"></i> Filiais</a>
                                     <a href="/clients/${c.id}/complaints" class="btn btn-link">Ver reclamações</a>
-                                    <div><a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a><button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button></div>
+                                    <div>
+                                        <a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a>
+                                        <button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -966,20 +975,35 @@
             window.currentQRClientName = clientName;
             window.currentQRLink = link;
 
-            document.getElementById('qr-modal-title').textContent = `QR Code - ${clientName}`;
-            document.getElementById('qr-link-text').textContent = link;
-
+            const modalTitle = document.getElementById('qr-modal-title');
+            const linkText = document.getElementById('qr-link-text');
             const canvas = document.getElementById('qr-canvas');
+            const modal = document.getElementById('qrCodeClientModal');
+
+            if (!modalTitle || !linkText || !canvas || !modal) {
+                console.error('Elementos do modal QR Code não encontrados');
+                showToast('Erro ao abrir QR Code. Recarregue a página.', 'error');
+                return;
+            }
+
+            modalTitle.textContent = `QR Code - ${clientName}`;
+            linkText.textContent = link;
+
             try {
+                // Garantir que QRCode está carregado
+                if (typeof QRCode === 'undefined') {
+                    showToast('Biblioteca QR Code não carregada', 'error');
+                    return;
+                }
                 await QRCode.toCanvas(canvas, link, {
                     width: 280,
                     margin: 2,
                     color: { dark: '#000000', light: '#ffffff' }
                 });
-                document.getElementById('qrCodeClientModal').classList.remove('hidden');
+                modal.classList.remove('hidden');
             } catch (error) {
                 console.error('Erro ao gerar QR Code:', error);
-                showToast('Erro ao gerar QR Code', 'error');
+                showToast('Erro ao gerar QR Code: ' + error.message, 'error');
             }
         };
 

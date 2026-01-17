@@ -246,14 +246,14 @@
                     document.getElementById('footer-logo').textContent = initials;
                 }
 
-                // Se tem filiais, mostrar seletor
-                if (branches.length > 0) {
+                // Primeiro mostrar dados do cliente principal como padrão
+                document.getElementById('client-address').textContent = data.address;
+                document.getElementById('client-phone').textContent = data.phone;
+                document.getElementById('client-hours').textContent = data.business_hours;
+
+                // Se tem filiais, mostrar seletor para permitir escolha de unidade
+                if (branches.length > 1) {
                     renderBranches();
-                } else {
-                    // Sem filiais, usar dados do cliente principal
-                    document.getElementById('client-address').textContent = data.address;
-                    document.getElementById('client-phone').textContent = data.phone;
-                    document.getElementById('client-hours').textContent = data.business_hours;
                 }
 
                 renderTopics();
@@ -263,33 +263,32 @@
         }
 
         function renderBranches() {
-            if (branches.length === 0) return;
+            if (branches.length <= 1) return;
 
             const selector = document.getElementById('branch-selector');
             const select = document.getElementById('branch-select');
 
-            // Encontrar a filial principal ou usar a primeira
-            const mainBranch = branches.find(b => b.is_main === 1) || branches[0];
+            // Adicionar opção da sede principal primeiro, depois as filiais
+            let options = `<option value="main" selected>Sede principal</option>`;
+            options += branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
 
-            if (branches.length === 1) {
-                // Se tem apenas 1 filial, não mostrar seletor, usar direto
-                selectBranch(mainBranch.id);
-            } else {
-                // Múltiplas filiais, mostrar seletor
-                select.innerHTML = branches.map(b =>
-                    `<option value="${b.id}" ${b.id === mainBranch.id ? 'selected' : ''}>${b.name}</option>`
-                ).join('');
-                selector.classList.remove('hidden');
-                selectBranch(mainBranch.id);
-            }
+            select.innerHTML = options;
+            selector.classList.remove('hidden');
         }
 
         function selectBranch(branchId) {
-            const branch = branches.find(b => b.id == branchId);
-            if (branch) {
-                document.getElementById('client-address').textContent = branch.address;
-                document.getElementById('client-phone').textContent = branch.phone || clientData.phone;
-                document.getElementById('client-hours').textContent = branch.business_hours || clientData.business_hours;
+            if (branchId === 'main') {
+                // Mostrar dados da sede principal (cliente)
+                document.getElementById('client-address').textContent = clientData.address;
+                document.getElementById('client-phone').textContent = clientData.phone;
+                document.getElementById('client-hours').textContent = clientData.business_hours;
+            } else {
+                const branch = branches.find(b => b.id == branchId);
+                if (branch) {
+                    document.getElementById('client-address').textContent = branch.address;
+                    document.getElementById('client-phone').textContent = branch.phone || clientData.phone;
+                    document.getElementById('client-hours').textContent = branch.business_hours || clientData.business_hours;
+                }
             }
         }
 
