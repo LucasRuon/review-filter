@@ -135,6 +135,10 @@
             </div>
             <div class="footer">
                 <div class="footer-header"><div class="footer-logo" id="footer-logo"></div><span class="footer-name" id="client-name"></span></div>
+                <div id="branch-selector" class="branch-selector hidden" style="margin-bottom:1rem;">
+                    <label class="form-label" style="color:#9CA3AF;margin-bottom:0.5rem;display:block;font-size:0.8rem;"><i class="fas fa-store"></i> Selecione a unidade:</label>
+                    <select id="branch-select" class="form-select" style="padding:0.75rem;font-size:0.9rem;" onchange="selectBranch(this.value)"></select>
+                </div>
                 <div class="footer-info">
                     <p><i class="fas fa-map-marker-alt"></i><span id="client-address"></span></p>
                     <p><i class="fas fa-phone"></i><span id="client-phone"></span></p>
@@ -211,6 +215,8 @@
         let clientSlug = slug;
         let selectedTopic = null;
         let topics = [];
+        let branches = [];
+        let clientData = null;
 
         async function loadClient() {
             try {
@@ -220,19 +226,17 @@
                 if (data.error) { document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:2rem"><h2>Página não encontrada</h2></div>'; return; }
                 clientSlug = data.slug || slug;
                 topics = data.topics || [];
-                
+                branches = data.branches || [];
+                clientData = data;
+
                 if (data.primary_color) document.documentElement.style.setProperty('--accent', data.primary_color);
                 document.getElementById('client-name').textContent = data.name;
-                document.getElementById('client-address').textContent = data.address;
-                document.getElementById('client-phone').textContent = data.phone;
-                document.getElementById('client-hours').textContent = data.business_hours;
                 document.getElementById('btnPraise').href = data.google_review_link;
-                
+
                 const initials = data.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
                 const headerLogo = document.getElementById('header-logo');
-                
+
                 if (data.logo_url) {
-                    // Verificar se é uma imagem com fundo (JPG) ou transparente (PNG/SVG)
                     const hasDarkLogo = data.logo_url.includes('.jpg') || data.logo_url.includes('.jpeg');
                     if (hasDarkLogo) headerLogo.classList.add('has-dark-logo');
                     headerLogo.innerHTML = `<img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.innerHTML='<span class=\\'logo-initials\\'>${initials}</span>'">`;
@@ -241,11 +245,52 @@
                     headerLogo.innerHTML = `<span class="logo-initials">${initials}</span>`;
                     document.getElementById('footer-logo').textContent = initials;
                 }
-                
+
+                // Se tem filiais, mostrar seletor
+                if (branches.length > 0) {
+                    renderBranches();
+                } else {
+                    // Sem filiais, usar dados do cliente principal
+                    document.getElementById('client-address').textContent = data.address;
+                    document.getElementById('client-phone').textContent = data.phone;
+                    document.getElementById('client-hours').textContent = data.business_hours;
+                }
+
                 renderTopics();
                 document.title = `Avaliação - ${data.name}`;
                 document.getElementById('loading').classList.add('hidden');
             } catch (e) { console.error(e); }
+        }
+
+        function renderBranches() {
+            if (branches.length === 0) return;
+
+            const selector = document.getElementById('branch-selector');
+            const select = document.getElementById('branch-select');
+
+            // Encontrar a filial principal ou usar a primeira
+            const mainBranch = branches.find(b => b.is_main === 1) || branches[0];
+
+            if (branches.length === 1) {
+                // Se tem apenas 1 filial, não mostrar seletor, usar direto
+                selectBranch(mainBranch.id);
+            } else {
+                // Múltiplas filiais, mostrar seletor
+                select.innerHTML = branches.map(b =>
+                    `<option value="${b.id}" ${b.id === mainBranch.id ? 'selected' : ''}>${b.name}</option>`
+                ).join('');
+                selector.classList.remove('hidden');
+                selectBranch(mainBranch.id);
+            }
+        }
+
+        function selectBranch(branchId) {
+            const branch = branches.find(b => b.id == branchId);
+            if (branch) {
+                document.getElementById('client-address').textContent = branch.address;
+                document.getElementById('client-phone').textContent = branch.phone || clientData.phone;
+                document.getElementById('client-hours').textContent = branch.business_hours || clientData.business_hours;
+            }
         }
 
         function renderTopics() {

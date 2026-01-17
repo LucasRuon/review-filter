@@ -154,6 +154,8 @@ app.get('/custom-domain-data', async (req, res) => {
     const client = await db.getClientByCustomDomain(host);
     if (client) {
         const topics = await db.getTopicsByClientId(client.id);
+        const branches = await db.getBranchesByClientId(client.id);
+        const activeBranches = branches.filter(b => b.active === 1);
         return res.json({
             name: client.name,
             address: client.address,
@@ -163,7 +165,8 @@ app.get('/custom-domain-data', async (req, res) => {
             logo_url: client.logo_url,
             primary_color: client.primary_color,
             slug: client.slug,
-            topics: topics
+            topics: topics,
+            branches: activeBranches
         });
     }
     res.status(404).json({ error: 'Domínio não configurado' });
@@ -232,6 +235,10 @@ app.get('/clients/:id/topics', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
 
+app.get('/clients/:id/branches', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'app.html'));
+});
+
 app.get('/settings', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
@@ -251,7 +258,7 @@ app.get('/profile', (req, res) => {
 // SPA Templates - retorna apenas o conteúdo interno
 app.get('/spa/:page', (req, res) => {
     const page = req.params.page;
-    const validPages = ['dashboard', 'clients', 'client-form', 'client-topics', 'client-complaints', 'all-complaints', 'integrations', 'profile'];
+    const validPages = ['dashboard', 'clients', 'client-form', 'client-topics', 'client-branches', 'client-complaints', 'all-complaints', 'integrations', 'profile'];
 
     if (!validPages.includes(page)) {
         return res.status(404).send('Page not found');

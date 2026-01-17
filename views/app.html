@@ -6,10 +6,52 @@
     <title>Opina Já!</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         .main-content { opacity: 1; transition: opacity 0.15s ease; }
         .main-content.loading { opacity: 0; }
         .empty-state-centered { display: flex; align-items: center; justify-content: center; min-height: 60vh; width: 100%; }
+
+        /* Botão de Suporte */
+        .support-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background: #25D366;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+        }
+        .support-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(37, 211, 102, 0.5);
+        }
+        .support-btn:active { transform: scale(0.95); }
+        .support-tooltip {
+            position: absolute;
+            right: 70px;
+            background: var(--card-bg, #fff);
+            color: var(--text, #1E293B);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .support-btn:hover .support-tooltip { opacity: 1; }
     </style>
 </head>
 <body>
@@ -20,6 +62,12 @@
 
     <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
     <div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+
+    <!-- Botão de Suporte WhatsApp -->
+    <a href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20o%20Opina%20J%C3%A1!" target="_blank" class="support-btn" title="Suporte via WhatsApp">
+        <span class="support-tooltip">Precisa de ajuda?</span>
+        <i class="fab fa-whatsapp"></i>
+    </a>
 
     <div class="app-container">
         <aside class="sidebar">
@@ -170,6 +218,7 @@
             // Rotas dinâmicas
             if (path.match(/^\/clients\/\d+\/edit$/)) return 'client-form';
             if (path.match(/^\/clients\/\d+\/topics$/)) return 'client-topics';
+            if (path.match(/^\/clients\/\d+\/branches$/)) return 'client-branches';
             if (path.match(/^\/clients\/\d+\/complaints$/)) return 'client-complaints';
             if (path === '/clients/new') return 'client-form';
             
@@ -220,6 +269,9 @@
                     break;
                 case 'client-topics':
                     await loadClientTopicsData(path);
+                    break;
+                case 'client-branches':
+                    await loadClientBranchesData(path);
                     break;
                 case 'client-complaints':
                     await loadClientComplaintsData(path);
@@ -294,7 +346,9 @@
                                 <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
+                                    <button class="btn btn-secondary btn-sm" onclick="showQRCode('${c.name}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
                                     <a href="/clients/${c.id}/topics" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tópicos</a>
+                                    <a href="/clients/${c.id}/branches" class="btn btn-secondary btn-sm"><i class="fas fa-store"></i> Filiais</a>
                                     <a href="/clients/${c.id}/complaints" class="btn btn-link">Ver reclamações</a>
                                     <div><a href="/clients/${c.id}/edit" class="btn btn-ghost"><i class="fas fa-edit"></i></a><button class="btn btn-ghost" onclick="deleteClient(${c.id})" style="color:var(--danger)"><i class="fas fa-trash"></i></button></div>
                                 </div>
@@ -360,10 +414,10 @@
         async function loadClientTopicsData(path) {
             const match = path.match(/\/clients\/(\d+)\/topics/);
             if (!match) return;
-            
+
             const clientId = match[1];
             window.currentClientId = clientId;
-            
+
             // Carregar dados do cliente
             const client = await api.get(`/api/clients/${clientId}`);
             if (!client || client.error) {
@@ -372,16 +426,36 @@
                 return;
             }
             document.getElementById('client-name-subtitle').textContent = client.name;
-            
+
             // Carregar templates
             window.niches = await api.get('/api/clients/templates/niches') || [];
             renderNicheTemplates();
-            
+
             // Renderizar emoji picker
             renderEmojiPicker();
-            
+
             // Carregar tópicos
             await loadTopics();
+        }
+
+        async function loadClientBranchesData(path) {
+            const match = path.match(/\/clients\/(\d+)\/branches/);
+            if (!match) return;
+
+            const clientId = match[1];
+            window.currentClientId = clientId;
+
+            // Carregar dados do cliente
+            const client = await api.get(`/api/clients/${clientId}`);
+            if (!client || client.error) {
+                showToast('Cliente não encontrado', 'error');
+                setTimeout(() => navigateTo('/clients'), 1500);
+                return;
+            }
+            document.getElementById('client-name-subtitle').textContent = client.name;
+
+            // Carregar filiais
+            await loadBranches();
         }
 
         async function loadClientComplaintsData(path) {
@@ -862,7 +936,8 @@
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             document.querySelector('[name="name"]').value = user.name || '';
             document.querySelector('[name="email"]').value = user.email || '';
-            
+            document.querySelector('[name="phone"]').value = user.phone || '';
+
             const photoData = localStorage.getItem('profilePhoto');
             if (photoData) {
                 document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
@@ -875,12 +950,94 @@
         window.deleteClient = async function(id) {
             if (!confirm('Excluir este cliente?')) return;
             const res = await api.delete('/api/clients/' + id);
-            if (res.success) { 
-                showToast('Cliente excluído'); 
-                await loadClientsData(); 
+            if (res.success) {
+                showToast('Cliente excluído');
+                await loadClientsData();
             } else {
                 showToast(res.error, 'error');
             }
+        };
+
+        // Funções QR Code
+        window.currentQRClientName = '';
+        window.currentQRLink = '';
+
+        window.showQRCode = async function(clientName, link) {
+            window.currentQRClientName = clientName;
+            window.currentQRLink = link;
+
+            document.getElementById('qr-modal-title').textContent = `QR Code - ${clientName}`;
+            document.getElementById('qr-link-text').textContent = link;
+
+            const canvas = document.getElementById('qr-canvas');
+            try {
+                await QRCode.toCanvas(canvas, link, {
+                    width: 280,
+                    margin: 2,
+                    color: { dark: '#000000', light: '#ffffff' }
+                });
+                document.getElementById('qrCodeClientModal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Erro ao gerar QR Code:', error);
+                showToast('Erro ao gerar QR Code', 'error');
+            }
+        };
+
+        window.closeQRClientModal = function() {
+            document.getElementById('qrCodeClientModal').classList.add('hidden');
+        };
+
+        window.downloadQRCode = function() {
+            const canvas = document.getElementById('qr-canvas');
+            const link = document.createElement('a');
+            link.download = `qrcode-${window.currentQRClientName.replace(/\s+/g, '-').toLowerCase()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast('QR Code baixado!');
+        };
+
+        window.printQRCode = function() {
+            const canvas = document.getElementById('qr-canvas');
+            const dataUrl = canvas.toDataURL('image/png');
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>QR Code - ${window.currentQRClientName}</title>
+                    <style>
+                        body {
+                            display: flex; flex-direction: column; align-items: center;
+                            justify-content: center; min-height: 100vh; margin: 0;
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        }
+                        h2 { margin-bottom: 1rem; color: #1E293B; }
+                        img { max-width: 300px; }
+                        p { margin-top: 1rem; color: #64748B; font-size: 0.9rem; }
+                        .instructions {
+                            margin-top: 2rem; padding: 1rem; background: #F1F5F9;
+                            border-radius: 8px; max-width: 300px; text-align: center;
+                        }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>${window.currentQRClientName}</h2>
+                    <img src="${dataUrl}" alt="QR Code">
+                    <p>${window.currentQRLink}</p>
+                    <div class="instructions">
+                        <strong>Escaneie para avaliar!</strong><br>
+                        Aponte a câmera do seu celular para o QR Code acima.
+                    </div>
+                    <button class="no-print" onclick="window.print()" style="margin-top:2rem;padding:0.75rem 1.5rem;background:#3750F0;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1rem;">
+                        Imprimir
+                    </button>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         };
 
         window.updateComplaintStatus = async function(clientId, complaintId, status) {
@@ -1165,6 +1322,111 @@
             }
         };
 
+        // ========== Funções de Filiais (Branches) ==========
+        window.branches = [];
+        window.editingBranchId = null;
+
+        window.loadBranches = async function() {
+            window.branches = await api.get(`/api/clients/${window.currentClientId}/branches`) || [];
+            renderBranchesGrid();
+        };
+
+        window.renderBranchesGrid = function() {
+            const grid = document.getElementById('branches-grid');
+            let html = window.branches.map(b => `
+                <div class="branch-card ${b.is_main ? 'main' : ''}">
+                    <div class="branch-header">
+                        <div>
+                            <span class="branch-name">${b.name}</span>
+                            ${b.is_main ? '<span class="branch-badge">Principal</span>' : ''}
+                        </div>
+                        <div class="branch-actions">
+                            <button class="btn btn-ghost btn-sm" onclick="editBranch(${b.id})"><i class="fas fa-pen"></i></button>
+                            <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteBranch(${b.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="branch-info">
+                        <p><i class="fas fa-map-marker-alt"></i>${b.address}</p>
+                        ${b.phone ? `<p><i class="fas fa-phone"></i>${b.phone}</p>` : ''}
+                        ${b.business_hours ? `<p><i class="fas fa-clock"></i>${b.business_hours}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            html += `<div class="add-branch-card" onclick="openBranchModal()"><i class="fas fa-plus"></i><span>Adicionar filial</span></div>`;
+            grid.innerHTML = html;
+        };
+
+        window.openBranchModal = function() {
+            window.editingBranchId = null;
+            document.getElementById('branch-modal-title').textContent = 'Nova filial';
+            document.getElementById('branchName').value = '';
+            document.getElementById('branchAddress').value = '';
+            document.getElementById('branchPhone').value = '';
+            document.getElementById('branchHours').value = '';
+            document.getElementById('branchIsMain').checked = false;
+            document.getElementById('branchModal').classList.remove('hidden');
+        };
+
+        window.editBranch = function(id) {
+            const branch = window.branches.find(b => b.id === id);
+            if (!branch) return;
+            window.editingBranchId = id;
+            document.getElementById('branch-modal-title').textContent = 'Editar filial';
+            document.getElementById('branchName').value = branch.name;
+            document.getElementById('branchAddress').value = branch.address;
+            document.getElementById('branchPhone').value = branch.phone || '';
+            document.getElementById('branchHours').value = branch.business_hours || '';
+            document.getElementById('branchIsMain').checked = branch.is_main === 1;
+            document.getElementById('branchModal').classList.remove('hidden');
+        };
+
+        window.closeBranchModal = function() {
+            document.getElementById('branchModal').classList.add('hidden');
+        };
+
+        window.saveBranch = async function(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('branchName').value.trim(),
+                address: document.getElementById('branchAddress').value.trim(),
+                phone: document.getElementById('branchPhone').value.trim() || null,
+                business_hours: document.getElementById('branchHours').value.trim() || null,
+                is_main: document.getElementById('branchIsMain').checked ? 1 : 0
+            };
+
+            if (!data.name || !data.address) {
+                showToast('Nome e endereço são obrigatórios', 'error');
+                return;
+            }
+
+            let res;
+            if (window.editingBranchId) {
+                res = await api.put(`/api/clients/${window.currentClientId}/branches/${window.editingBranchId}`, data);
+            } else {
+                res = await api.post(`/api/clients/${window.currentClientId}/branches`, data);
+            }
+
+            if (res.success || res.id) {
+                showToast(window.editingBranchId ? 'Filial atualizada' : 'Filial criada');
+                closeBranchModal();
+                await loadBranches();
+            } else {
+                showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        };
+
+        window.deleteBranch = async function(id) {
+            if (!confirm('Excluir esta filial?')) return;
+            const res = await api.delete(`/api/clients/${window.currentClientId}/branches/${id}`);
+            if (res.success) {
+                showToast('Filial excluída');
+                await loadBranches();
+            } else {
+                showToast(res.error || 'Erro ao excluir', 'error');
+            }
+        };
+
         // Funções para todas as reclamações
         window.renderComplaints = function(complaints) {
             const container = document.getElementById('complaints-list');
@@ -1270,9 +1532,13 @@
             const btn = document.getElementById('profileBtn');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
-            const res = await api.put('/api/auth/profile', { name: f.name.value, email: f.email.value });
-            if (res.success) { 
-                showToast('Perfil atualizado'); 
+            const res = await api.put('/api/auth/profile', {
+                name: f.name.value,
+                email: f.email.value,
+                phone: f.phone.value
+            });
+            if (res.success) {
+                showToast('Perfil atualizado');
                 await loadUserInfo();
             } else {
                 showToast(res.error, 'error');

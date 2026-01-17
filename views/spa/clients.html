@@ -12,3 +12,51 @@
         <h3 class="empty-title">Carregando...</h3>
     </div>
 </div>
+
+<!-- Modal QR Code -->
+<div id="qrCodeClientModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3 id="qr-modal-title">QR Code - Loja</h3>
+            <button class="modal-close" onclick="closeQRClientModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+            <div id="qr-code-display" style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                <canvas id="qr-canvas" style="max-width: 280px; width: 100%;"></canvas>
+                <p style="font-size: 0.85rem; color: var(--text-muted);" id="qr-link-text"></p>
+            </div>
+            <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="downloadQRCode()">
+                    <i class="fas fa-download"></i> Baixar PNG
+                </button>
+                <button class="btn btn-secondary" onclick="printQRCode()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal.hidden { display: none; }
+.modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); display: flex; align-items: center;
+    justify-content: center; z-index: 1000; padding: 1rem;
+}
+.modal-content {
+    background: var(--card-bg, #fff); border-radius: 16px;
+    width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { margin: 0; font-size: 1.1rem; }
+.modal-close {
+    background: none; border: none; font-size: 1.5rem;
+    cursor: pointer; color: var(--text-muted); line-height: 1;
+}
+.modal-body { padding: 1.5rem; }
+</style>

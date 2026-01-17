@@ -93,7 +93,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 // Update profile
 router.put('/profile', authMiddleware, async (req, res) => {
     try {
-        const { name, email } = req.body;
+        const { name, email, phone } = req.body;
 
         if (!name || !email) {
             return res.status(400).json({ error: 'Preencha todos os campos' });
@@ -104,7 +104,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Este email já está em uso' });
         }
 
-        await db.updateUser(req.userId, name, email.toLowerCase());
+        await db.updateUser(req.userId, name, email.toLowerCase(), phone || null);
         res.json({ success: true, message: 'Perfil atualizado!' });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao atualizar perfil' });

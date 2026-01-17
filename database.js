@@ -139,6 +139,20 @@ async function init() {
         `);
 
         await client.query(`
+            CREATE TABLE IF NOT EXISTS client_branches (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                address TEXT NOT NULL,
+                phone TEXT,
+                business_hours TEXT,
+                is_main INTEGER DEFAULT 0,
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        await client.query(`
             CREATE TABLE IF NOT EXISTS complaint_topics (
                 id SERIAL PRIMARY KEY,
                 client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -321,7 +335,46 @@ async function updateClient(id, userId, data) {
 async function deleteClient(id, userId) {
     await pool.query('DELETE FROM complaints WHERE client_id = $1', [id]);
     await pool.query('DELETE FROM complaint_topics WHERE client_id = $1', [id]);
+    await pool.query('DELETE FROM client_branches WHERE client_id = $1', [id]);
     await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
+}
+
+// Branch functions
+async function getBranchesByClientId(clientId) {
+    const result = await pool.query(
+        'SELECT * FROM client_branches WHERE client_id = $1 ORDER BY is_main DESC, name ASC',
+        [clientId]
+    );
+    return result.rows;
+}
+
+async function getBranchById(id, clientId) {
+    const result = await pool.query(
+        'SELECT * FROM client_branches WHERE id = $1 AND client_id = $2',
+        [id, clientId]
+    );
+    return result.rows[0] || null;
+}
+
+async function createBranch(clientId, data) {
+    const result = await pool.query(`
+        INSERT INTO client_branches (client_id, name, address, phone, business_hours, is_main)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+    `, [clientId, data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0]);
+    return { id: result.rows[0].id };
+}
+
+async function updateBranch(id, clientId, data) {
+    await pool.query(`
+        UPDATE client_branches
+        SET name = $1, address = $2, phone = $3, business_hours = $4, is_main = $5, active = $6
+        WHERE id = $7 AND client_id = $8
+    `, [data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0, data.active !== undefined ? data.active : 1, id, clientId]);
+}
+
+async function deleteBranch(id, clientId) {
+    await pool.query('DELETE FROM client_branches WHERE id = $1 AND client_id = $2', [id, clientId]);
 }
 
 // Topic functions
@@ -594,6 +647,11 @@ module.exports = {
     getClientByCustomDomain,
     updateClient,
     deleteClient,
+    getBranchesByClientId,
+    getBranchById,
+    createBranch,
+    updateBranch,
+    deleteBranch,
     getTopicsByClientId,
     getAllTopicsByClientId,
     getTopicById,

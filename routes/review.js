@@ -30,6 +30,10 @@ router.get('/:slug/data', async (req, res) => {
         // Buscar tópicos ativos
         const topics = await db.getTopicsByClientId(client.id);
 
+        // Buscar filiais ativas
+        const branches = await db.getBranchesByClientId(client.id);
+        const activeBranches = branches.filter(b => b.active === 1);
+
         res.json({
             name: client.name,
             address: client.address,
@@ -38,7 +42,9 @@ router.get('/:slug/data', async (req, res) => {
             google_review_link: client.google_review_link,
             logo_url: client.logo_url,
             primary_color: client.primary_color,
-            topics: topics
+            slug: client.slug,
+            topics: topics,
+            branches: activeBranches
         });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar dados' });

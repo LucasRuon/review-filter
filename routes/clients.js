@@ -325,4 +325,75 @@ router.post('/:id/topics/reset', authMiddleware, async (req, res) => {
     }
 });
 
+// ========== BRANCHES (Filiais) ==========
+
+// Get branches
+router.get('/:id/branches', authMiddleware, async (req, res) => {
+    try {
+        const client = await db.getClientById(req.params.id, req.userId);
+        if (!client) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+        const branches = await db.getBranchesByClientId(req.params.id);
+        res.json(branches);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar filiais' });
+    }
+});
+
+// Create branch
+router.post('/:id/branches', authMiddleware, async (req, res) => {
+    try {
+        const { name, address, phone, business_hours, is_main } = req.body;
+        if (!name || !address) {
+            return res.status(400).json({ error: 'Nome e endereço são obrigatórios' });
+        }
+        const client = await db.getClientById(req.params.id, req.userId);
+        if (!client) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+        const result = await db.createBranch(req.params.id, { name, address, phone, business_hours, is_main });
+        logger.info('Branch created', { clientId: req.params.id, name });
+        res.json({ success: true, id: result.id });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao criar filial' });
+    }
+});
+
+// Update branch
+router.put('/:clientId/branches/:branchId', authMiddleware, async (req, res) => {
+    try {
+        const client = await db.getClientById(req.params.clientId, req.userId);
+        if (!client) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+        const branch = await db.getBranchById(req.params.branchId, req.params.clientId);
+        if (!branch) {
+            return res.status(404).json({ error: 'Filial não encontrada' });
+        }
+        await db.updateBranch(req.params.branchId, req.params.clientId, req.body);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao atualizar filial' });
+    }
+});
+
+// Delete branch
+router.delete('/:clientId/branches/:branchId', authMiddleware, async (req, res) => {
+    try {
+        const client = await db.getClientById(req.params.clientId, req.userId);
+        if (!client) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+        const branch = await db.getBranchById(req.params.branchId, req.params.clientId);
+        if (!branch) {
+            return res.status(404).json({ error: 'Filial não encontrada' });
+        }
+        await db.deleteBranch(req.params.branchId, req.params.clientId);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir filial' });
+    }
+});
+
 module.exports = router;

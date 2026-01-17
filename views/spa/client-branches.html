@@ -1,0 +1,86 @@
+<style>
+    .branches-grid { display: grid; gap: 1rem; }
+    .branch-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+    .branch-card.main { border-left: 4px solid var(--primary); }
+    .branch-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+    .branch-name { font-weight: 600; font-size: 1rem; }
+    .branch-badge { font-size: 0.7rem; background: var(--primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
+    .branch-info { font-size: 0.85rem; color: var(--text-muted); }
+    .branch-info p { margin-bottom: 0.25rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+    .branch-info i { width: 14px; margin-top: 0.15rem; color: var(--text-muted); }
+    .branch-actions { display: flex; gap: 0.5rem; }
+    .branch-actions button { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+    .add-branch-card { background: var(--bg-secondary); border: 2px dashed var(--border); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .add-branch-card:hover { border-color: var(--primary); background: var(--card-bg); }
+    .add-branch-card i { font-size: 1.5rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .add-branch-card span { display: block; color: var(--text-muted); font-size: 0.9rem; }
+
+    .modal.hidden { display: none; }
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+    .modal-content { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { margin: 0; font-size: 1.1rem; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
+    .modal-body { padding: 1.5rem; }
+</style>
+
+<div class="page-header">
+    <a href="/clients" class="btn btn-ghost" style="margin-bottom:1rem"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <h1 class="page-title">Filiais</h1>
+    <p class="page-subtitle" id="client-name-subtitle">Gerencie as unidades do estabelecimento</p>
+</div>
+
+<div class="card" style="max-width:800px;margin-bottom:1rem">
+    <div class="card-body">
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0">
+            <i class="fas fa-info-circle"></i> Filiais permitem que você tenha diferentes endereços para o mesmo cliente. Na tela de avaliação, o cliente poderá selecionar qual unidade está avaliando.
+        </p>
+    </div>
+</div>
+
+<div class="branches-grid" id="branches-grid" style="max-width:800px">
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+        <h3 class="empty-title">Carregando...</h3>
+    </div>
+</div>
+
+<!-- Modal de Filial -->
+<div id="branchModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="branch-modal-title">Nova filial</h3>
+            <button class="modal-close" onclick="closeBranchModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="branchForm" onsubmit="saveBranch(event)">
+                <div class="form-group">
+                    <label class="form-label">Nome da filial <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="branchName" class="form-input" placeholder="Ex: Unidade Centro, Filial Shopping" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Endereco <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="branchAddress" class="form-input" placeholder="Rua, numero, bairro, cidade" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefone</label>
+                    <input type="tel" id="branchPhone" class="form-input" placeholder="(00) 00000-0000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Horario de funcionamento</label>
+                    <input type="text" id="branchHours" class="form-input" placeholder="Ex: Seg-Sex 9h-18h">
+                </div>
+                <div class="form-group">
+                    <label class="form-check" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" id="branchIsMain">
+                        <span>Esta e a filial principal</span>
+                    </label>
+                </div>
+                <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeBranchModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveBranchBtn">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

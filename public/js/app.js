@@ -50,6 +50,8 @@ async function loadUserInfo() {
         const emailEl = document.getElementById('user-email');
         if (nameEl) nameEl.textContent = user.name;
         if (emailEl) emailEl.textContent = user.email;
+        // Salvar dados do usuário no localStorage para usar no perfil
+        localStorage.setItem('user', JSON.stringify(user));
     }
 }
 
