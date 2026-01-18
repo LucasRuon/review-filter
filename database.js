@@ -312,25 +312,38 @@ async function init() {
             ['max_complaints_per_client', '1000'],
             ['max_branches_per_client', '10'],
             ['max_topics_per_client', '20'],
-            // Email
-            ['smtp_enabled', 'false'],
-            ['smtp_host', ''],
+            // Email - Gmail SMTP configurado
+            ['smtp_enabled', 'true'],
+            ['smtp_host', 'smtp.gmail.com'],
             ['smtp_port', '587'],
-            ['smtp_user', ''],
-            ['smtp_pass', ''],
-            ['smtp_from', 'noreply@opinaja.com.br'],
+            ['smtp_user', 'luucasruon@gmail.com'],
+            ['smtp_pass', 'cjvs soql lqms ezhj'],
+            ['smtp_from', 'luucasruon@gmail.com'],
             // Google
             ['google_review_url_template', 'https://search.google.com/local/writereview?placeid='],
             // Aparência
             ['primary_color', '#3750F0'],
             ['accent_color', '#10B981']
         ];
+        // Configurações SMTP devem ser atualizadas se já existirem
+        const smtpKeys = ['smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
+
         for (const [key, value] of defaultSettings) {
-            await client.query(`
-                INSERT INTO platform_settings (key, value)
-                VALUES ($1, $2)
-                ON CONFLICT (key) DO NOTHING
-            `, [key, value]);
+            if (smtpKeys.includes(key)) {
+                // SMTP: sempre atualizar para garantir configuração correta
+                await client.query(`
+                    INSERT INTO platform_settings (key, value, updated_at)
+                    VALUES ($1, $2, NOW())
+                    ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
+                `, [key, value]);
+            } else {
+                // Outras configs: manter valor existente
+                await client.query(`
+                    INSERT INTO platform_settings (key, value)
+                    VALUES ($1, $2)
+                    ON CONFLICT (key) DO NOTHING
+                `, [key, value]);
+            }
         }
 
         // Migrations para adicionar colunas que podem não existir

@@ -19,18 +19,27 @@ async function initTransporter() {
             return null;
         }
 
+        const port = parseInt(settings.smtp_port) || 587;
         transporter = nodemailer.createTransport({
             host: settings.smtp_host,
-            port: parseInt(settings.smtp_port) || 587,
-            secure: parseInt(settings.smtp_port) === 465,
+            port: port,
+            secure: port === 465,
             auth: {
                 user: settings.smtp_user,
                 pass: settings.smtp_pass
-            }
+            },
+            connectionTimeout: 10000, // 10 segundos para conectar
+            greetingTimeout: 10000,   // 10 segundos para greeting
+            socketTimeout: 15000,     // 15 segundos para operações
+            logger: false,
+            debug: false
         });
 
-        // Verificar conexão
-        await transporter.verify();
+        // Verificar conexão com timeout
+        await Promise.race([
+            transporter.verify(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na conexão SMTP')), 15000))
+        ]);
         logger.info('Email service initialized successfully');
         return transporter;
     } catch (error) {

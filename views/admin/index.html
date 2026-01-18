@@ -1052,9 +1052,12 @@
                                     <label class="form-label">Email remetente</label>
                                     <input type="email" class="form-input" name="smtp_from" value="${settings.smtp_from || ''}" placeholder="noreply@opinaja.com.br">
                                 </div>
-                                <div style="display: flex; gap: 0.75rem;">
+                                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
                                     <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="testEmailConfig()"><i class="fas fa-vial"></i> Testar conexao</button>
+                                    <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 200px;">
+                                        <input type="email" id="test_email" class="form-input" placeholder="Email para teste" style="flex: 1; min-width: 0;">
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="testEmailConfig()"><i class="fas fa-paper-plane"></i> Enviar teste</button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -1108,10 +1111,11 @@
         }
 
         async function testEmailConfig() {
-            showToast('Testando conexao SMTP...');
-            const res = await api.post('/admin/api/test-email', {});
+            const testEmail = document.getElementById('test_email')?.value || '';
+            showToast(testEmail ? 'Enviando email de teste...' : 'Testando conexao SMTP...');
+            const res = await api.post('/admin/api/test-email', { email: testEmail });
             if (res.success) {
-                showToast('Conexao SMTP verificada com sucesso!', 'success');
+                showToast(res.message || 'Sucesso!', 'success');
             } else {
                 showToast('Erro: ' + (res.error || 'Falha na conexao SMTP'), 'error');
             }

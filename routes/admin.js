@@ -279,12 +279,37 @@ router.put('/api/settings', requireAdmin, async (req, res) => {
 
 router.post('/api/test-email', requireAdmin, async (req, res) => {
     try {
-        const result = await emailService.testEmailConfig();
-        if (result.success) {
-            await logAction(req, 'EMAIL_TEST', 'Teste de configuração SMTP realizado com sucesso');
-            res.json({ success: true, message: 'Conexão SMTP verificada com sucesso!' });
+        const { email } = req.body;
+
+        // Primeiro verifica a conexão
+        const verifyResult = await emailService.testEmailConfig();
+        if (!verifyResult.success) {
+            return res.status(400).json({ success: false, error: `Falha na conexão SMTP: ${verifyResult.error}` });
+        }
+
+        // Se um email foi fornecido, envia email de teste real
+        if (email) {
+            const sendResult = await emailService.sendEmail(
+                email,
+                'Teste de Email - Opina Já!',
+                `
+                <div style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #3750F0;">Teste de Email</h2>
+                    <p>Se você recebeu este email, a configuração SMTP está funcionando corretamente!</p>
+                    <p style="color: #666; margin-top: 20px;">Este é um email de teste do sistema Opina Já.</p>
+                </div>
+                `
+            );
+
+            if (!sendResult.success) {
+                return res.status(400).json({ success: false, error: `Conexão OK, mas falha ao enviar: ${sendResult.error}` });
+            }
+
+            await logAction(req, 'EMAIL_TEST', `Email de teste enviado para ${email}`);
+            res.json({ success: true, message: `Email de teste enviado para ${email}!` });
         } else {
-            res.status(400).json({ success: false, error: result.error });
+            await logAction(req, 'EMAIL_TEST', 'Teste de configuração SMTP realizado com sucesso');
+            res.json({ success: true, message: 'Conexão SMTP verificada com sucesso! Informe um email para enviar um teste real.' });
         }
     } catch (error) {
         logger.error('Error testing email config', { error: error.message });
