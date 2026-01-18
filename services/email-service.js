@@ -37,23 +37,26 @@ async function initTransporter() {
         transporter = nodemailer.createTransport({
             host: settings.smtp_host,
             port: port,
-            secure: port === 465,
+            secure: port === 465, // true para porta 465 (SSL)
             auth: {
                 user: settings.smtp_user,
                 pass: settings.smtp_pass
             },
-            connectionTimeout: 10000, // 10 segundos para conectar
-            greetingTimeout: 10000,   // 10 segundos para greeting
-            socketTimeout: 15000,     // 15 segundos para operações
+            connectionTimeout: 30000, // 30 segundos para conectar
+            greetingTimeout: 30000,   // 30 segundos para greeting
+            socketTimeout: 60000,     // 60 segundos para operações
             logger: false,
-            debug: false
+            debug: false,
+            tls: {
+                rejectUnauthorized: false // Aceita certificados auto-assinados
+            }
         });
 
-        // Verificar conexão com timeout
+        // Verificar conexão com timeout maior
         logger.info('Verifying SMTP connection...');
         await Promise.race([
             transporter.verify(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na conexão SMTP')), 15000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na conexão SMTP')), 30000))
         ]);
         logger.info('Email service initialized successfully');
         return transporter;

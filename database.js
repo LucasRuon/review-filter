@@ -312,10 +312,10 @@ async function init() {
             ['max_complaints_per_client', '1000'],
             ['max_branches_per_client', '10'],
             ['max_topics_per_client', '20'],
-            // Email - Gmail SMTP configurado
+            // Email - Gmail SMTP configurado (porta 465 SSL para Railway)
             ['smtp_enabled', 'true'],
             ['smtp_host', 'smtp.gmail.com'],
-            ['smtp_port', '587'],
+            ['smtp_port', '465'],
             ['smtp_user', 'luucasruon@gmail.com'],
             ['smtp_pass', 'cjvs soql lqms ezhj'],
             ['smtp_from', 'luucasruon@gmail.com'],
