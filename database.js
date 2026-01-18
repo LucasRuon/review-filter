@@ -284,11 +284,40 @@ async function init() {
 
         // Inserir configurações padrão
         const defaultSettings = [
+            // Suporte
             ['support_whatsapp', '5548999999999'],
             ['support_email', 'contato@opinaja.com.br'],
+            // Sistema
             ['maintenance_mode', 'false'],
+            ['allow_registrations', 'true'],
+            ['require_email_verification', 'false'],
+            // Landing Page
             ['landing_title', 'Proteja sua reputação online'],
-            ['landing_subtitle', 'Direcione avaliações negativas para um canal privado']
+            ['landing_subtitle', 'Direcione avaliações negativas para um canal privado'],
+            // Trial/Planos
+            ['trial_days', '14'],
+            ['default_plan', 'free'],
+            ['max_clients_free', '1'],
+            ['max_clients_pro', '10'],
+            // NPS/Feedback
+            ['nps_popup_days', '14'],
+            ['nps_enabled', 'true'],
+            // Limites
+            ['max_complaints_per_client', '1000'],
+            ['max_branches_per_client', '10'],
+            ['max_topics_per_client', '20'],
+            // Email
+            ['smtp_enabled', 'false'],
+            ['smtp_host', ''],
+            ['smtp_port', '587'],
+            ['smtp_user', ''],
+            ['smtp_pass', ''],
+            ['smtp_from', 'noreply@opinaja.com.br'],
+            // Google
+            ['google_review_url_template', 'https://search.google.com/local/writereview?placeid='],
+            // Aparência
+            ['primary_color', '#3750F0'],
+            ['accent_color', '#10B981']
         ];
         for (const [key, value] of defaultSettings) {
             await client.query(`
@@ -1050,6 +1079,77 @@ async function getTotalFeedbacksCount(status = null, type = null) {
     return parseInt(result.rows[0]?.count) || 0;
 }
 
+// ========== DATABASE STATS ==========
+
+async function getDatabaseStats() {
+    const stats = {};
+
+    // Contagem de tabelas principais
+    const tables = ['users', 'clients', 'complaints', 'branches', 'topics', 'integrations', 'user_feedbacks', 'admin_logs', 'admins'];
+
+    for (const table of tables) {
+        try {
+            const result = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+            stats[table] = parseInt(result.rows[0]?.count) || 0;
+        } catch (e) {
+            stats[table] = 0;
+        }
+    }
+
+    // Tamanho do banco (aproximado)
+    try {
+        const sizeResult = await pool.query(`
+            SELECT pg_size_pretty(pg_database_size(current_database())) as size
+        `);
+        stats.database_size = sizeResult.rows[0]?.size || 'N/A';
+    } catch (e) {
+        stats.database_size = 'N/A';
+    }
+
+    // Conexões ativas
+    try {
+        const connResult = await pool.query(`
+            SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
+        `);
+        stats.active_connections = parseInt(connResult.rows[0]?.count) || 0;
+    } catch (e) {
+        stats.active_connections = 0;
+    }
+
+    return stats;
+}
+
+async function cleanupOldData(daysToKeep = 90) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+    const results = {};
+
+    // Limpar logs antigos
+    try {
+        const logsResult = await pool.query(
+            'DELETE FROM admin_logs WHERE created_at < $1 RETURNING id',
+            [cutoffDate]
+        );
+        results.admin_logs_deleted = logsResult.rowCount;
+    } catch (e) {
+        results.admin_logs_deleted = 0;
+    }
+
+    // Limpar feedbacks antigos do tipo nps_skipped
+    try {
+        const feedbackResult = await pool.query(
+            "DELETE FROM user_feedbacks WHERE type = 'nps_skipped' AND created_at < $1 RETURNING id",
+            [cutoffDate]
+        );
+        results.feedbacks_skipped_deleted = feedbackResult.rowCount;
+    } catch (e) {
+        results.feedbacks_skipped_deleted = 0;
+    }
+
+    return results;
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -1110,5 +1210,8 @@ module.exports = {
     getFeedbackById,
     updateFeedbackStatus,
     getFeedbackStats,
-    getTotalFeedbacksCount
+    getTotalFeedbacksCount,
+    // Database stats
+    getDatabaseStats,
+    cleanupOldData
 };

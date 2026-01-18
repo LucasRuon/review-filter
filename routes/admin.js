@@ -267,6 +267,30 @@ router.put('/api/settings', requireAdmin, async (req, res) => {
     }
 });
 
+// ========== DATABASE STATS ==========
+
+router.get('/api/database-stats', requireAdmin, async (req, res) => {
+    try {
+        const stats = await db.getDatabaseStats();
+        res.json(stats);
+    } catch (error) {
+        logger.error('Error getting database stats', { error: error.message });
+        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+    }
+});
+
+router.post('/api/database/cleanup', requireAdmin, async (req, res) => {
+    try {
+        const { days } = req.body;
+        const results = await db.cleanupOldData(days || 90);
+        await logAction(req, 'DATABASE_CLEANUP', `Limpeza executada: ${JSON.stringify(results)}`);
+        res.json({ success: true, results });
+    } catch (error) {
+        logger.error('Error cleaning database', { error: error.message });
+        res.status(500).json({ error: 'Erro ao limpar banco de dados' });
+    }
+});
+
 // ========== LOGS ==========
 
 router.get('/api/logs', requireAdmin, async (req, res) => {

@@ -816,7 +816,10 @@
 
         // ========== SETTINGS ==========
         async function loadSettings() {
-            const settings = await api.get('/admin/api/settings');
+            const [settings, dbStats] = await Promise.all([
+                api.get('/admin/api/settings'),
+                api.get('/admin/api/database-stats')
+            ]);
             if (!settings) return;
 
             const mainContent = document.getElementById('main-content');
@@ -826,68 +829,274 @@
                     <p class="page-subtitle">Configuracoes gerais da plataforma</p>
                 </div>
 
-                <div class="card" style="max-width: 600px;">
-                    <div class="card-header">
-                        <h3 class="card-title">Suporte</h3>
+                <div class="settings-grid">
+                    <!-- Suporte -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-headset"></i> Suporte</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'support')">
+                                <div class="form-group">
+                                    <label class="form-label">WhatsApp de suporte</label>
+                                    <input type="text" class="form-input" name="support_whatsapp" value="${settings.support_whatsapp || ''}" placeholder="5548999999999">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Email de contato</label>
+                                    <input type="email" class="form-input" name="support_email" value="${settings.support_email || ''}" placeholder="contato@opinaja.com.br">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <form id="settingsForm" onsubmit="saveSettings(event)">
-                            <div class="form-group">
-                                <label class="form-label">WhatsApp de suporte</label>
-                                <input type="text" class="form-input" name="support_whatsapp" value="${settings.support_whatsapp || ''}" placeholder="5548999999999">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Email de contato</label>
-                                <input type="email" class="form-input" name="support_email" value="${settings.support_email || ''}" placeholder="contato@opinaja.com.br">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Salvar</button>
-                        </form>
-                    </div>
-                </div>
 
-                <div class="card" style="max-width: 600px; margin-top: 1.5rem;">
-                    <div class="card-header">
-                        <h3 class="card-title">Manutencao</h3>
+                    <!-- Sistema -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-cogs"></i> Sistema</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="maintenanceMode" ${settings.maintenance_mode === 'true' ? 'checked' : ''} onchange="toggleSetting('maintenance_mode', this.checked)">
+                                    <span>Modo de manutencao</span>
+                                </label>
+                                <p class="form-hint">Usuarios nao conseguirao acessar</p>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="allowRegistrations" ${settings.allow_registrations !== 'false' ? 'checked' : ''} onchange="toggleSetting('allow_registrations', this.checked)">
+                                    <span>Permitir novos cadastros</span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="npsEnabled" ${settings.nps_enabled !== 'false' ? 'checked' : ''} onchange="toggleSetting('nps_enabled', this.checked)">
+                                    <span>Popup NPS ativado</span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Dias entre NPS</label>
+                                <input type="number" class="form-input" id="npsDays" value="${settings.nps_popup_days || '14'}" min="1" max="90" onchange="saveSingleSetting('nps_popup_days', this.value)">
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
-                                <input type="checkbox" id="maintenanceMode" ${settings.maintenance_mode === 'true' ? 'checked' : ''} onchange="toggleMaintenance()">
-                                <span>Modo de manutencao ativado</span>
-                            </label>
-                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Quando ativado, usuarios nao conseguirao acessar a plataforma.</p>
+
+                    <!-- Planos e Trial -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-crown"></i> Planos e Trial</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'plans')">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Dias de trial</label>
+                                        <input type="number" class="form-input" name="trial_days" value="${settings.trial_days || '14'}" min="0" max="90">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Plano padrao</label>
+                                        <select class="form-input" name="default_plan">
+                                            <option value="free" ${settings.default_plan === 'free' ? 'selected' : ''}>Free</option>
+                                            <option value="pro" ${settings.default_plan === 'pro' ? 'selected' : ''}>Pro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Max clientes (Free)</label>
+                                        <input type="number" class="form-input" name="max_clients_free" value="${settings.max_clients_free || '1'}" min="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Max clientes (Pro)</label>
+                                        <input type="number" class="form-input" name="max_clients_pro" value="${settings.max_clients_pro || '10'}" min="1">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Limites -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-tachometer-alt"></i> Limites</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'limits')">
+                                <div class="form-group">
+                                    <label class="form-label">Max reclamacoes por cliente</label>
+                                    <input type="number" class="form-input" name="max_complaints_per_client" value="${settings.max_complaints_per_client || '1000'}" min="100">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Max filiais</label>
+                                        <input type="number" class="form-input" name="max_branches_per_client" value="${settings.max_branches_per_client || '10'}" min="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Max topicos</label>
+                                        <input type="number" class="form-input" name="max_topics_per_client" value="${settings.max_topics_per_client || '20'}" min="1">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Landing Page -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-globe"></i> Landing Page</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'landing')">
+                                <div class="form-group">
+                                    <label class="form-label">Titulo principal</label>
+                                    <input type="text" class="form-input" name="landing_title" value="${settings.landing_title || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Subtitulo</label>
+                                    <input type="text" class="form-input" name="landing_subtitle" value="${settings.landing_subtitle || ''}">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Aparencia -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-palette"></i> Aparencia</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'appearance')">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Cor primaria</label>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <input type="color" id="primaryColorPicker" value="${settings.primary_color || '#3750F0'}" onchange="document.querySelector('[name=primary_color]').value = this.value" style="width: 40px; height: 36px; border: none; cursor: pointer;">
+                                            <input type="text" class="form-input" name="primary_color" value="${settings.primary_color || '#3750F0'}" style="flex: 1;">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Cor de destaque</label>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <input type="color" id="accentColorPicker" value="${settings.accent_color || '#10B981'}" onchange="document.querySelector('[name=accent_color]').value = this.value" style="width: 40px; height: 36px; border: none; cursor: pointer;">
+                                            <input type="text" class="form-input" name="accent_color" value="${settings.accent_color || '#10B981'}" style="flex: 1;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Banco de Dados -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-database"></i> Banco de Dados</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="db-stats">
+                                <div class="db-stat"><span class="db-stat-value">${dbStats?.database_size || 'N/A'}</span><span class="db-stat-label">Tamanho</span></div>
+                                <div class="db-stat"><span class="db-stat-value">${dbStats?.active_connections || 0}</span><span class="db-stat-label">Conexoes</span></div>
+                            </div>
+                            <div class="db-tables">
+                                <div class="db-table-row"><span>Usuarios</span><span>${dbStats?.users || 0}</span></div>
+                                <div class="db-table-row"><span>Clientes</span><span>${dbStats?.clients || 0}</span></div>
+                                <div class="db-table-row"><span>Reclamacoes</span><span>${dbStats?.complaints || 0}</span></div>
+                                <div class="db-table-row"><span>Filiais</span><span>${dbStats?.branches || 0}</span></div>
+                                <div class="db-table-row"><span>Feedbacks</span><span>${dbStats?.user_feedbacks || 0}</span></div>
+                                <div class="db-table-row"><span>Logs</span><span>${dbStats?.admin_logs || 0}</span></div>
+                            </div>
+                            <div style="margin-top: 1rem;">
+                                <button class="btn btn-secondary btn-sm" onclick="cleanupDatabase()"><i class="fas fa-broom"></i> Limpar dados antigos</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Email SMTP -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-envelope"></i> Email SMTP</h3>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="saveSettingsGroup(event, 'smtp')">
+                                <div class="form-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" name="smtp_enabled_check" ${settings.smtp_enabled === 'true' ? 'checked' : ''}>
+                                        <span>SMTP Ativado</span>
+                                    </label>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group" style="flex: 2;">
+                                        <label class="form-label">Host</label>
+                                        <input type="text" class="form-input" name="smtp_host" value="${settings.smtp_host || ''}" placeholder="smtp.exemplo.com">
+                                    </div>
+                                    <div class="form-group" style="flex: 1;">
+                                        <label class="form-label">Porta</label>
+                                        <input type="number" class="form-input" name="smtp_port" value="${settings.smtp_port || '587'}">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Usuario</label>
+                                        <input type="text" class="form-input" name="smtp_user" value="${settings.smtp_user || ''}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Senha</label>
+                                        <input type="password" class="form-input" name="smtp_pass" value="${settings.smtp_pass || ''}">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Email remetente</label>
+                                    <input type="email" class="form-input" name="smtp_from" value="${settings.smtp_from || ''}" placeholder="noreply@opinaja.com.br">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                            </form>
                         </div>
                     </div>
                 </div>
 
-                <div class="card" style="max-width: 600px; margin-top: 1.5rem;">
-                    <div class="card-header">
-                        <h3 class="card-title">Landing Page</h3>
-                    </div>
-                    <div class="card-body">
-                        <form id="landingForm" onsubmit="saveLandingSettings(event)">
-                            <div class="form-group">
-                                <label class="form-label">Titulo principal</label>
-                                <input type="text" class="form-input" name="landing_title" value="${settings.landing_title || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Subtitulo</label>
-                                <input type="text" class="form-input" name="landing_subtitle" value="${settings.landing_subtitle || ''}">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Salvar</button>
-                        </form>
-                    </div>
-                </div>
+                <style>
+                    .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+                    @media (max-width: 1200px) { .settings-grid { grid-template-columns: 1fr; } }
+                    .settings-grid .card-title { display: flex; align-items: center; gap: 0.5rem; }
+                    .settings-grid .card-title i { color: var(--primary); }
+                    .toggle-label { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; }
+                    .toggle-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+                    .form-hint { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem; }
+                    .form-row { display: flex; gap: 1rem; }
+                    .form-row .form-group { flex: 1; }
+                    .db-stats { display: flex; gap: 1rem; margin-bottom: 1rem; }
+                    .db-stat { flex: 1; background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; text-align: center; }
+                    .db-stat-value { display: block; font-size: 1.25rem; font-weight: 700; color: var(--primary); }
+                    .db-stat-label { font-size: 0.75rem; color: var(--text-muted); }
+                    .db-tables { background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; }
+                    .db-table-row { display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+                    .db-table-row:last-child { border-bottom: none; }
+                    .db-table-row span:last-child { font-weight: 600; color: var(--text-primary); }
+                </style>
             `;
         }
 
-        async function saveSettings(e) {
+        async function saveSettingsGroup(e, group) {
             e.preventDefault();
             const form = e.target;
-            const res = await api.put('/admin/api/settings', {
-                support_whatsapp: form.support_whatsapp.value,
-                support_email: form.support_email.value
+            const data = {};
+
+            // Coletar todos os inputs do form
+            const inputs = form.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.name && !input.name.endsWith('_check')) {
+                    data[input.name] = input.type === 'checkbox' ? (input.checked ? 'true' : 'false') : input.value;
+                }
+                if (input.name === 'smtp_enabled_check') {
+                    data['smtp_enabled'] = input.checked ? 'true' : 'false';
+                }
             });
+
+            const res = await api.put('/admin/api/settings', data);
             if (res.success) {
                 showToast('Configuracoes salvas');
             } else {
@@ -895,29 +1104,35 @@
             }
         }
 
-        async function saveLandingSettings(e) {
-            e.preventDefault();
-            const form = e.target;
+        async function toggleSetting(key, value) {
             const res = await api.put('/admin/api/settings', {
-                landing_title: form.landing_title.value,
-                landing_subtitle: form.landing_subtitle.value
+                [key]: value ? 'true' : 'false'
             });
             if (res.success) {
-                showToast('Configuracoes salvas');
+                showToast('Configuracao atualizada');
             } else {
                 showToast(res.error || 'Erro ao salvar', 'error');
             }
         }
 
-        async function toggleMaintenance() {
-            const checked = document.getElementById('maintenanceMode').checked;
-            const res = await api.put('/admin/api/settings', {
-                maintenance_mode: checked ? 'true' : 'false'
-            });
+        async function saveSingleSetting(key, value) {
+            const res = await api.put('/admin/api/settings', { [key]: value });
             if (res.success) {
-                showToast(`Modo de manutencao ${checked ? 'ativado' : 'desativado'}`);
+                showToast('Configuracao atualizada');
             } else {
                 showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        async function cleanupDatabase() {
+            if (!confirm('Isso ira remover logs e feedbacks antigos (mais de 90 dias). Continuar?')) return;
+
+            const res = await api.post('/admin/api/database/cleanup', { days: 90 });
+            if (res.success) {
+                showToast(`Limpeza concluida: ${res.results.admin_logs_deleted} logs e ${res.results.feedbacks_skipped_deleted} feedbacks removidos`);
+                loadSettings(); // Recarregar stats
+            } else {
+                showToast(res.error || 'Erro na limpeza', 'error');
             }
         }
 
