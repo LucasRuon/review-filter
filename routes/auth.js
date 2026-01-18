@@ -60,6 +60,12 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Email ou senha incorretos' });
         }
 
+        // Verificar se o usuário está ativo
+        if (user.active === 0) {
+            logger.warn('Login attempt with inactive account', { userId: user.id, email: email.toLowerCase() });
+            return res.status(403).json({ error: 'Sua conta está desativada. Entre em contato com o suporte.' });
+        }
+
         const token = generateToken(user.id);
         res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
