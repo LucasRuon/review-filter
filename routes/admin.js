@@ -277,14 +277,50 @@ router.put('/api/settings', requireAdmin, async (req, res) => {
 
 // ========== EMAIL TEST ==========
 
+// Debug endpoint para ver configurações SMTP atuais
+router.get('/api/smtp-debug', requireAdmin, async (req, res) => {
+    try {
+        const settings = await db.getAllPlatformSettings();
+        res.json({
+            smtp_enabled: settings.smtp_enabled,
+            smtp_host: settings.smtp_host,
+            smtp_port: settings.smtp_port,
+            smtp_user: settings.smtp_user,
+            smtp_pass: settings.smtp_pass ? '***CONFIGURADO***' : 'NÃO CONFIGURADO',
+            smtp_from: settings.smtp_from
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.post('/api/test-email', requireAdmin, async (req, res) => {
     try {
         const { email } = req.body;
 
+        // Log das configurações atuais
+        const settings = await db.getAllPlatformSettings();
+        logger.info('SMTP Settings from DB:', {
+            smtp_enabled: settings.smtp_enabled,
+            smtp_host: settings.smtp_host,
+            smtp_port: settings.smtp_port,
+            smtp_user: settings.smtp_user,
+            smtp_pass: settings.smtp_pass ? '***SET***' : 'NOT SET',
+            smtp_from: settings.smtp_from
+        });
+
         // Primeiro verifica a conexão
         const verifyResult = await emailService.testEmailConfig();
         if (!verifyResult.success) {
-            return res.status(400).json({ success: false, error: `Falha na conexão SMTP: ${verifyResult.error}` });
+            return res.status(400).json({
+                success: false,
+                error: `Falha na conexão SMTP: ${verifyResult.error}`,
+                debug: {
+                    smtp_enabled: settings.smtp_enabled,
+                    smtp_host: settings.smtp_host,
+                    smtp_user: settings.smtp_user
+                }
+            });
         }
 
         // Se um email foi fornecido, envia email de teste real
