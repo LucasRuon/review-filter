@@ -306,8 +306,16 @@ app.post('/custom-domain-complaint', async (req, res) => {
 });
 
 // Serve HTML pages
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'landing.html'));
+app.get('/', async (req, res) => {
+    try {
+        const fs = require('fs');
+        const whatsapp = await db.getPlatformSetting('support_whatsapp') || '5548999999999';
+        let html = fs.readFileSync(path.join(__dirname, 'views', 'landing.html'), 'utf8');
+        html = html.replace(/\{\{WHATSAPP_NUMBER\}\}/g, whatsapp);
+        res.send(html);
+    } catch (error) {
+        res.sendFile(path.join(__dirname, 'views', 'landing.html'));
+    }
 });
 
 app.get('/login', (req, res) => {
