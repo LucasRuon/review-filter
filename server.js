@@ -10,6 +10,7 @@ const clientRoutes = require('./routes/clients');
 const reviewRoutes = require('./routes/review');
 const whatsappRoutes = require('./routes/whatsapp');
 const adminRoutes = require('./routes/admin');
+const emailService = require('./services/email-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -326,6 +327,14 @@ app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'register.html'));
 });
 
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'forgot-password.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reset-password.html'));
+});
+
 app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'privacy.html'));
 });
@@ -392,8 +401,12 @@ app.get('/spa/:page', (req, res) => {
 });
 
 // Initialize database and start server
-db.init().then(() => {
+db.init().then(async () => {
     logger.info('Database initialized');
+
+    // Initialize email service
+    await emailService.initTransporter();
+
     app.listen(PORT, () => {
         logger.info('='.repeat(50));
         logger.info('Opina Já! Server started successfully');

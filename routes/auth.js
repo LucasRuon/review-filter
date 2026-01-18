@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const db = require('../database');
 const { generateToken, authMiddleware } = require('../middleware/auth');
 const logger = require('../logger');
+const emailService = require('../services/email-service');
 
 const router = express.Router();
 
@@ -32,6 +34,12 @@ router.post('/register', async (req, res) => {
         res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         logger.info('New user registered', { userId: result.lastInsertRowid, email: email.toLowerCase() });
+
+        // Enviar email de boas-vindas (assíncrono, não bloqueia a resposta)
+        emailService.sendWelcomeEmail(email.toLowerCase(), name).catch(err => {
+            logger.error('Failed to send welcome email', { email: email.toLowerCase(), error: err.message });
+        });
+
         res.json({ success: true, message: 'Conta criada com sucesso!' });
     } catch (error) {
         logger.error('Register error', { error: error.message });
@@ -209,6 +217,118 @@ router.post('/integrations/test-webhook', authMiddleware, async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ error: 'Erro ao testar webhook: ' + error.message });
+    }
+});
+
+// ========== PASSWORD RESET ROUTES ==========
+
+// Request password reset
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Informe seu email' });
+        }
+
+        const user = await db.getUserByEmail(email.toLowerCase());
+
+        // Sempre retorna sucesso para não revelar se o email existe
+        if (!user) {
+            logger.info('Password reset requested for unknown email', { email: email.toLowerCase() });
+            return res.json({ success: true, message: 'Se o email estiver cadastrado, você receberá um link de redefinição.' });
+        }
+
+        // Gerar token único
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+        // Salvar token no banco
+        await db.setPasswordResetToken(user.id, resetToken, expiresAt);
+
+        // Gerar URL de reset
+        const baseUrl = process.env.BASE_URL || 'https://opinaja.com.br';
+        const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+
+        // Enviar email
+        const emailResult = await emailService.sendPasswordResetEmail(
+            user.email,
+            user.name,
+            resetToken,
+            resetUrl
+        );
+
+        if (emailResult.success) {
+            logger.info('Password reset email sent', { userId: user.id, email: user.email });
+        } else {
+            logger.error('Failed to send password reset email', { userId: user.id, error: emailResult.error });
+        }
+
+        res.json({ success: true, message: 'Se o email estiver cadastrado, você receberá um link de redefinição.' });
+    } catch (error) {
+        logger.error('Forgot password error', { error: error.message });
+        res.status(500).json({ error: 'Erro ao solicitar redefinição de senha' });
+    }
+});
+
+// Verify reset token
+router.get('/verify-reset-token', async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            return res.status(400).json({ valid: false, error: 'Token não fornecido' });
+        }
+
+        const user = await db.getUserByResetToken(token);
+
+        if (!user) {
+            return res.json({ valid: false, error: 'Token inválido ou expirado' });
+        }
+
+        res.json({ valid: true, email: user.email });
+    } catch (error) {
+        logger.error('Verify reset token error', { error: error.message });
+        res.status(500).json({ valid: false, error: 'Erro ao verificar token' });
+    }
+});
+
+// Reset password with token
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({ error: 'Token e nova senha são obrigatórios' });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
+        }
+
+        const user = await db.getUserByResetToken(token);
+
+        if (!user) {
+            return res.status(400).json({ error: 'Token inválido ou expirado. Solicite uma nova redefinição.' });
+        }
+
+        // Atualizar senha
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.updateUserPassword(user.id, passwordHash);
+
+        // Limpar token
+        await db.clearPasswordResetToken(user.id);
+
+        // Enviar email de confirmação
+        emailService.sendPasswordChangedEmail(user.email, user.name).catch(err => {
+            logger.error('Failed to send password changed email', { userId: user.id, error: err.message });
+        });
+
+        logger.info('Password reset successfully', { userId: user.id, email: user.email });
+        res.json({ success: true, message: 'Senha alterada com sucesso! Você já pode fazer login.' });
+    } catch (error) {
+        logger.error('Reset password error', { error: error.message });
+        res.status(500).json({ error: 'Erro ao redefinir senha' });
     }
 });
 

@@ -1052,7 +1052,10 @@
                                     <label class="form-label">Email remetente</label>
                                     <input type="email" class="form-input" name="smtp_from" value="${settings.smtp_from || ''}" placeholder="noreply@opinaja.com.br">
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                                <div style="display: flex; gap: 0.75rem;">
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="testEmailConfig()"><i class="fas fa-vial"></i> Testar conexao</button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -1101,6 +1104,16 @@
                 showToast('Configuracoes salvas');
             } else {
                 showToast(res.error || 'Erro ao salvar', 'error');
+            }
+        }
+
+        async function testEmailConfig() {
+            showToast('Testando conexao SMTP...');
+            const res = await api.post('/admin/api/test-email', {});
+            if (res.success) {
+                showToast('Conexao SMTP verificada com sucesso!', 'success');
+            } else {
+                showToast('Erro: ' + (res.error || 'Falha na conexao SMTP'), 'error');
             }
         }
 

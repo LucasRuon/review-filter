@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('../database');
 const logger = require('../logger');
+const emailService = require('../services/email-service');
 
 const router = express.Router();
 
@@ -258,12 +259,36 @@ router.put('/api/settings', requireAdmin, async (req, res) => {
             await db.updatePlatformSetting(key, value);
         }
 
+        // Recarregar configurações de email se SMTP foi alterado
+        const smtpKeys = ['smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
+        if (smtpKeys.some(key => key in settings)) {
+            await emailService.reloadConfig();
+            logger.info('Email service configuration reloaded');
+        }
+
         await logAction(req, 'SETTINGS_UPDATED', `Configurações atualizadas: ${Object.keys(settings).join(', ')}`);
 
         res.json({ success: true });
     } catch (error) {
         logger.error('Error updating settings', { error: error.message });
         res.status(500).json({ error: 'Erro ao salvar configurações' });
+    }
+});
+
+// ========== EMAIL TEST ==========
+
+router.post('/api/test-email', requireAdmin, async (req, res) => {
+    try {
+        const result = await emailService.testEmailConfig();
+        if (result.success) {
+            await logAction(req, 'EMAIL_TEST', 'Teste de configuração SMTP realizado com sucesso');
+            res.json({ success: true, message: 'Conexão SMTP verificada com sucesso!' });
+        } else {
+            res.status(400).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        logger.error('Error testing email config', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

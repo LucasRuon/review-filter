@@ -281,6 +281,12 @@ async function init() {
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_feedback_at TIMESTAMP
         `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP
+        `);
 
         // Inserir configurações padrão
         const defaultSettings = [
@@ -397,6 +403,28 @@ async function updateUser(id, name, email, phone = null) {
 
 async function updateUserPassword(id, passwordHash) {
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+}
+
+async function setPasswordResetToken(userId, token, expiresAt) {
+    await pool.query(
+        'UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+        [token, expiresAt, userId]
+    );
+}
+
+async function getUserByResetToken(token) {
+    const result = await pool.query(
+        'SELECT * FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()',
+        [token]
+    );
+    return result.rows[0] || null;
+}
+
+async function clearPasswordResetToken(userId) {
+    await pool.query(
+        'UPDATE users SET password_reset_token = NULL, password_reset_expires = NULL WHERE id = $1',
+        [userId]
+    );
 }
 
 // Client functions
@@ -1159,6 +1187,9 @@ module.exports = {
     updateUser,
     updateUserPassword,
     updateUserLastLogin,
+    setPasswordResetToken,
+    getUserByResetToken,
+    clearPasswordResetToken,
     createClient,
     getClientsByUserId,
     getClientById,
