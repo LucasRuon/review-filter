@@ -363,6 +363,54 @@ router.post('/api/setup', async (req, res) => {
     }
 });
 
+// ========== FEEDBACKS ==========
+
+router.get('/api/feedbacks', requireAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+        const status = req.query.status || null;
+        const type = req.query.type || null;
+
+        const feedbacks = await db.getAllFeedbacks(limit, offset, status, type);
+        const total = await db.getTotalFeedbacksCount(status, type);
+        const stats = await db.getFeedbackStats();
+
+        res.json({ feedbacks, total, stats, page, pages: Math.ceil(total / limit) });
+    } catch (error) {
+        logger.error('Error getting feedbacks', { error: error.message });
+        res.status(500).json({ error: 'Erro ao buscar feedbacks' });
+    }
+});
+
+router.get('/api/feedbacks/:id', requireAdmin, async (req, res) => {
+    try {
+        const feedback = await db.getFeedbackById(req.params.id);
+        if (!feedback) {
+            return res.status(404).json({ error: 'Feedback não encontrado' });
+        }
+        res.json(feedback);
+    } catch (error) {
+        logger.error('Error getting feedback', { error: error.message });
+        res.status(500).json({ error: 'Erro ao buscar feedback' });
+    }
+});
+
+router.put('/api/feedbacks/:id', requireAdmin, async (req, res) => {
+    try {
+        const { status, admin_notes } = req.body;
+
+        await db.updateFeedbackStatus(req.params.id, status, admin_notes);
+        await logAction(req, 'FEEDBACK_UPDATED', `Feedback #${req.params.id} atualizado para ${status}`);
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('Error updating feedback', { error: error.message });
+        res.status(500).json({ error: 'Erro ao atualizar feedback' });
+    }
+});
+
 // ========== HTML PAGES (protected) ==========
 
 router.get('/', requireAdmin, (req, res) => {
@@ -386,6 +434,10 @@ router.get('/logs', requireAdmin, (req, res) => {
 });
 
 router.get('/billing', requireAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'views', 'admin', 'index.html'));
+});
+
+router.get('/feedbacks', requireAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'views', 'admin', 'index.html'));
 });
 

@@ -241,6 +241,21 @@ async function init() {
             )
         `);
 
+        // Tabela de feedbacks/sugestões dos usuários
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_feedbacks (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                type TEXT NOT NULL DEFAULT 'suggestion',
+                rating INTEGER,
+                message TEXT,
+                status TEXT DEFAULT 'new',
+                admin_notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
         // Campos de assinatura na tabela de usuários (preparação para Stripe)
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'free'
@@ -262,6 +277,9 @@ async function init() {
         `);
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_feedback_at TIMESTAMP
         `);
 
         // Inserir configurações padrão
@@ -918,6 +936,120 @@ async function getUserFullData(userId) {
     return user.rows[0] || null;
 }
 
+// ========== FEEDBACK FUNCTIONS ==========
+
+async function createFeedback(userId, type, rating, message) {
+    const result = await pool.query(`
+        INSERT INTO user_feedbacks (user_id, type, rating, message)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id
+    `, [userId, type, rating || null, message || null]);
+
+    // Atualizar última data de feedback do usuário
+    await pool.query('UPDATE users SET last_feedback_at = NOW() WHERE id = $1', [userId]);
+
+    return { id: result.rows[0].id };
+}
+
+async function getUserLastFeedbackDate(userId) {
+    const result = await pool.query(
+        'SELECT last_feedback_at FROM users WHERE id = $1',
+        [userId]
+    );
+    return result.rows[0]?.last_feedback_at || null;
+}
+
+async function getAllFeedbacks(limit = 50, offset = 0, status = null, type = null) {
+    let query = `
+        SELECT f.*, u.name as user_name, u.email as user_email
+        FROM user_feedbacks f
+        LEFT JOIN users u ON f.user_id = u.id
+        WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+        query += ` AND f.status = $${paramIndex++}`;
+        params.push(status);
+    }
+    if (type) {
+        query += ` AND f.type = $${paramIndex++}`;
+        params.push(type);
+    }
+
+    query += ` ORDER BY f.created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+    return result.rows;
+}
+
+async function getFeedbackById(id) {
+    const result = await pool.query(`
+        SELECT f.*, u.name as user_name, u.email as user_email
+        FROM user_feedbacks f
+        LEFT JOIN users u ON f.user_id = u.id
+        WHERE f.id = $1
+    `, [id]);
+    return result.rows[0] || null;
+}
+
+async function updateFeedbackStatus(id, status, adminNotes = null) {
+    await pool.query(`
+        UPDATE user_feedbacks
+        SET status = $1, admin_notes = $2, updated_at = NOW()
+        WHERE id = $3
+    `, [status, adminNotes, id]);
+}
+
+async function getFeedbackStats() {
+    const totalResult = await pool.query('SELECT COUNT(*) as count FROM user_feedbacks');
+    const total = parseInt(totalResult.rows[0]?.count) || 0;
+
+    const newResult = await pool.query("SELECT COUNT(*) as count FROM user_feedbacks WHERE status = 'new'");
+    const newCount = parseInt(newResult.rows[0]?.count) || 0;
+
+    const avgRatingResult = await pool.query('SELECT AVG(rating) as avg FROM user_feedbacks WHERE rating IS NOT NULL');
+    const avgRating = parseFloat(avgRatingResult.rows[0]?.avg) || 0;
+
+    const byTypeResult = await pool.query(`
+        SELECT type, COUNT(*) as count FROM user_feedbacks GROUP BY type
+    `);
+    const byType = {};
+    byTypeResult.rows.forEach(row => {
+        byType[row.type] = parseInt(row.count);
+    });
+
+    const byStatusResult = await pool.query(`
+        SELECT status, COUNT(*) as count FROM user_feedbacks GROUP BY status
+    `);
+    const byStatus = {};
+    byStatusResult.rows.forEach(row => {
+        byStatus[row.status] = parseInt(row.count);
+    });
+
+    return { total, newCount, avgRating: avgRating.toFixed(1), byType, byStatus };
+}
+
+async function getTotalFeedbacksCount(status = null, type = null) {
+    let query = 'SELECT COUNT(*) as count FROM user_feedbacks WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+        query += ` AND status = $${paramIndex++}`;
+        params.push(status);
+    }
+    if (type) {
+        query += ` AND type = $${paramIndex++}`;
+        params.push(type);
+    }
+
+    const result = await pool.query(query, params);
+    return parseInt(result.rows[0]?.count) || 0;
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -970,5 +1102,13 @@ module.exports = {
     updateUserStatus,
     deleteUserAdmin,
     getAdminStats,
-    getUserFullData
+    getUserFullData,
+    // Feedback functions
+    createFeedback,
+    getUserLastFeedbackDate,
+    getAllFeedbacks,
+    getFeedbackById,
+    updateFeedbackStatus,
+    getFeedbackStats,
+    getTotalFeedbacksCount
 };

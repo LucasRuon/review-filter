@@ -212,4 +212,64 @@ router.post('/integrations/test-webhook', authMiddleware, async (req, res) => {
     }
 });
 
+// ========== FEEDBACK ROUTES ==========
+
+// Submit feedback
+router.post('/feedback', authMiddleware, async (req, res) => {
+    try {
+        const { type, rating, message } = req.body;
+
+        if (!type) {
+            return res.status(400).json({ error: 'Tipo de feedback é obrigatório' });
+        }
+
+        const validTypes = ['nps', 'suggestion', 'bug', 'compliment'];
+        if (!validTypes.includes(type)) {
+            return res.status(400).json({ error: 'Tipo de feedback inválido' });
+        }
+
+        if (type === 'nps' && (!rating || rating < 1 || rating > 5)) {
+            return res.status(400).json({ error: 'Avaliação deve ser entre 1 e 5' });
+        }
+
+        await db.createFeedback(req.userId, type, rating, message);
+        res.json({ success: true, message: 'Feedback enviado com sucesso! Obrigado!' });
+    } catch (error) {
+        logger.error('Feedback error', { error: error.message });
+        res.status(500).json({ error: 'Erro ao enviar feedback' });
+    }
+});
+
+// Check if should show NPS popup
+router.get('/feedback/should-show-nps', authMiddleware, async (req, res) => {
+    try {
+        const lastFeedbackDate = await db.getUserLastFeedbackDate(req.userId);
+
+        if (!lastFeedbackDate) {
+            // Nunca deu feedback, mostrar popup
+            return res.json({ shouldShow: true });
+        }
+
+        // Verificar se já passaram 14 dias desde o último feedback
+        const daysSinceLastFeedback = Math.floor(
+            (new Date() - new Date(lastFeedbackDate)) / (1000 * 60 * 60 * 24)
+        );
+
+        res.json({ shouldShow: daysSinceLastFeedback >= 14 });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao verificar feedback' });
+    }
+});
+
+// Skip NPS (mark as seen without submitting)
+router.post('/feedback/skip-nps', authMiddleware, async (req, res) => {
+    try {
+        // Apenas atualiza a data para não mostrar novamente tão cedo
+        await db.createFeedback(req.userId, 'nps_skipped', null, null);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao registrar' });
+    }
+});
+
 module.exports = router;

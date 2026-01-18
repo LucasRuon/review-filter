@@ -195,6 +195,9 @@
                 <a class="nav-item" data-page="billing" onclick="navigateTo('/admin/billing')">
                     <i class="fas fa-credit-card nav-icon"></i> Faturamento
                 </a>
+                <a class="nav-item" data-page="feedbacks" onclick="navigateTo('/admin/feedbacks')">
+                    <i class="fas fa-lightbulb nav-icon"></i> Feedbacks
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <div class="admin-info">
@@ -289,6 +292,19 @@
         </div>
     </div>
 
+    <!-- Modal feedback detail -->
+    <div id="feedbackModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Detalhes do Feedback</h3>
+                <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="feedback-modal-body">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== STATE ==========
         let currentAdmin = null;
@@ -361,6 +377,9 @@
             } else if (path === '/admin/billing') {
                 document.querySelector('[data-page="billing"]').classList.add('active');
                 loadBilling();
+            } else if (path === '/admin/feedbacks') {
+                document.querySelector('[data-page="feedbacks"]').classList.add('active');
+                await loadFeedbacks();
             } else {
                 await loadDashboard();
             }
@@ -962,6 +981,215 @@
                     </div>
                 </div>
             `;
+        }
+
+        // ========== FEEDBACKS ==========
+        let currentFeedbackFilter = { status: '', type: '' };
+
+        async function loadFeedbacks(page = 1) {
+            const params = new URLSearchParams({ page });
+            if (currentFeedbackFilter.status) params.append('status', currentFeedbackFilter.status);
+            if (currentFeedbackFilter.type) params.append('type', currentFeedbackFilter.type);
+
+            const data = await api.get('/admin/api/feedbacks?' + params.toString());
+            if (!data) return;
+
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Feedbacks dos Usuarios</h1>
+                    <p class="page-subtitle">Sugestoes, bugs e avaliacoes NPS</p>
+                </div>
+
+                <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Total</span>
+                            <div class="stat-icon blue"><i class="fas fa-comments"></i></div>
+                        </div>
+                        <div class="stat-value">${data.stats.total}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Novos</span>
+                            <div class="stat-icon orange"><i class="fas fa-bell"></i></div>
+                        </div>
+                        <div class="stat-value">${data.stats.newCount}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Media NPS</span>
+                            <div class="stat-icon green"><i class="fas fa-star"></i></div>
+                        </div>
+                        <div class="stat-value">${data.stats.avgRating || '-'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Sugestoes</span>
+                            <div class="stat-icon blue"><i class="fas fa-lightbulb"></i></div>
+                        </div>
+                        <div class="stat-value">${data.stats.byType?.suggestion || 0}</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Lista de Feedbacks</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="feedbackStatusFilter" onchange="filterFeedbacks()" style="padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                                <option value="">Todos Status</option>
+                                <option value="new" ${currentFeedbackFilter.status === 'new' ? 'selected' : ''}>Novos</option>
+                                <option value="reviewing" ${currentFeedbackFilter.status === 'reviewing' ? 'selected' : ''}>Em analise</option>
+                                <option value="implemented" ${currentFeedbackFilter.status === 'implemented' ? 'selected' : ''}>Implementado</option>
+                                <option value="rejected" ${currentFeedbackFilter.status === 'rejected' ? 'selected' : ''}>Rejeitado</option>
+                            </select>
+                            <select id="feedbackTypeFilter" onchange="filterFeedbacks()" style="padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                                <option value="">Todos Tipos</option>
+                                <option value="nps" ${currentFeedbackFilter.type === 'nps' ? 'selected' : ''}>NPS</option>
+                                <option value="suggestion" ${currentFeedbackFilter.type === 'suggestion' ? 'selected' : ''}>Sugestao</option>
+                                <option value="bug" ${currentFeedbackFilter.type === 'bug' ? 'selected' : ''}>Bug</option>
+                                <option value="compliment" ${currentFeedbackFilter.type === 'compliment' ? 'selected' : ''}>Elogio</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Usuario</th>
+                                        <th>Tipo</th>
+                                        <th>Rating</th>
+                                        <th>Mensagem</th>
+                                        <th>Status</th>
+                                        <th>Acoes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.feedbacks.length === 0 ? '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum feedback encontrado</td></tr>' : ''}
+                                    ${data.feedbacks.map(f => `
+                                        <tr>
+                                            <td>${formatDate(f.created_at)}</td>
+                                            <td>
+                                                <div style="font-weight: 500;">${f.user_name || 'Usuario deletado'}</div>
+                                                <div style="font-size: 0.8rem; color: var(--text-muted);">${f.user_email || ''}</div>
+                                            </td>
+                                            <td><span class="badge badge-${getTypeBadgeColor(f.type)}">${getTypeLabel(f.type)}</span></td>
+                                            <td>${f.rating ? '⭐'.repeat(f.rating) : '-'}</td>
+                                            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.message || '-'}</td>
+                                            <td><span class="badge badge-${getStatusBadgeColor(f.status)}">${getStatusLabel(f.status)}</span></td>
+                                            <td>
+                                                <button class="btn btn-ghost btn-sm" onclick="openFeedbackDetail(${f.id})" title="Ver detalhes">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                ${data.pages > 1 ? `
+                <div class="pagination" style="margin-top: 1rem; display: flex; justify-content: center; gap: 0.5rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadFeedbacks(${data.page - 1})" ${data.page === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span style="padding: 0.5rem 1rem; color: var(--text-secondary);">Pagina ${data.page} de ${data.pages}</span>
+                    <button class="btn btn-secondary btn-sm" onclick="loadFeedbacks(${data.page + 1})" ${data.page === data.pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function filterFeedbacks() {
+            currentFeedbackFilter.status = document.getElementById('feedbackStatusFilter').value;
+            currentFeedbackFilter.type = document.getElementById('feedbackTypeFilter').value;
+            loadFeedbacks(1);
+        }
+
+        function getTypeLabel(type) {
+            const labels = { nps: 'NPS', suggestion: 'Sugestao', bug: 'Bug', compliment: 'Elogio', nps_skipped: 'NPS Pulado' };
+            return labels[type] || type;
+        }
+
+        function getTypeBadgeColor(type) {
+            const colors = { nps: 'blue', suggestion: 'orange', bug: 'red', compliment: 'green', nps_skipped: 'gray' };
+            return colors[type] || 'gray';
+        }
+
+        function getStatusLabel(status) {
+            const labels = { new: 'Novo', reviewing: 'Em analise', implemented: 'Implementado', rejected: 'Rejeitado' };
+            return labels[status] || status;
+        }
+
+        function getStatusBadgeColor(status) {
+            const colors = { new: 'orange', reviewing: 'blue', implemented: 'green', rejected: 'red' };
+            return colors[status] || 'gray';
+        }
+
+        async function openFeedbackDetail(id) {
+            const feedback = await api.get('/admin/api/feedbacks/' + id);
+            if (!feedback) return;
+
+            document.getElementById('feedback-modal-body').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Usuario</label>
+                        <p style="margin: 0; font-weight: 500;">${feedback.user_name || 'Usuario deletado'}</p>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">${feedback.user_email || ''}</p>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Data</label>
+                        <p style="margin: 0;">${formatDate(feedback.created_at)}</p>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Tipo</label>
+                        <span class="badge badge-${getTypeBadgeColor(feedback.type)}">${getTypeLabel(feedback.type)}</span>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Avaliacao</label>
+                        <p style="margin: 0; font-size: 1.25rem;">${feedback.rating ? '⭐'.repeat(feedback.rating) : '-'}</p>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Mensagem</label>
+                    <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; white-space: pre-wrap;">${feedback.message || 'Sem mensagem'}</div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Status</label>
+                    <select id="feedbackStatus" style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary);">
+                        <option value="new" ${feedback.status === 'new' ? 'selected' : ''}>Novo</option>
+                        <option value="reviewing" ${feedback.status === 'reviewing' ? 'selected' : ''}>Em analise</option>
+                        <option value="implemented" ${feedback.status === 'implemented' ? 'selected' : ''}>Implementado</option>
+                        <option value="rejected" ${feedback.status === 'rejected' ? 'selected' : ''}>Rejeitado</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Notas do Admin</label>
+                    <textarea id="feedbackNotes" rows="3" style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); resize: none;">${feedback.admin_notes || ''}</textarea>
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+                    <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="saveFeedback(${feedback.id})"><i class="fas fa-save"></i> Salvar</button>
+                </div>
+            `;
+            document.getElementById('feedbackModal').classList.remove('hidden');
+        }
+
+        async function saveFeedback(id) {
+            const status = document.getElementById('feedbackStatus').value;
+            const admin_notes = document.getElementById('feedbackNotes').value;
+
+            const res = await api.put('/admin/api/feedbacks/' + id, { status, admin_notes });
+            if (res.success) {
+                closeFeedbackModal();
+                loadFeedbacks();
+            }
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.add('hidden');
         }
 
         // ========== HELPERS ==========
