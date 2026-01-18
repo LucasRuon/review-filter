@@ -1015,43 +1015,71 @@
                         </div>
                     </div>
 
-                    <!-- Email SMTP -->
+                    <!-- Email -->
                     <div class="card">
                         <div class="card-header">
-                            <h3 class="card-title"><i class="fas fa-envelope"></i> Email SMTP</h3>
+                            <h3 class="card-title"><i class="fas fa-envelope"></i> Email</h3>
                         </div>
                         <div class="card-body">
-                            <form onsubmit="saveSettingsGroup(event, 'smtp')">
-                                <div class="form-group">
-                                    <label class="toggle-label">
-                                        <input type="checkbox" name="smtp_enabled_check" ${settings.smtp_enabled === 'true' ? 'checked' : ''}>
-                                        <span>SMTP Ativado</span>
-                                    </label>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="flex: 2;">
-                                        <label class="form-label">Host</label>
-                                        <input type="text" class="form-input" name="smtp_host" value="${settings.smtp_host || ''}" placeholder="smtp.exemplo.com">
-                                    </div>
-                                    <div class="form-group" style="flex: 1;">
-                                        <label class="form-label">Porta</label>
-                                        <input type="number" class="form-input" name="smtp_port" value="${settings.smtp_port || '587'}">
+                            <form onsubmit="saveSettingsGroup(event, 'email')">
+                                <!-- Resend API (Recomendado para Railway) -->
+                                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                                    <p style="margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                        <strong style="color: var(--success);">Recomendado:</strong> Use o Resend (gratuito ate 3000 emails/mes).
+                                        <a href="https://resend.com" target="_blank" style="color: var(--primary);">Criar conta</a>
+                                    </p>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">Resend API Key</label>
+                                        <input type="password" class="form-input" name="resend_api_key" value="${settings.resend_api_key || ''}" placeholder="re_xxxxxxxxxx">
                                     </div>
                                 </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label">Usuario</label>
-                                        <input type="text" class="form-input" name="smtp_user" value="${settings.smtp_user || ''}">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Senha</label>
-                                        <input type="password" class="form-input" name="smtp_pass" value="${settings.smtp_pass || ''}">
-                                    </div>
-                                </div>
+
                                 <div class="form-group">
                                     <label class="form-label">Email remetente</label>
-                                    <input type="email" class="form-input" name="smtp_from" value="${settings.smtp_from || ''}" placeholder="noreply@opinaja.com.br">
+                                    <input type="email" class="form-input" name="email_from" value="${settings.email_from || ''}" placeholder="noreply@opinaja.com.br">
+                                    <p class="form-hint">Use um email do dominio verificado no Resend</p>
                                 </div>
+
+                                <hr style="border: none; border-top: 1px solid var(--border); margin: 1.25rem 0;">
+
+                                <!-- SMTP Alternativo -->
+                                <details style="margin-bottom: 1rem;">
+                                    <summary style="cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                                        <i class="fas fa-cog"></i> SMTP Alternativo (avancado)
+                                    </summary>
+                                    <div class="form-group">
+                                        <label class="toggle-label">
+                                            <input type="checkbox" name="smtp_enabled_check" ${settings.smtp_enabled === 'true' ? 'checked' : ''}>
+                                            <span>SMTP Ativado</span>
+                                        </label>
+                                        <p class="form-hint">Usado apenas se Resend nao estiver configurado</p>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group" style="flex: 2;">
+                                            <label class="form-label">Host</label>
+                                            <input type="text" class="form-input" name="smtp_host" value="${settings.smtp_host || ''}" placeholder="smtp.exemplo.com">
+                                        </div>
+                                        <div class="form-group" style="flex: 1;">
+                                            <label class="form-label">Porta</label>
+                                            <input type="number" class="form-input" name="smtp_port" value="${settings.smtp_port || '587'}">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label">Usuario</label>
+                                            <input type="text" class="form-input" name="smtp_user" value="${settings.smtp_user || ''}">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Senha</label>
+                                            <input type="password" class="form-input" name="smtp_pass" value="${settings.smtp_pass || ''}">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Email remetente (SMTP)</label>
+                                        <input type="email" class="form-input" name="smtp_from" value="${settings.smtp_from || ''}" placeholder="noreply@exemplo.com">
+                                    </div>
+                                </details>
+
                                 <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
                                     <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
                                     <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 200px;">

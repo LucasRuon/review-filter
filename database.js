@@ -312,38 +312,32 @@ async function init() {
             ['max_complaints_per_client', '1000'],
             ['max_branches_per_client', '10'],
             ['max_topics_per_client', '20'],
-            // Email - Gmail SMTP configurado (porta 465 SSL para Railway)
-            ['smtp_enabled', 'true'],
+            // Email - Resend API (funciona no Railway) ou SMTP
+            ['resend_api_key', ''], // Preencher com API key do Resend
+            ['email_from', 'noreply@opinaja.com.br'], // Email de envio
+            ['smtp_enabled', 'false'],
             ['smtp_host', 'smtp.gmail.com'],
             ['smtp_port', '465'],
-            ['smtp_user', 'luucasruon@gmail.com'],
-            ['smtp_pass', 'cjvs soql lqms ezhj'],
-            ['smtp_from', 'luucasruon@gmail.com'],
+            ['smtp_user', ''],
+            ['smtp_pass', ''],
+            ['smtp_from', ''],
             // Google
             ['google_review_url_template', 'https://search.google.com/local/writereview?placeid='],
             // Aparência
             ['primary_color', '#3750F0'],
             ['accent_color', '#10B981']
         ];
-        // Configurações SMTP devem ser atualizadas se já existirem
-        const smtpKeys = ['smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
+        // Configurações de email devem ser atualizadas se já existirem
+        const emailKeys = ['resend_api_key', 'email_from', 'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
 
         for (const [key, value] of defaultSettings) {
-            if (smtpKeys.includes(key)) {
-                // SMTP: sempre atualizar para garantir configuração correta
-                await client.query(`
-                    INSERT INTO platform_settings (key, value, updated_at)
-                    VALUES ($1, $2, NOW())
-                    ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
-                `, [key, value]);
-            } else {
-                // Outras configs: manter valor existente
-                await client.query(`
-                    INSERT INTO platform_settings (key, value)
-                    VALUES ($1, $2)
-                    ON CONFLICT (key) DO NOTHING
-                `, [key, value]);
-            }
+            // Configurações de email: apenas inserir se não existir (para não sobrescrever configs do admin)
+            // Outras configs: manter valor existente
+            await client.query(`
+                INSERT INTO platform_settings (key, value)
+                VALUES ($1, $2)
+                ON CONFLICT (key) DO NOTHING
+            `, [key, value]);
         }
 
         // Migrations para adicionar colunas que podem não existir

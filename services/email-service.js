@@ -3,6 +3,7 @@ const db = require('../database');
 const logger = require('../logger');
 
 let transporter = null;
+let emailProvider = null; // 'smtp' ou 'resend'
 
 // Inicializar transporter com configurações do banco
 async function initTransporter() {
@@ -14,11 +15,21 @@ async function initTransporter() {
             smtp_host: settings.smtp_host,
             smtp_port: settings.smtp_port,
             smtp_user: settings.smtp_user ? '***configured***' : 'NOT SET',
-            smtp_pass: settings.smtp_pass ? '***configured***' : 'NOT SET'
+            smtp_pass: settings.smtp_pass ? '***configured***' : 'NOT SET',
+            resend_api_key: settings.resend_api_key ? '***configured***' : 'NOT SET'
         });
 
+        // Primeiro tenta Resend (API HTTP - funciona no Railway)
+        if (settings.resend_api_key) {
+            logger.info('Using Resend API for email delivery');
+            emailProvider = 'resend';
+            transporter = { type: 'resend', apiKey: settings.resend_api_key };
+            return transporter;
+        }
+
+        // Fallback para SMTP tradicional
         if (settings.smtp_enabled !== 'true') {
-            logger.info('Email service disabled - smtp_enabled is not true');
+            logger.info('Email service disabled - smtp_enabled is not true and no Resend API key');
             return null;
         }
 
@@ -34,49 +45,77 @@ async function initTransporter() {
         const port = parseInt(settings.smtp_port) || 587;
         logger.info(`Creating SMTP transporter: ${settings.smtp_host}:${port}`);
 
+        emailProvider = 'smtp';
         transporter = nodemailer.createTransport({
             host: settings.smtp_host,
             port: port,
-            secure: port === 465, // true para porta 465 (SSL)
+            secure: port === 465,
             auth: {
                 user: settings.smtp_user,
                 pass: settings.smtp_pass
             },
-            connectionTimeout: 30000, // 30 segundos para conectar
-            greetingTimeout: 30000,   // 30 segundos para greeting
-            socketTimeout: 60000,     // 60 segundos para operações
+            connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 60000,
             logger: false,
             debug: false,
             tls: {
-                rejectUnauthorized: false // Aceita certificados auto-assinados
+                rejectUnauthorized: false
             }
         });
 
-        // Verificar conexão com timeout maior
+        // Verificar conexão SMTP
         logger.info('Verifying SMTP connection...');
         await Promise.race([
             transporter.verify(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na conexão SMTP')), 30000))
         ]);
-        logger.info('Email service initialized successfully');
+        logger.info('Email service initialized successfully (SMTP)');
         return transporter;
     } catch (error) {
         logger.error('Email service initialization failed', { error: error.message });
         transporter = null;
+        emailProvider = null;
         return null;
     }
 }
 
 // Recarregar configurações (chamado quando settings são atualizadas)
 async function reloadConfig() {
+    transporter = null;
+    emailProvider = null;
     return await initTransporter();
+}
+
+// Enviar email via Resend API
+async function sendViaResend(apiKey, from, to, subject, html) {
+    const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            from: from,
+            to: [to],
+            subject: subject,
+            html: html
+        })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || `Resend API error: ${response.status}`);
+    }
+
+    return { messageId: data.id };
 }
 
 // Enviar email genérico
 async function sendEmail(to, subject, html, text = null) {
     try {
         // Sempre tenta reinicializar se não há transporter
-        // Isso garante que funcione mesmo após atualização das configs
         if (!transporter) {
             logger.info('Email transporter not initialized, attempting to initialize...');
             await initTransporter();
@@ -90,24 +129,41 @@ async function sendEmail(to, subject, html, text = null) {
 
         if (!transporter) {
             logger.warn('Email not sent: service not configured', { to, subject });
-            return { success: false, error: 'Email service not configured - verifique as configurações SMTP no painel admin' };
+            return { success: false, error: 'Email service not configured - configure Resend API ou SMTP no painel admin' };
         }
 
         const settings = await db.getAllPlatformSettings();
-        const from = settings.smtp_from || settings.smtp_user;
+        const fromEmail = settings.email_from || settings.smtp_from || settings.smtp_user || 'noreply@opinaja.com.br';
+        const fromName = 'Opina Já!';
 
-        const result = await transporter.sendMail({
-            from: `"Opina Já!" <${from}>`,
-            to,
-            subject,
-            html,
-            text: text || html.replace(/<[^>]*>/g, '')
-        });
+        let result;
 
-        logger.info('Email sent successfully', { to, subject, messageId: result.messageId });
+        // Usar Resend API se configurado
+        if (emailProvider === 'resend') {
+            logger.info('Sending email via Resend API', { to, subject });
+            result = await sendViaResend(
+                transporter.apiKey,
+                `${fromName} <${fromEmail}>`,
+                to,
+                subject,
+                html
+            );
+        } else {
+            // Usar SMTP tradicional
+            logger.info('Sending email via SMTP', { to, subject });
+            result = await transporter.sendMail({
+                from: `"${fromName}" <${fromEmail}>`,
+                to,
+                subject,
+                html,
+                text: text || html.replace(/<[^>]*>/g, '')
+            });
+        }
+
+        logger.info('Email sent successfully', { to, subject, messageId: result.messageId, provider: emailProvider });
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        logger.error('Email send failed', { to, subject, error: error.message });
+        logger.error('Email send failed', { to, subject, error: error.message, provider: emailProvider });
         return { success: false, error: error.message };
     }
 }
@@ -298,13 +354,17 @@ async function testEmailConfig() {
     try {
         // Sempre força reinicialização para testar com configs atuais
         logger.info('Testing email config - forcing transporter reload');
-        transporter = null; // Força recriação
+        transporter = null;
+        emailProvider = null;
         await initTransporter();
 
         if (!transporter) {
             const settings = await db.getAllPlatformSettings();
+            if (settings.resend_api_key) {
+                return { success: false, error: 'Resend API key configurada mas falhou ao inicializar' };
+            }
             if (settings.smtp_enabled !== 'true') {
-                return { success: false, error: 'SMTP está desativado. Ative nas configurações.' };
+                return { success: false, error: 'Email não configurado. Configure Resend API key ou ative SMTP.' };
             }
             if (!settings.smtp_host) {
                 return { success: false, error: 'Host SMTP não configurado' };
@@ -315,9 +375,15 @@ async function testEmailConfig() {
             if (!settings.smtp_pass) {
                 return { success: false, error: 'Senha SMTP não configurada' };
             }
-            return { success: false, error: 'Falha ao criar conexão SMTP - verifique as credenciais' };
+            return { success: false, error: 'Falha ao criar conexão - verifique as credenciais' };
         }
 
+        // Se é Resend, só retorna sucesso (não há como verificar sem enviar)
+        if (emailProvider === 'resend') {
+            return { success: true, message: 'Resend API configurada! Envie um email de teste para verificar.' };
+        }
+
+        // Se é SMTP, verifica a conexão
         await transporter.verify();
         return { success: true, message: 'Conexão SMTP verificada com sucesso!' };
     } catch (error) {
