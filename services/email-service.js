@@ -9,17 +9,31 @@ async function initTransporter() {
     try {
         const settings = await db.getAllPlatformSettings();
 
+        logger.info('Initializing email service...', {
+            smtp_enabled: settings.smtp_enabled,
+            smtp_host: settings.smtp_host,
+            smtp_port: settings.smtp_port,
+            smtp_user: settings.smtp_user ? '***configured***' : 'NOT SET',
+            smtp_pass: settings.smtp_pass ? '***configured***' : 'NOT SET'
+        });
+
         if (settings.smtp_enabled !== 'true') {
-            logger.info('Email service disabled');
+            logger.info('Email service disabled - smtp_enabled is not true');
             return null;
         }
 
         if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_pass) {
-            logger.warn('Email service: SMTP not fully configured');
+            logger.warn('Email service: SMTP not fully configured', {
+                has_host: !!settings.smtp_host,
+                has_user: !!settings.smtp_user,
+                has_pass: !!settings.smtp_pass
+            });
             return null;
         }
 
         const port = parseInt(settings.smtp_port) || 587;
+        logger.info(`Creating SMTP transporter: ${settings.smtp_host}:${port}`);
+
         transporter = nodemailer.createTransport({
             host: settings.smtp_host,
             port: port,
@@ -36,6 +50,7 @@ async function initTransporter() {
         });
 
         // Verificar conexão com timeout
+        logger.info('Verifying SMTP connection...');
         await Promise.race([
             transporter.verify(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na conexão SMTP')), 15000))
@@ -57,13 +72,22 @@ async function reloadConfig() {
 // Enviar email genérico
 async function sendEmail(to, subject, html, text = null) {
     try {
+        // Sempre tenta reinicializar se não há transporter
+        // Isso garante que funcione mesmo após atualização das configs
         if (!transporter) {
+            logger.info('Email transporter not initialized, attempting to initialize...');
             await initTransporter();
+        }
+
+        // Se ainda não tem transporter, tenta forçar reinicialização
+        if (!transporter) {
+            logger.warn('Transporter still null, forcing reload...');
+            await reloadConfig();
         }
 
         if (!transporter) {
             logger.warn('Email not sent: service not configured', { to, subject });
-            return { success: false, error: 'Email service not configured' };
+            return { success: false, error: 'Email service not configured - verifique as configurações SMTP no painel admin' };
         }
 
         const settings = await db.getAllPlatformSettings();
@@ -269,17 +293,32 @@ async function sendNewComplaintEmail(userEmail, userName, clientName, complaint)
 // Testar configuração de email
 async function testEmailConfig() {
     try {
-        if (!transporter) {
-            await initTransporter();
-        }
+        // Sempre força reinicialização para testar com configs atuais
+        logger.info('Testing email config - forcing transporter reload');
+        transporter = null; // Força recriação
+        await initTransporter();
 
         if (!transporter) {
-            return { success: false, error: 'Email service not configured' };
+            const settings = await db.getAllPlatformSettings();
+            if (settings.smtp_enabled !== 'true') {
+                return { success: false, error: 'SMTP está desativado. Ative nas configurações.' };
+            }
+            if (!settings.smtp_host) {
+                return { success: false, error: 'Host SMTP não configurado' };
+            }
+            if (!settings.smtp_user) {
+                return { success: false, error: 'Usuário SMTP não configurado' };
+            }
+            if (!settings.smtp_pass) {
+                return { success: false, error: 'Senha SMTP não configurada' };
+            }
+            return { success: false, error: 'Falha ao criar conexão SMTP - verifique as credenciais' };
         }
 
         await transporter.verify();
-        return { success: true, message: 'SMTP connection verified' };
+        return { success: true, message: 'Conexão SMTP verificada com sucesso!' };
     } catch (error) {
+        logger.error('Email config test failed', { error: error.message });
         return { success: false, error: error.message };
     }
 }
