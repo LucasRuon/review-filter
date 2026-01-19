@@ -189,7 +189,7 @@ function getBaseTemplate(content, title = 'Opina Já!') {
                     <!-- Header com Logo -->
                     <tr>
                         <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 32px 30px; text-align: center;">
-                            <img src="${logoUrl}" alt="Opina Já!" style="height: 48px; width: auto; max-width: 200px;" />
+                            <img src="${logoUrl}" alt="Opina Já!" style="height: 64px; width: auto; max-width: 250px;" />
                         </td>
                     </tr>
                     <!-- Content -->
