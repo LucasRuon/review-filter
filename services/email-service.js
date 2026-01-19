@@ -172,6 +172,7 @@ async function sendEmail(to, subject, html, text = null) {
 
 // Template base
 function getBaseTemplate(content, title = 'Opina Já!') {
+    const logoUrl = 'https://opinaja.com.br/images/logo-light.png';
     return `
 <!DOCTYPE html>
 <html>
@@ -184,11 +185,11 @@ function getBaseTemplate(content, title = 'Opina Já!') {
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
         <tr>
             <td align="center">
-                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                    <!-- Header -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+                    <!-- Header com Logo -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); padding: 30px; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Opina Já!</h1>
+                        <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 32px 30px; text-align: center;">
+                            <img src="${logoUrl}" alt="Opina Já!" style="height: 48px; width: auto; max-width: 200px;" />
                         </td>
                     </tr>
                     <!-- Content -->
@@ -199,13 +200,13 @@ function getBaseTemplate(content, title = 'Opina Já!') {
                     </tr>
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                            <p style="margin: 0; color: #64748b; font-size: 13px;">
+                        <td style="background-color: #f8fafc; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                            <p style="margin: 0; color: #64748b; font-size: 13px; line-height: 1.5;">
                                 Este email foi enviado por <strong>Opina Já!</strong><br>
-                                Proteja sua reputação online e fidelize mais clientes.
+                                Feedback Inteligente - Proteja sua reputacao online.
                             </p>
-                            <p style="margin: 10px 0 0; color: #94a3b8; font-size: 12px;">
-                                © ${new Date().getFullYear()} Opina Já! - Todos os direitos reservados.
+                            <p style="margin: 12px 0 0; color: #94a3b8; font-size: 11px;">
+                                &copy; ${new Date().getFullYear()} Opina Ja! - Todos os direitos reservados.
                             </p>
                         </td>
                     </tr>
