@@ -312,9 +312,9 @@ async function init() {
             ['max_complaints_per_client', '1000'],
             ['max_branches_per_client', '10'],
             ['max_topics_per_client', '20'],
-            // Email - Resend API (funciona no Railway) ou SMTP
-            ['resend_api_key', ''], // Preencher com API key do Resend
-            ['email_from', 'noreply@opinaja.com.br'], // Email de envio
+            // Email - Resend API (funciona no Railway)
+            ['resend_api_key', 're_iZbuq7Bq_8pAJG4vPpP6rXpS6bEe8jDrK'],
+            ['email_from', 'noreply@app.opinaja.com.br'], // Domínio verificado no Resend
             ['smtp_enabled', 'false'],
             ['smtp_host', 'smtp.gmail.com'],
             ['smtp_port', '465'],
@@ -331,14 +331,25 @@ async function init() {
         const emailKeys = ['resend_api_key', 'email_from', 'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
 
         for (const [key, value] of defaultSettings) {
-            // Configurações de email: apenas inserir se não existir (para não sobrescrever configs do admin)
-            // Outras configs: manter valor existente
+            // Inserir configurações padrão se não existirem
             await client.query(`
                 INSERT INTO platform_settings (key, value)
                 VALUES ($1, $2)
                 ON CONFLICT (key) DO NOTHING
             `, [key, value]);
         }
+
+        // Forçar atualização do Resend API key (migração única)
+        await client.query(`
+            UPDATE platform_settings
+            SET value = 're_iZbuq7Bq_8pAJG4vPpP6rXpS6bEe8jDrK', updated_at = NOW()
+            WHERE key = 'resend_api_key' AND (value = '' OR value IS NULL)
+        `);
+        await client.query(`
+            UPDATE platform_settings
+            SET value = 'noreply@app.opinaja.com.br', updated_at = NOW()
+            WHERE key = 'email_from' AND (value = '' OR value IS NULL OR value = 'noreply@opinaja.com.br')
+        `);
 
         // Migrations para adicionar colunas que podem não existir
         const migrations = [
