@@ -1,6 +1,6 @@
 {
   "name": "review-filter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sistema para filtrar avaliações do Google",
   "main": "server.js",
   "scripts": {
