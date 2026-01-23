@@ -1,4 +1,5 @@
 require('dotenv').config();
+// v1.0.2 - Logo update
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
