@@ -73,6 +73,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .sidebar-header { padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
 .sidebar-brand { display: flex; align-items: center; gap: 0.75rem; }
 .sidebar-logo { width: 36px; height: 36px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.875rem; }
+.sidebar-logo-full { display: block; }
+.sidebar-logo-icon { display: none; }
+.sidebar.collapsed .sidebar-logo-full { display: none !important; }
+.sidebar.collapsed .sidebar-logo-icon { display: block !important; }
+/* Dark mode logo swap */
+.sidebar-logo-light { display: block; }
+.sidebar-logo-dark { display: none; }
+.sidebar-logo-icon-light { display: none; }
+.sidebar-logo-icon-dark { display: none; }
+[data-theme="dark"] .sidebar-logo-light { display: none; }
+[data-theme="dark"] .sidebar-logo-dark { display: block; }
+.sidebar.collapsed .sidebar-logo-light { display: none !important; }
+.sidebar.collapsed .sidebar-logo-dark { display: none !important; }
+.sidebar.collapsed .sidebar-logo-icon-light { display: block !important; }
+.sidebar.collapsed .sidebar-logo-icon-dark { display: none !important; }
+[data-theme="dark"] .sidebar.collapsed .sidebar-logo-icon-light { display: none !important; }
+[data-theme="dark"] .sidebar.collapsed .sidebar-logo-icon-dark { display: block !important; }
 .sidebar-title { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
 .sidebar-toggle { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.5rem; border-radius: 6px; transition: var(--transition); }
 .sidebar-toggle:hover { background: var(--bg-tertiary); color: var(--text-primary); }
