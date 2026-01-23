@@ -59,14 +59,18 @@ router.post('/:slug/complaint', async (req, res) => {
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
 
-        const { name, email, phone, complaint, topic_id, topic_name } = req.body;
+        const { name, email, phone, complaint, topic_id, topic_name, branch_id } = req.body;
 
         if (!name || !email || !phone || !complaint) {
             return res.status(400).json({ error: 'Preencha todos os campos' });
         }
 
-        await db.createComplaint(client.id, { name, email, phone, complaint, topic_id, topic_name });
-        logger.info('New complaint received', { clientId: client.id, clientName: client.name, customerName: name, topic: topic_name });
+        await db.createComplaint(client.id, { name, email, phone, complaint, topic_id, topic_name, branch_id });
+
+        // Buscar dados da filial se informada
+        const branch = branch_id ? await db.getBranchById(branch_id, client.id) : null;
+
+        logger.info('New complaint received', { clientId: client.id, clientName: client.name, customerName: name, topic: topic_name, branchId: branch_id, branchName: branch?.name });
 
         const integrations = await db.getIntegrationsByUserId(client.user_id);
 
@@ -94,6 +98,7 @@ router.post('/:slug/complaint', async (req, res) => {
             try {
                 const message = whatsappService.replaceMessageVariables(integrations.whatsapp_message, {
                     clientName: client.name,
+                    branchName: branch?.name || 'Sede Principal',
                     customerName: name,
                     customerEmail: email,
                     customerPhone: phone,
@@ -129,6 +134,8 @@ router.post('/:slug/complaint', async (req, res) => {
                     timestamp: new Date().toISOString(),
                     client_id: client.id,
                     client_name: client.name,
+                    branch_id: branch_id || null,
+                    branch_name: branch?.name || null,
                     customer_name: name,
                     customer_email: email,
                     customer_phone: phone,

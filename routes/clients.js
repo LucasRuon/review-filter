@@ -344,7 +344,7 @@ router.get('/:id/branches', authMiddleware, async (req, res) => {
 // Create branch
 router.post('/:id/branches', authMiddleware, async (req, res) => {
     try {
-        const { name, address, phone, business_hours, is_main } = req.body;
+        const { name, address, phone, business_hours, is_main, google_review_link } = req.body;
         if (!name || !address) {
             return res.status(400).json({ error: 'Nome e endereço são obrigatórios' });
         }
@@ -352,7 +352,7 @@ router.post('/:id/branches', authMiddleware, async (req, res) => {
         if (!client) {
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
-        const result = await db.createBranch(req.params.id, { name, address, phone, business_hours, is_main });
+        const result = await db.createBranch(req.params.id, { name, address, phone, business_hours, is_main, google_review_link });
         logger.info('Branch created', { clientId: req.params.id, name });
         res.json({ success: true, id: result.id });
     } catch (error) {

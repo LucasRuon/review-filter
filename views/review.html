@@ -370,18 +370,23 @@
             }
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; btn.disabled = true;
             try {
+                // Obter branch selecionada
+                const selectedBranchChip = document.querySelector('.branch-chip.active');
+                const branch_id = selectedBranchChip?.dataset.id === 'main' ? null : selectedBranchChip?.dataset.id;
+
                 const endpoint = isCustomDomain ? '/custom-domain-complaint' : `/r/${clientSlug}/complaint`;
-                const res = await fetch(endpoint, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        name: f.name.value.trim(), 
-                        email: f.email.value.trim(), 
-                        phone: f.phone.value.trim(), 
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: f.name.value.trim(),
+                        email: f.email.value.trim(),
+                        phone: f.phone.value.trim(),
                         complaint: f.complaint.value.trim(),
                         topic_id: selectedTopic?.id || null,
-                        topic_name: selectedTopic?.name || null
-                    }) 
+                        topic_name: selectedTopic?.name || null,
+                        branch_id: branch_id ? parseInt(branch_id) : null
+                    })
                 });
                 const data = await res.json();
                 if (data.success) { 

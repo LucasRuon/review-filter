@@ -23,6 +23,12 @@
                     <option value="dismissed">Dispensado</option>
                 </select>
             </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:200px">
+                <select id="branchFilter" class="form-input form-select" onchange="filterComplaints()" disabled>
+                    <option value="">Todas as filiais</option>
+                    <option value="main">Sede Principal</option>
+                </select>
+            </div>
             <div style="color:var(--text-muted);font-size:0.875rem">
                 <span id="complaints-count">0</span> reclamações
             </div>

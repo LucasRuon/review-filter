@@ -366,7 +366,11 @@ async function init() {
             'ALTER TABLE integrations ADD COLUMN IF NOT EXISTS whatsapp_notify_new_complaint INTEGER DEFAULT 1',
             'ALTER TABLE integrations ADD COLUMN IF NOT EXISTS whatsapp_notify_status_change INTEGER DEFAULT 1',
             'ALTER TABLE integrations ADD COLUMN IF NOT EXISTS whatsapp_message_in_progress TEXT',
-            'ALTER TABLE integrations ADD COLUMN IF NOT EXISTS whatsapp_message_resolved TEXT'
+            'ALTER TABLE integrations ADD COLUMN IF NOT EXISTS whatsapp_message_resolved TEXT',
+            // Melhoria 1: branch_id em complaints
+            'ALTER TABLE complaints ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES client_branches(id) ON DELETE SET NULL',
+            // Melhoria 3: google_review_link em client_branches
+            'ALTER TABLE client_branches ADD COLUMN IF NOT EXISTS google_review_link TEXT'
         ];
 
         for (const migration of migrations) {
@@ -528,19 +532,19 @@ async function getBranchById(id, clientId) {
 
 async function createBranch(clientId, data) {
     const result = await pool.query(`
-        INSERT INTO client_branches (client_id, name, address, phone, business_hours, is_main)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO client_branches (client_id, name, address, phone, business_hours, is_main, google_review_link)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
-    `, [clientId, data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0]);
+    `, [clientId, data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0, data.google_review_link || null]);
     return { id: result.rows[0].id };
 }
 
 async function updateBranch(id, clientId, data) {
     await pool.query(`
         UPDATE client_branches
-        SET name = $1, address = $2, phone = $3, business_hours = $4, is_main = $5, active = $6
-        WHERE id = $7 AND client_id = $8
-    `, [data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0, data.active !== undefined ? data.active : 1, id, clientId]);
+        SET name = $1, address = $2, phone = $3, business_hours = $4, is_main = $5, active = $6, google_review_link = $7
+        WHERE id = $8 AND client_id = $9
+    `, [data.name, data.address, data.phone || null, data.business_hours || null, data.is_main || 0, data.active !== undefined ? data.active : 1, data.google_review_link || null, id, clientId]);
 }
 
 async function deleteBranch(id, clientId) {
@@ -607,16 +611,19 @@ async function resetTopicsToNiche(clientId, niche) {
 // Complaint functions
 async function createComplaint(clientId, data) {
     await pool.query(`
-        INSERT INTO complaints (client_id, topic_id, topic_name, customer_name, customer_email, customer_phone, complaint_text)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [clientId, data.topic_id || null, data.topic_name || null, data.name, data.email, data.phone, data.complaint]);
+        INSERT INTO complaints (client_id, branch_id, topic_id, topic_name, customer_name, customer_email, customer_phone, complaint_text)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [clientId, data.branch_id || null, data.topic_id || null, data.topic_name || null, data.name, data.email, data.phone, data.complaint]);
 }
 
 async function getComplaintsByClientId(clientId) {
-    const result = await pool.query(
-        'SELECT * FROM complaints WHERE client_id = $1 ORDER BY created_at DESC',
-        [clientId]
-    );
+    const result = await pool.query(`
+        SELECT c.*, cb.name as branch_name
+        FROM complaints c
+        LEFT JOIN client_branches cb ON c.branch_id = cb.id
+        WHERE c.client_id = $1
+        ORDER BY c.created_at DESC
+    `, [clientId]);
     return result.rows;
 }
 
@@ -685,9 +692,10 @@ async function getStats(userId) {
 
 async function getAllComplaintsByUserId(userId) {
     const result = await pool.query(`
-        SELECT c.*, cl.name as client_name
+        SELECT c.*, cl.name as client_name, cb.name as branch_name
         FROM complaints c
         JOIN clients cl ON c.client_id = cl.id
+        LEFT JOIN client_branches cb ON c.branch_id = cb.id
         WHERE cl.user_id = $1
         ORDER BY c.created_at DESC
     `, [userId]);
