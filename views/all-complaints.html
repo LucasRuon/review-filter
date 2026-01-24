@@ -132,7 +132,8 @@
             });
 
             // Carregar todas as reclamações
-            allComplaints = await api.get('/api/complaints') || [];
+            const response = await api.get('/api/complaints') || { complaints: [] };
+            allComplaints = response.complaints || [];
             applyFilters();
             hideLoading();
         }
