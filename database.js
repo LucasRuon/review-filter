@@ -1352,32 +1352,58 @@ async function updateFeedbackStatus(id, status, adminNotes = null) {
     `, [status, adminNotes, id]);
 }
 
-// OTIMIZADO: 5 queries -> 1 query
+// OTIMIZADO: query simplificada para evitar erros com tabela vazia
 async function getFeedbackStats() {
-    const result = await pool.query(`
-        SELECT
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status = 'new') as new_count,
-            COALESCE(AVG(rating) FILTER (WHERE rating IS NOT NULL), 0) as avg_rating,
-            json_object_agg(COALESCE(type_group.type, 'unknown'), type_group.count) FILTER (WHERE type_group.type IS NOT NULL) as by_type,
-            json_object_agg(COALESCE(status_group.status, 'unknown'), status_group.count) FILTER (WHERE status_group.status IS NOT NULL) as by_status
-        FROM user_feedbacks f
-        LEFT JOIN (
-            SELECT type, COUNT(*)::int as count FROM user_feedbacks GROUP BY type
-        ) type_group ON true
-        LEFT JOIN (
-            SELECT status, COUNT(*)::int as count FROM user_feedbacks GROUP BY status
-        ) status_group ON true
-    `);
+    try {
+        // Query simples para estatisticas basicas
+        const basicStats = await pool.query(`
+            SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE status = 'new') as new_count,
+                COALESCE(AVG(rating) FILTER (WHERE rating IS NOT NULL), 0) as avg_rating
+            FROM user_feedbacks
+        `);
 
-    const row = result.rows[0];
-    return {
-        total: parseInt(row?.total) || 0,
-        newCount: parseInt(row?.new_count) || 0,
-        avgRating: (parseFloat(row?.avg_rating) || 0).toFixed(1),
-        byType: row?.by_type || {},
-        byStatus: row?.by_status || {}
-    };
+        // Query para contagem por tipo
+        const typeStats = await pool.query(`
+            SELECT type, COUNT(*)::int as count
+            FROM user_feedbacks
+            WHERE type IS NOT NULL
+            GROUP BY type
+        `);
+
+        // Query para contagem por status
+        const statusStats = await pool.query(`
+            SELECT status, COUNT(*)::int as count
+            FROM user_feedbacks
+            WHERE status IS NOT NULL
+            GROUP BY status
+        `);
+
+        const row = basicStats.rows[0];
+        const byType = {};
+        const byStatus = {};
+
+        typeStats.rows.forEach(r => { byType[r.type] = r.count; });
+        statusStats.rows.forEach(r => { byStatus[r.status] = r.count; });
+
+        return {
+            total: parseInt(row?.total) || 0,
+            newCount: parseInt(row?.new_count) || 0,
+            avgRating: (parseFloat(row?.avg_rating) || 0).toFixed(1),
+            byType,
+            byStatus
+        };
+    } catch (error) {
+        console.error('Error getting feedback stats:', error);
+        return {
+            total: 0,
+            newCount: 0,
+            avgRating: '0.0',
+            byType: {},
+            byStatus: {}
+        };
+    }
 }
 
 async function getTotalFeedbacksCount(status = null, type = null) {

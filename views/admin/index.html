@@ -1270,8 +1270,24 @@
             if (currentFeedbackFilter.status) params.append('status', currentFeedbackFilter.status);
             if (currentFeedbackFilter.type) params.append('type', currentFeedbackFilter.type);
 
-            const data = await api.get('/admin/api/feedbacks?' + params.toString());
-            if (!data) return;
+            let data;
+            try {
+                data = await api.get('/admin/api/feedbacks?' + params.toString());
+            } catch (error) {
+                console.error('Error loading feedbacks:', error);
+                document.getElementById('main-content').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar feedbacks</p></div>';
+                return;
+            }
+
+            if (!data || data.error) {
+                document.getElementById('main-content').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>' + (data?.error || 'Erro ao carregar feedbacks') + '</p></div>';
+                return;
+            }
+
+            // Garantir que stats existe
+            if (!data.stats) {
+                data.stats = { total: 0, newCount: 0, avgRating: '0.0', byType: {} };
+            }
 
             const mainContent = document.getElementById('main-content');
             mainContent.innerHTML = `
