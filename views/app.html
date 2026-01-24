@@ -146,6 +146,12 @@
         const pageCache = {};
         let currentPage = null;
 
+        // Helper function to escape strings for HTML attributes
+        function escapeAttr(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         // Inicialização
         async function initApp() {
             const user = await checkAuth();
@@ -369,35 +375,40 @@
         async function loadClientsData() {
             const clients = await api.get('/api/clients');
             const grid = document.getElementById('clients-grid');
-            
-            if (!clients || clients.length === 0) {
+
+            // Check for API error or empty array
+            if (!clients || clients.error || !Array.isArray(clients) || clients.length === 0) {
                 grid.innerHTML = '<div class="empty-state-centered"><div class="empty-state"><div class="empty-icon">🏢</div><h3 class="empty-title">Nenhum cliente cadastrado</h3><p class="empty-description">Adicione seu primeiro cliente para começar.</p><a href="/clients/new" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar cliente</a></div></div>';
             } else {
-                grid.innerHTML = clients.map(c => `
+                grid.innerHTML = clients.map(c => {
+                    const clientLink = c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug;
+                    const safeName = escapeAttr(c.name);
+                    const initials = c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    return `
                     <div class="client-card">
                         <div class="client-card-header" style="background: ${c.primary_color || 'var(--primary)'}"></div>
                         <div class="client-card-body">
                             <div class="client-header">
-                                <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'client-logo-transparent' : 'client-logo-placeholder'}" style="${c.logo_url ? '' : 'background:' + (c.primary_color || 'var(--primary)') + ';color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}">` : c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</div>
+                                <div class="client-logo ${c.logo_url && (c.logo_url.includes('.png') || c.logo_url.includes('.webp') || c.logo_url.includes('.svg')) ? 'client-logo-transparent' : 'client-logo-placeholder'}" style="${c.logo_url ? '' : 'background:' + (c.primary_color || 'var(--primary)') + ';color:white'}">${c.logo_url ? `<img src="${c.logo_url}" alt="${safeName}">` : initials}</div>
                                 <div style="flex:1;min-width:0;">
-                                    <div class="client-name">${c.name}</div>
-                                    <div class="client-phone"><i class="fas fa-phone" style="margin-right:0.35rem;font-size:0.75rem;"></i>${c.phone}</div>
+                                    <div class="client-name">${escapeAttr(c.name)}</div>
+                                    <div class="client-phone"><i class="fas fa-phone" style="margin-right:0.35rem;font-size:0.75rem;"></i>${escapeAttr(c.phone)}</div>
                                 </div>
                             </div>
                             <div class="client-info">
-                                <p><i class="fas fa-map-marker-alt"></i><span>${c.address}</span></p>
-                                <p><i class="fas fa-clock"></i><span>${c.business_hours}</span></p>
+                                <p><i class="fas fa-map-marker-alt"></i><span>${escapeAttr(c.address)}</span></p>
+                                <p><i class="fas fa-clock"></i><span>${escapeAttr(c.business_hours)}</span></p>
                             </div>
                             <div class="client-card-footer">
                                 <div class="client-link-row">
                                     <span class="client-link-label">Link de avaliação</span>
-                                    <button class="btn btn-link btn-sm" onclick="copyToClipboard('${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-copy"></i> Copiar</button>
+                                    <button class="btn btn-link btn-sm" onclick="copyToClipboard('${escapeAttr(clientLink)}')"><i class="fas fa-copy"></i> Copiar</button>
                                 </div>
-                                <div class="client-link">${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}</div>
+                                <div class="client-link">${escapeAttr(clientLink)}</div>
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
                                     <div class="client-main-actions">
-                                        <button class="btn btn-secondary" onclick="showQRCode('${c.name.replace(/'/g, "\\'")}', '${c.custom_domain ? 'https://' + c.custom_domain : window.location.origin + '/r/' + c.slug}')"><i class="fas fa-qrcode"></i> QR Code</button>
+                                        <button class="btn btn-secondary" onclick="showQRCode('${safeName}', '${escapeAttr(clientLink)}')"><i class="fas fa-qrcode"></i> QR Code</button>
                                         <a href="/clients/${c.id}/complaints" class="btn btn-primary"><i class="fas fa-comments"></i> Reclamações</a>
                                     </div>
                                     <div class="client-quick-actions">
@@ -410,7 +421,7 @@
                             </div>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
         }
 
@@ -1684,27 +1695,30 @@
 
         window.renderBranchesGrid = function() {
             const grid = document.getElementById('branches-grid');
-            let html = window.branches.map(b => `
+            let html = window.branches.map(b => {
+                const safeName = escapeAttr(b.name);
+                const safeGoogleLink = escapeAttr(b.google_review_link || '');
+                return `
                 <div class="branch-card ${b.is_main ? 'main' : ''}">
                     <div class="branch-header">
                         <div>
-                            <span class="branch-name">${b.name}</span>
+                            <span class="branch-name">${safeName}</span>
                             ${b.is_main ? '<span class="branch-badge">Principal</span>' : ''}
                         </div>
                         <div class="branch-actions">
-                            <button class="btn btn-ghost btn-sm" onclick="showBranchQRCode(${b.id}, '${b.name.replace(/'/g, "\\'")}', '${b.google_review_link || ''}')" title="QR Code"><i class="fas fa-qrcode"></i></button>
+                            <button class="btn btn-ghost btn-sm" onclick="showBranchQRCode(${b.id}, '${safeName}', '${safeGoogleLink}')" title="QR Code"><i class="fas fa-qrcode"></i></button>
                             <button class="btn btn-ghost btn-sm" onclick="editBranch(${b.id})"><i class="fas fa-pen"></i></button>
                             <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteBranch(${b.id})"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     <div class="branch-info">
-                        <p><i class="fas fa-map-marker-alt"></i>${b.address}</p>
-                        ${b.phone ? `<p><i class="fas fa-phone"></i>${b.phone}</p>` : ''}
-                        ${b.business_hours ? `<p><i class="fas fa-clock"></i>${b.business_hours}</p>` : ''}
+                        <p><i class="fas fa-map-marker-alt"></i>${escapeAttr(b.address)}</p>
+                        ${b.phone ? `<p><i class="fas fa-phone"></i>${escapeAttr(b.phone)}</p>` : ''}
+                        ${b.business_hours ? `<p><i class="fas fa-clock"></i>${escapeAttr(b.business_hours)}</p>` : ''}
                         ${b.google_review_link ? `<p><i class="fas fa-star" style="color:var(--warning)"></i>Link Google Review configurado</p>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             html += `<div class="add-branch-card" onclick="openBranchModal()"><i class="fas fa-plus"></i><span>Adicionar filial</span></div>`;
             grid.innerHTML = html;

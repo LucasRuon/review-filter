@@ -285,7 +285,8 @@
             selector.classList.remove('hidden');
         }
 
-        function selectBranch(branchId) {
+        // Make selectBranch globally accessible for onclick handlers
+        window.selectBranch = function(branchId) {
             // Atualizar visual dos chips
             document.querySelectorAll('.branch-chip').forEach(chip => {
                 chip.classList.toggle('active', chip.dataset.id === String(branchId));
@@ -304,7 +305,7 @@
                     document.getElementById('client-hours').textContent = branch.business_hours || clientData.business_hours;
                 }
             }
-        }
+        };
 
         function renderTopics() {
             const grid = document.getElementById('topics-grid');
@@ -312,39 +313,46 @@
                 topics = [{ id: 0, name: 'Relato geral', icon: '💬' }];
             }
             grid.innerHTML = topics.map(t => `
-                <div class="topic-btn" data-id="${t.id}" data-name="${t.name}" onclick="selectTopic(this)">
+                <div class="topic-btn" data-id="${t.id}" data-name="${escapeHtml(t.name)}" onclick="selectTopic(this)">
                     <span class="topic-icon">${t.icon}</span>
-                    <span class="topic-name">${t.name}</span>
+                    <span class="topic-name">${escapeHtml(t.name)}</span>
                 </div>
             `).join('');
         }
 
-        function selectTopic(el) {
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Make functions globally accessible for onclick handlers
+        window.selectTopic = function(el) {
             document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('selected'));
             el.classList.add('selected');
             selectedTopic = { id: el.dataset.id, name: el.dataset.name };
             document.getElementById('btnNextToForm').disabled = false;
-        }
+        };
 
-        function showMain() { 
+        window.showMain = function() {
             hideAllPopups();
-            document.getElementById('mainPopup').classList.remove('hidden'); 
+            document.getElementById('mainPopup').classList.remove('hidden');
             selectedTopic = null;
             document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('selected'));
             document.getElementById('btnNextToForm').disabled = true;
-        }
+        };
 
-        function showTopics() {
+        window.showTopics = function() {
             hideAllPopups();
             document.getElementById('topicPopup').classList.remove('hidden');
-        }
+        };
 
-        function showComplaintForm() {
+        window.showComplaintForm = function() {
             if (!selectedTopic) return;
             hideAllPopups();
             document.getElementById('selected-topic-name').textContent = selectedTopic.name;
             document.getElementById('complaintPopup').classList.remove('hidden');
-        }
+        };
 
         function hideAllPopups() {
             document.getElementById('mainPopup').classList.add('hidden');
