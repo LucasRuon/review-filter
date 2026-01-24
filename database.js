@@ -1,9 +1,35 @@
 const { Pool } = require('pg');
+const cache = require('./services/cache-service');
 
-// Configuração do pool de conexões PostgreSQL
+// Configuracao do pool de conexoes PostgreSQL com otimizacoes
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+
+    // Configuracoes de pool para performance
+    max: 20,                        // Maximo de conexoes no pool
+    min: 2,                         // Minimo de conexoes mantidas
+    idleTimeoutMillis: 30000,       // Fecha conexoes ociosas apos 30s
+    connectionTimeoutMillis: 10000, // Timeout para obter conexao: 10s
+    maxUses: 7500,                  // Recicla conexao apos 7500 queries
+});
+
+// Handler de erros do pool
+pool.on('error', (err, client) => {
+    console.error('Unexpected error on idle client', err);
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('Closing database pool...');
+    await pool.end();
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('Closing database pool...');
+    await pool.end();
+    process.exit(0);
 });
 
 // Templates de tópicos por nicho
@@ -313,7 +339,7 @@ async function init() {
             ['max_branches_per_client', '10'],
             ['max_topics_per_client', '20'],
             // Email - Resend API (funciona no Railway)
-            ['resend_api_key', 're_iZbuq7Bq_8pAJG4vPpP6rXpS6bEe8jDrK'],
+            ['resend_api_key', process.env.RESEND_API_KEY || ''],
             ['email_from', 'noreply@opinaja.com.br'], // Domínio verificado no Resend
             ['smtp_enabled', 'false'],
             ['smtp_host', 'smtp.gmail.com'],
@@ -339,12 +365,14 @@ async function init() {
             `, [key, value]);
         }
 
-        // Forçar atualização do Resend API key (migração única)
-        await client.query(`
-            UPDATE platform_settings
-            SET value = 're_iZbuq7Bq_8pAJG4vPpP6rXpS6bEe8jDrK', updated_at = NOW()
-            WHERE key = 'resend_api_key' AND (value = '' OR value IS NULL)
-        `);
+        // Atualizar Resend API key se configurada via variável de ambiente
+        if (process.env.RESEND_API_KEY) {
+            await client.query(`
+                UPDATE platform_settings
+                SET value = $1, updated_at = NOW()
+                WHERE key = 'resend_api_key' AND (value = '' OR value IS NULL)
+            `, [process.env.RESEND_API_KEY]);
+        }
         await client.query(`
             UPDATE platform_settings
             SET value = 'noreply@opinaja.com.br', updated_at = NOW()
@@ -381,6 +409,86 @@ async function init() {
             }
         }
 
+        // ========== INDICES PARA PERFORMANCE ==========
+
+        // Indice para login/autenticacao
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+        `);
+
+        // Indice para busca de usuarios ativos
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_users_active ON users(active)
+        `);
+
+        // Indice para busca por token de reset
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(password_reset_token)
+            WHERE password_reset_token IS NOT NULL
+        `);
+
+        // Indices para clients
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_clients_slug ON clients(slug)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_clients_custom_domain ON clients(custom_domain)
+            WHERE custom_domain IS NOT NULL
+        `);
+
+        // Indices para complaints
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_complaints_client_id ON complaints(client_id)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_complaints_created_at ON complaints(created_at DESC)
+        `);
+
+        // Indice composto para queries frequentes
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_complaints_client_status ON complaints(client_id, status)
+        `);
+
+        // Indices para branches
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_branches_client_id ON client_branches(client_id)
+        `);
+
+        // Indices para topics
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_topics_client_id ON complaint_topics(client_id)
+        `);
+
+        // Indices para integrations
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id)
+        `);
+
+        // Indices para admin_logs
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC)
+        `);
+
+        // Indices para feedbacks
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_feedbacks_user_id ON user_feedbacks(user_id)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON user_feedbacks(status)
+        `);
+
+        console.log('Database indexes created');
         console.log('Database initialized');
     } finally {
         client.release();
@@ -404,6 +512,15 @@ async function getUserByEmail(email) {
 async function getUserById(id) {
     const result = await pool.query(
         'SELECT id, name, email, phone, created_at FROM users WHERE id = $1',
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
+// Nova funcao otimizada para auth middleware - uma unica query
+async function getUserByIdWithStatus(id) {
+    const result = await pool.query(
+        'SELECT id, name, email, active FROM users WHERE id = $1',
         [id]
     );
     return result.rows[0] || null;
@@ -473,10 +590,11 @@ async function createClient(userId, data) {
     return { lastInsertRowid: clientId };
 }
 
-async function getClientsByUserId(userId) {
+// COM LIMITE para evitar memory exhaustion
+async function getClientsByUserId(userId, limit = 50, offset = 0) {
     const result = await pool.query(
-        'SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC',
-        [userId]
+        'SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+        [userId, limit, offset]
     );
     return result.rows;
 }
@@ -499,6 +617,36 @@ async function getClientByCustomDomain(domain) {
     return result.rows[0] || null;
 }
 
+// OTIMIZADO: 3 queries -> 1 query para página de review
+async function getClientDataForReview(slug) {
+    const result = await pool.query(`
+        SELECT
+            c.id, c.name, c.address, c.phone, c.google_review_link,
+            c.business_hours, c.slug, c.logo_url, c.primary_color,
+            (
+                SELECT json_agg(t.* ORDER BY t.sort_order)
+                FROM complaint_topics t
+                WHERE t.client_id = c.id AND t.active = 1
+            ) as topics,
+            (
+                SELECT json_agg(b.* ORDER BY b.is_main DESC, b.name)
+                FROM client_branches b
+                WHERE b.client_id = c.id AND b.active = 1
+            ) as branches
+        FROM clients c
+        WHERE c.slug = $1
+    `, [slug]);
+
+    const row = result.rows[0];
+    if (!row) return null;
+
+    return {
+        ...row,
+        topics: row.topics || [],
+        branches: row.branches || []
+    };
+}
+
 async function updateClient(id, userId, data) {
     await pool.query(`
         UPDATE clients SET name = $1, address = $2, phone = $3, google_review_link = $4, business_hours = $5, logo_url = $6, primary_color = $7, custom_domain = $8, niche = $9
@@ -507,17 +655,30 @@ async function updateClient(id, userId, data) {
 }
 
 async function deleteClient(id, userId) {
-    await pool.query('DELETE FROM complaints WHERE client_id = $1', [id]);
-    await pool.query('DELETE FROM complaint_topics WHERE client_id = $1', [id]);
-    await pool.query('DELETE FROM client_branches WHERE client_id = $1', [id]);
-    await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        await client.query('DELETE FROM complaints WHERE client_id = $1', [id]);
+        await client.query('DELETE FROM complaint_topics WHERE client_id = $1', [id]);
+        await client.query('DELETE FROM client_branches WHERE client_id = $1', [id]);
+        await client.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
-// Branch functions
-async function getBranchesByClientId(clientId) {
+// Branch functions - COM LIMITE
+async function getBranchesByClientId(clientId, limit = 50) {
     const result = await pool.query(
-        'SELECT * FROM client_branches WHERE client_id = $1 ORDER BY is_main DESC, name ASC',
-        [clientId]
+        'SELECT * FROM client_branches WHERE client_id = $1 ORDER BY is_main DESC, name ASC LIMIT $2',
+        [clientId, limit]
     );
     return result.rows;
 }
@@ -551,11 +712,11 @@ async function deleteBranch(id, clientId) {
     await pool.query('DELETE FROM client_branches WHERE id = $1 AND client_id = $2', [id, clientId]);
 }
 
-// Topic functions
-async function getTopicsByClientId(clientId) {
+// Topic functions - COM LIMITE
+async function getTopicsByClientId(clientId, limit = 50) {
     const result = await pool.query(
-        'SELECT * FROM complaint_topics WHERE client_id = $1 AND active = 1 ORDER BY sort_order',
-        [clientId]
+        'SELECT * FROM complaint_topics WHERE client_id = $1 AND active = 1 ORDER BY sort_order LIMIT $2',
+        [clientId, limit]
     );
     return result.rows;
 }
@@ -593,18 +754,32 @@ async function deleteTopic(id, clientId) {
     await pool.query('DELETE FROM complaint_topics WHERE id = $1 AND client_id = $2', [id, clientId]);
 }
 
+// COM TRANSACAO para integridade de dados
 async function resetTopicsToNiche(clientId, niche) {
-    // Remove tópicos existentes
-    await pool.query('DELETE FROM complaint_topics WHERE client_id = $1', [clientId]);
+    const client = await pool.connect();
 
-    // Adiciona tópicos do template
-    const template = NICHE_TEMPLATES[niche] || NICHE_TEMPLATES.general;
-    for (let i = 0; i < template.topics.length; i++) {
-        const topic = template.topics[i];
-        await pool.query(
-            'INSERT INTO complaint_topics (client_id, name, icon, sort_order) VALUES ($1, $2, $3, $4)',
-            [clientId, topic.name, topic.icon, i]
-        );
+    try {
+        await client.query('BEGIN');
+
+        // Remove tópicos existentes
+        await client.query('DELETE FROM complaint_topics WHERE client_id = $1', [clientId]);
+
+        // Adiciona tópicos do template
+        const template = NICHE_TEMPLATES[niche] || NICHE_TEMPLATES.general;
+        for (let i = 0; i < template.topics.length; i++) {
+            const topic = template.topics[i];
+            await client.query(
+                'INSERT INTO complaint_topics (client_id, name, icon, sort_order) VALUES ($1, $2, $3, $4)',
+                [clientId, topic.name, topic.icon, i]
+            );
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
@@ -616,15 +791,25 @@ async function createComplaint(clientId, data) {
     `, [clientId, data.branch_id || null, data.topic_id || null, data.topic_name || null, data.name, data.email, data.phone, data.complaint]);
 }
 
-async function getComplaintsByClientId(clientId) {
+// COM PAGINACAO para evitar memory exhaustion
+async function getComplaintsByClientId(clientId, limit = 100, offset = 0) {
     const result = await pool.query(`
         SELECT c.*, cb.name as branch_name
         FROM complaints c
         LEFT JOIN client_branches cb ON c.branch_id = cb.id
         WHERE c.client_id = $1
         ORDER BY c.created_at DESC
-    `, [clientId]);
+        LIMIT $2 OFFSET $3
+    `, [clientId, limit, offset]);
     return result.rows;
+}
+
+async function countComplaintsByClientId(clientId) {
+    const result = await pool.query(
+        'SELECT COUNT(*) as count FROM complaints WHERE client_id = $1',
+        [clientId]
+    );
+    return parseInt(result.rows[0]?.count) || 0;
 }
 
 async function getComplaintById(id, clientId = null) {
@@ -649,34 +834,20 @@ async function updateComplaintStatus(id, clientId, status) {
     );
 }
 
+// OTIMIZADO: 5 queries -> 2 queries
 async function getStats(userId) {
-    const totalClientsResult = await pool.query(
-        'SELECT COUNT(*) as count FROM clients WHERE user_id = $1',
-        [userId]
-    );
-    const totalClients = parseInt(totalClientsResult.rows[0]?.count) || 0;
-
-    const totalComplaintsResult = await pool.query(`
-        SELECT COUNT(*) as count FROM complaints c
-        JOIN clients cl ON c.client_id = cl.id
-        WHERE cl.user_id = $1
+    // Query 1: Todas as contagens em uma única query
+    const countsResult = await pool.query(`
+        SELECT
+            (SELECT COUNT(*) FROM clients WHERE user_id = $1) as total_clients,
+            (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = $1) as total_complaints,
+            (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = $1 AND c.status = 'pending') as pending_complaints,
+            (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = $1 AND c.status = 'resolved') as resolved_complaints
     `, [userId]);
-    const totalComplaints = parseInt(totalComplaintsResult.rows[0]?.count) || 0;
 
-    const pendingComplaintsResult = await pool.query(`
-        SELECT COUNT(*) as count FROM complaints c
-        JOIN clients cl ON c.client_id = cl.id
-        WHERE cl.user_id = $1 AND c.status = 'pending'
-    `, [userId]);
-    const pendingComplaints = parseInt(pendingComplaintsResult.rows[0]?.count) || 0;
+    const counts = countsResult.rows[0];
 
-    const resolvedComplaintsResult = await pool.query(`
-        SELECT COUNT(*) as count FROM complaints c
-        JOIN clients cl ON c.client_id = cl.id
-        WHERE cl.user_id = $1 AND c.status = 'resolved'
-    `, [userId]);
-    const resolvedComplaints = parseInt(resolvedComplaintsResult.rows[0]?.count) || 0;
-
+    // Query 2: Reclamações recentes
     const recentComplaintsResult = await pool.query(`
         SELECT c.*, cl.name as client_name
         FROM complaints c
@@ -685,12 +856,17 @@ async function getStats(userId) {
         ORDER BY c.created_at DESC
         LIMIT 10
     `, [userId]);
-    const recentComplaints = recentComplaintsResult.rows;
 
-    return { totalClients, totalComplaints, pendingComplaints, resolvedComplaints, recentComplaints };
+    return {
+        totalClients: parseInt(counts.total_clients) || 0,
+        totalComplaints: parseInt(counts.total_complaints) || 0,
+        pendingComplaints: parseInt(counts.pending_complaints) || 0,
+        resolvedComplaints: parseInt(counts.resolved_complaints) || 0,
+        recentComplaints: recentComplaintsResult.rows
+    };
 }
 
-async function getAllComplaintsByUserId(userId) {
+async function getAllComplaintsByUserId(userId, limit = 100, offset = 0) {
     const result = await pool.query(`
         SELECT c.*, cl.name as client_name, cb.name as branch_name
         FROM complaints c
@@ -698,8 +874,20 @@ async function getAllComplaintsByUserId(userId) {
         LEFT JOIN client_branches cb ON c.branch_id = cb.id
         WHERE cl.user_id = $1
         ORDER BY c.created_at DESC
-    `, [userId]);
+        LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
     return result.rows;
+}
+
+// Funcao para contar total (para paginacao)
+async function countComplaintsByUserId(userId) {
+    const result = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM complaints c
+        JOIN clients cl ON c.client_id = cl.id
+        WHERE cl.user_id = $1
+    `, [userId]);
+    return parseInt(result.rows[0]?.count) || 0;
 }
 
 // Integration functions
@@ -855,18 +1043,45 @@ async function getAdminLogs(limit = 100, offset = 0) {
     return result.rows;
 }
 
-// Platform settings
+// Platform settings - COM CACHE para performance
 async function getPlatformSetting(key) {
+    const cacheKey = `setting:${key}`;
+
+    // Tentar cache primeiro
+    let value = cache.get(cacheKey);
+    if (value !== undefined) {
+        return value;
+    }
+
+    // Buscar do banco
     const result = await pool.query('SELECT value FROM platform_settings WHERE key = $1', [key]);
-    return result.rows[0]?.value || null;
+    value = result.rows[0]?.value || null;
+
+    // Salvar no cache por 5 minutos
+    cache.set(cacheKey, value, 300);
+
+    return value;
 }
 
 async function getAllPlatformSettings() {
+    const cacheKey = 'settings:all';
+
+    // Tentar cache primeiro
+    let settings = cache.get(cacheKey);
+    if (settings !== undefined) {
+        return settings;
+    }
+
+    // Buscar do banco
     const result = await pool.query('SELECT key, value FROM platform_settings');
-    const settings = {};
+    settings = {};
     for (const row of result.rows) {
         settings[row.key] = row.value;
     }
+
+    // Salvar no cache por 5 minutos
+    cache.set(cacheKey, settings, 300);
+
     return settings;
 }
 
@@ -876,17 +1091,32 @@ async function updatePlatformSetting(key, value) {
         VALUES ($1, $2, NOW())
         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
     `, [key, value]);
+
+    // Invalidar cache
+    cache.delete(`setting:${key}`);
+    cache.delete('settings:all');
 }
 
-// Admin user management
+// Admin user management - OTIMIZADO: usa LEFT JOIN ao inves de subqueries correlacionadas
 async function getAllUsers(limit = 50, offset = 0, search = null) {
     let query = `
-        SELECT u.id, u.name, u.email, u.phone, u.created_at, u.last_login, u.active,
-               u.subscription_status, u.subscription_plan, u.subscription_ends_at,
-               (SELECT COUNT(*) FROM clients WHERE user_id = u.id) as clients_count,
-               (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = u.id) as complaints_count
+        SELECT
+            u.id, u.name, u.email, u.phone, u.created_at, u.last_login, u.active,
+            u.subscription_status, u.subscription_plan, u.subscription_ends_at,
+            COALESCE(client_stats.clients_count, 0) as clients_count,
+            COALESCE(client_stats.complaints_count, 0) as complaints_count
         FROM users u
+        LEFT JOIN (
+            SELECT
+                c.user_id,
+                COUNT(DISTINCT c.id) as clients_count,
+                COUNT(comp.id) as complaints_count
+            FROM clients c
+            LEFT JOIN complaints comp ON comp.client_id = c.id
+            GROUP BY c.user_id
+        ) client_stats ON client_stats.user_id = u.id
     `;
+
     const params = [];
 
     if (search) {
@@ -914,12 +1144,25 @@ async function getTotalUsersCount(search = null) {
     return parseInt(result.rows[0]?.count) || 0;
 }
 
+// OTIMIZADO: subqueries -> LEFT JOIN
 async function getUserByIdAdmin(id) {
     const result = await pool.query(`
-        SELECT u.*,
-               (SELECT COUNT(*) FROM clients WHERE user_id = u.id) as clients_count,
-               (SELECT COUNT(*) FROM complaints c JOIN clients cl ON c.client_id = cl.id WHERE cl.user_id = u.id) as complaints_count
-        FROM users u WHERE u.id = $1
+        SELECT
+            u.*,
+            COALESCE(stats.clients_count, 0) as clients_count,
+            COALESCE(stats.complaints_count, 0) as complaints_count
+        FROM users u
+        LEFT JOIN (
+            SELECT
+                c.user_id,
+                COUNT(DISTINCT c.id) as clients_count,
+                COUNT(comp.id) as complaints_count
+            FROM clients c
+            LEFT JOIN complaints comp ON comp.client_id = c.id
+            WHERE c.user_id = $1
+            GROUP BY c.user_id
+        ) stats ON stats.user_id = u.id
+        WHERE u.id = $1
     `, [id]);
     return result.rows[0] || null;
 }
@@ -929,87 +1172,94 @@ async function updateUserStatus(userId, active) {
 }
 
 async function deleteUserAdmin(userId) {
-    // Deletar em ordem: complaints -> topics -> branches -> clients -> integrations -> user
-    await pool.query(`
-        DELETE FROM complaints WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
-    `, [userId]);
-    await pool.query(`
-        DELETE FROM complaint_topics WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
-    `, [userId]);
-    await pool.query(`
-        DELETE FROM client_branches WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
-    `, [userId]);
-    await pool.query('DELETE FROM clients WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM integrations WHERE user_id = $1', [userId]);
-    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Deletar em ordem correta (foreign keys)
+        await client.query(`
+            DELETE FROM complaints WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+        `, [userId]);
+        await client.query(`
+            DELETE FROM complaint_topics WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+        `, [userId]);
+        await client.query(`
+            DELETE FROM client_branches WHERE client_id IN (SELECT id FROM clients WHERE user_id = $1)
+        `, [userId]);
+        await client.query('DELETE FROM clients WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM integrations WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_feedbacks WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 async function updateUserLastLogin(userId) {
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [userId]);
 }
 
-// Admin statistics
+// Admin statistics - OTIMIZADO: 9 queries -> 2 queries
 async function getAdminStats() {
-    const totalUsersResult = await pool.query('SELECT COUNT(*) as count FROM users');
-    const totalUsers = parseInt(totalUsersResult.rows[0]?.count) || 0;
-
-    const newUsersWeekResult = await pool.query(`
-        SELECT COUNT(*) as count FROM users
-        WHERE created_at >= NOW() - INTERVAL '7 days'
+    // Query 1: Todas as contagens em uma unica query
+    const countsResult = await pool.query(`
+        SELECT
+            (SELECT COUNT(*) FROM users) as total_users,
+            (SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '7 days') as new_users_week,
+            (SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days') as new_users_month,
+            (SELECT COUNT(*) FROM users WHERE active = 1) as active_users,
+            (SELECT COUNT(*) FROM clients) as total_clients,
+            (SELECT COUNT(*) FROM complaints) as total_complaints
     `);
-    const newUsersWeek = parseInt(newUsersWeekResult.rows[0]?.count) || 0;
 
-    const newUsersMonthResult = await pool.query(`
-        SELECT COUNT(*) as count FROM users
-        WHERE created_at >= NOW() - INTERVAL '30 days'
+    const counts = countsResult.rows[0];
+
+    // Query 2: Dados de crescimento e usuarios recentes
+    const growthAndRecentResult = await pool.query(`
+        WITH user_growth AS (
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM users
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        ),
+        complaint_growth AS (
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM complaints
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        ),
+        recent_users AS (
+            SELECT id, name, email, created_at
+            FROM users
+            ORDER BY created_at DESC
+            LIMIT 10
+        )
+        SELECT
+            (SELECT json_agg(user_growth.*) FROM user_growth) as user_growth,
+            (SELECT json_agg(complaint_growth.*) FROM complaint_growth) as complaints_growth,
+            (SELECT json_agg(recent_users.*) FROM recent_users) as recent_users
     `);
-    const newUsersMonth = parseInt(newUsersMonthResult.rows[0]?.count) || 0;
 
-    const totalClientsResult = await pool.query('SELECT COUNT(*) as count FROM clients');
-    const totalClients = parseInt(totalClientsResult.rows[0]?.count) || 0;
-
-    const totalComplaintsResult = await pool.query('SELECT COUNT(*) as count FROM complaints');
-    const totalComplaints = parseInt(totalComplaintsResult.rows[0]?.count) || 0;
-
-    const activeUsersResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE active = 1');
-    const activeUsers = parseInt(activeUsersResult.rows[0]?.count) || 0;
-
-    // Crescimento por dia (últimos 30 dias)
-    const growthResult = await pool.query(`
-        SELECT DATE(created_at) as date, COUNT(*) as count
-        FROM users
-        WHERE created_at >= NOW() - INTERVAL '30 days'
-        GROUP BY DATE(created_at)
-        ORDER BY date
-    `);
-    const userGrowth = growthResult.rows;
-
-    // Reclamações por dia (últimos 30 dias)
-    const complaintsGrowthResult = await pool.query(`
-        SELECT DATE(created_at) as date, COUNT(*) as count
-        FROM complaints
-        WHERE created_at >= NOW() - INTERVAL '30 days'
-        GROUP BY DATE(created_at)
-        ORDER BY date
-    `);
-    const complaintsGrowth = complaintsGrowthResult.rows;
-
-    // Últimos usuários cadastrados
-    const recentUsersResult = await pool.query(`
-        SELECT id, name, email, created_at FROM users ORDER BY created_at DESC LIMIT 10
-    `);
-    const recentUsers = recentUsersResult.rows;
+    const growth = growthAndRecentResult.rows[0];
 
     return {
-        totalUsers,
-        newUsersWeek,
-        newUsersMonth,
-        totalClients,
-        totalComplaints,
-        activeUsers,
-        userGrowth,
-        complaintsGrowth,
-        recentUsers
+        totalUsers: parseInt(counts.total_users) || 0,
+        newUsersWeek: parseInt(counts.new_users_week) || 0,
+        newUsersMonth: parseInt(counts.new_users_month) || 0,
+        totalClients: parseInt(counts.total_clients) || 0,
+        totalComplaints: parseInt(counts.total_complaints) || 0,
+        activeUsers: parseInt(counts.active_users) || 0,
+        userGrowth: growth.user_growth || [],
+        complaintsGrowth: growth.complaints_growth || [],
+        recentUsers: growth.recent_users || []
     };
 }
 
@@ -1086,33 +1336,32 @@ async function updateFeedbackStatus(id, status, adminNotes = null) {
     `, [status, adminNotes, id]);
 }
 
+// OTIMIZADO: 5 queries -> 1 query
 async function getFeedbackStats() {
-    const totalResult = await pool.query('SELECT COUNT(*) as count FROM user_feedbacks');
-    const total = parseInt(totalResult.rows[0]?.count) || 0;
-
-    const newResult = await pool.query("SELECT COUNT(*) as count FROM user_feedbacks WHERE status = 'new'");
-    const newCount = parseInt(newResult.rows[0]?.count) || 0;
-
-    const avgRatingResult = await pool.query('SELECT AVG(rating) as avg FROM user_feedbacks WHERE rating IS NOT NULL');
-    const avgRating = parseFloat(avgRatingResult.rows[0]?.avg) || 0;
-
-    const byTypeResult = await pool.query(`
-        SELECT type, COUNT(*) as count FROM user_feedbacks GROUP BY type
+    const result = await pool.query(`
+        SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status = 'new') as new_count,
+            COALESCE(AVG(rating) FILTER (WHERE rating IS NOT NULL), 0) as avg_rating,
+            json_object_agg(COALESCE(type_group.type, 'unknown'), type_group.count) FILTER (WHERE type_group.type IS NOT NULL) as by_type,
+            json_object_agg(COALESCE(status_group.status, 'unknown'), status_group.count) FILTER (WHERE status_group.status IS NOT NULL) as by_status
+        FROM user_feedbacks f
+        LEFT JOIN (
+            SELECT type, COUNT(*)::int as count FROM user_feedbacks GROUP BY type
+        ) type_group ON true
+        LEFT JOIN (
+            SELECT status, COUNT(*)::int as count FROM user_feedbacks GROUP BY status
+        ) status_group ON true
     `);
-    const byType = {};
-    byTypeResult.rows.forEach(row => {
-        byType[row.type] = parseInt(row.count);
-    });
 
-    const byStatusResult = await pool.query(`
-        SELECT status, COUNT(*) as count FROM user_feedbacks GROUP BY status
-    `);
-    const byStatus = {};
-    byStatusResult.rows.forEach(row => {
-        byStatus[row.status] = parseInt(row.count);
-    });
-
-    return { total, newCount, avgRating: avgRating.toFixed(1), byType, byStatus };
+    const row = result.rows[0];
+    return {
+        total: parseInt(row?.total) || 0,
+        newCount: parseInt(row?.new_count) || 0,
+        avgRating: (parseFloat(row?.avg_rating) || 0).toFixed(1),
+        byType: row?.by_type || {},
+        byStatus: row?.by_status || {}
+    };
 }
 
 async function getTotalFeedbacksCount(status = null, type = null) {
@@ -1135,70 +1384,90 @@ async function getTotalFeedbacksCount(status = null, type = null) {
 
 // ========== DATABASE STATS ==========
 
+// OTIMIZADO: loop de queries -> 1 query
 async function getDatabaseStats() {
-    const stats = {};
-
-    // Contagem de tabelas principais
-    const tables = ['users', 'clients', 'complaints', 'branches', 'topics', 'integrations', 'user_feedbacks', 'admin_logs', 'admins'];
-
-    for (const table of tables) {
-        try {
-            const result = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
-            stats[table] = parseInt(result.rows[0]?.count) || 0;
-        } catch (e) {
-            stats[table] = 0;
-        }
-    }
-
-    // Tamanho do banco (aproximado)
     try {
-        const sizeResult = await pool.query(`
-            SELECT pg_size_pretty(pg_database_size(current_database())) as size
+        const result = await pool.query(`
+            SELECT
+                (SELECT COUNT(*) FROM users) as users,
+                (SELECT COUNT(*) FROM clients) as clients,
+                (SELECT COUNT(*) FROM complaints) as complaints,
+                (SELECT COUNT(*) FROM client_branches) as branches,
+                (SELECT COUNT(*) FROM complaint_topics) as topics,
+                (SELECT COUNT(*) FROM integrations) as integrations,
+                (SELECT COUNT(*) FROM user_feedbacks) as user_feedbacks,
+                (SELECT COUNT(*) FROM admin_logs) as admin_logs,
+                (SELECT COUNT(*) FROM admins) as admins,
+                pg_size_pretty(pg_database_size(current_database())) as database_size,
+                (SELECT count(*) FROM pg_stat_activity WHERE state = 'active') as active_connections
         `);
-        stats.database_size = sizeResult.rows[0]?.size || 'N/A';
-    } catch (e) {
-        stats.database_size = 'N/A';
-    }
 
-    // Conexões ativas
-    try {
-        const connResult = await pool.query(`
-            SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
-        `);
-        stats.active_connections = parseInt(connResult.rows[0]?.count) || 0;
+        const row = result.rows[0];
+        return {
+            users: parseInt(row?.users) || 0,
+            clients: parseInt(row?.clients) || 0,
+            complaints: parseInt(row?.complaints) || 0,
+            branches: parseInt(row?.branches) || 0,
+            topics: parseInt(row?.topics) || 0,
+            integrations: parseInt(row?.integrations) || 0,
+            user_feedbacks: parseInt(row?.user_feedbacks) || 0,
+            admin_logs: parseInt(row?.admin_logs) || 0,
+            admins: parseInt(row?.admins) || 0,
+            database_size: row?.database_size || 'N/A',
+            active_connections: parseInt(row?.active_connections) || 0
+        };
     } catch (e) {
-        stats.active_connections = 0;
+        return {
+            users: 0, clients: 0, complaints: 0, branches: 0, topics: 0,
+            integrations: 0, user_feedbacks: 0, admin_logs: 0, admins: 0,
+            database_size: 'N/A', active_connections: 0
+        };
     }
-
-    return stats;
 }
 
-async function cleanupOldData(daysToKeep = 90) {
+// OTIMIZADO: Deletar em batches para nao travar o banco
+async function cleanupOldData(daysToKeep = 90, batchSize = 1000) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-    const results = {};
+    const results = { admin_logs_deleted: 0, feedbacks_skipped_deleted: 0 };
 
-    // Limpar logs antigos
+    // Deletar logs em batches
     try {
-        const logsResult = await pool.query(
-            'DELETE FROM admin_logs WHERE created_at < $1 RETURNING id',
-            [cutoffDate]
-        );
-        results.admin_logs_deleted = logsResult.rowCount;
+        let deleted = 0;
+        do {
+            const logsResult = await pool.query(
+                `DELETE FROM admin_logs
+                 WHERE id IN (
+                     SELECT id FROM admin_logs WHERE created_at < $1 LIMIT $2
+                 ) RETURNING id`,
+                [cutoffDate, batchSize]
+            );
+            deleted = logsResult.rowCount;
+            results.admin_logs_deleted += deleted;
+        } while (deleted === batchSize);
     } catch (e) {
-        results.admin_logs_deleted = 0;
+        // Erro silencioso
     }
 
-    // Limpar feedbacks antigos do tipo nps_skipped
+    // Deletar feedbacks em batches
     try {
-        const feedbackResult = await pool.query(
-            "DELETE FROM user_feedbacks WHERE type = 'nps_skipped' AND created_at < $1 RETURNING id",
-            [cutoffDate]
-        );
-        results.feedbacks_skipped_deleted = feedbackResult.rowCount;
+        let deleted = 0;
+        do {
+            const feedbackResult = await pool.query(
+                `DELETE FROM user_feedbacks
+                 WHERE id IN (
+                     SELECT id FROM user_feedbacks
+                     WHERE type = 'nps_skipped' AND created_at < $1
+                     LIMIT $2
+                 ) RETURNING id`,
+                [cutoffDate, batchSize]
+            );
+            deleted = feedbackResult.rowCount;
+            results.feedbacks_skipped_deleted += deleted;
+        } while (deleted === batchSize);
     } catch (e) {
-        results.feedbacks_skipped_deleted = 0;
+        // Erro silencioso
     }
 
     return results;
@@ -1210,6 +1479,7 @@ module.exports = {
     createUser,
     getUserByEmail,
     getUserById,
+    getUserByIdWithStatus,  // Nova funcao otimizada para auth
     updateUser,
     updateUserPassword,
     updateUserLastLogin,
@@ -1221,6 +1491,7 @@ module.exports = {
     getClientById,
     getClientBySlug,
     getClientByCustomDomain,
+    getClientDataForReview,
     updateClient,
     deleteClient,
     getBranchesByClientId,
@@ -1237,10 +1508,12 @@ module.exports = {
     resetTopicsToNiche,
     createComplaint,
     getComplaintsByClientId,
+    countComplaintsByClientId,
     getComplaintById,
     updateComplaintStatus,
     getStats,
     getAllComplaintsByUserId,
+    countComplaintsByUserId,  // Nova funcao para paginacao
     getIntegrationsByUserId,
     updateIntegrations,
     // Admin functions
@@ -1270,5 +1543,9 @@ module.exports = {
     getTotalFeedbacksCount,
     // Database stats
     getDatabaseStats,
-    cleanupOldData
+    cleanupOldData,
+    // Cache service export
+    cache,
+    // Pool export para queries diretas quando necessario
+    pool
 };

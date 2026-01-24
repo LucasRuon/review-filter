@@ -1,10 +1,11 @@
 require('dotenv').config();
-// v1.0.2 - Logo update
+// v1.0.3 - Performance optimizations
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const path = require('path');
 const db = require('./database');
+const cache = require('./services/cache-service');
 const logger = require('./logger');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
@@ -13,12 +14,97 @@ const whatsappRoutes = require('./routes/whatsapp');
 const adminRoutes = require('./routes/admin');
 const emailService = require('./services/email-service');
 
+// Carregar middlewares opcionais
+let compression, rateLimit, helmet;
+try {
+    compression = require('compression');
+} catch (e) {
+    logger.warn('compression not installed - skipping gzip compression');
+}
+try {
+    rateLimit = require('express-rate-limit');
+} catch (e) {
+    logger.warn('express-rate-limit not installed - skipping rate limiting');
+}
+try {
+    helmet = require('helmet');
+} catch (e) {
+    logger.warn('helmet not installed - skipping security headers');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy para Railway (HTTPS termina no proxy)
 if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
+}
+
+// SECURITY HEADERS com Helmet
+if (helmet) {
+    app.use(helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+                fontSrc: ["'self'", "https://fonts.gstatic.com"],
+                imgSrc: ["'self'", "data:", "https:"],
+                connectSrc: ["'self'", "https://api.resend.com", "https://audeagencia.uazapi.com"]
+            }
+        },
+        crossOriginEmbedderPolicy: false // Necessario para carregar imagens externas
+    }));
+}
+
+// COMPRESSAO GZIP
+if (compression) {
+    app.use(compression({
+        level: 6,
+        threshold: 1024,
+        filter: (req, res) => {
+            if (req.headers['x-no-compression']) {
+                return false;
+            }
+            return compression.filter(req, res);
+        }
+    }));
+}
+
+// RATE LIMITING
+if (rateLimit) {
+    // Rate limit geral
+    const generalLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutos
+        max: 100, // 100 requisicoes por IP
+        message: { error: 'Muitas requisicoes. Tente novamente em 15 minutos.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+
+    // Rate limit para autenticacao
+    const authLimiter = rateLimit({
+        windowMs: 60 * 60 * 1000, // 1 hora
+        max: 10, // 10 tentativas por hora
+        message: { error: 'Muitas tentativas de login. Tente novamente em 1 hora.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+
+    // Rate limit para API de reclamacoes
+    const complaintLimiter = rateLimit({
+        windowMs: 60 * 1000, // 1 minuto
+        max: 5, // 5 reclamacoes por minuto
+        message: { error: 'Muitas reclamacoes enviadas. Aguarde um momento.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+
+    // Aplicar rate limiters
+    app.use('/api/', generalLimiter);
+    app.use('/api/auth/login', authLimiter);
+    app.use('/api/auth/register', authLimiter);
+    app.use('/r/:slug/complaint', complaintLimiter);
 }
 
 // Middleware
@@ -39,7 +125,23 @@ app.use(session({
     }
 }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+// CACHE HEADERS para arquivos estaticos
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+        // Cache mais longo para imagens e fontes
+        if (filePath.endsWith('.png') || filePath.endsWith('.jpg') ||
+            filePath.endsWith('.svg') || filePath.endsWith('.woff2')) {
+            res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 dias
+        }
+        // Cache para CSS e JS
+        if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 dia
+        }
+    }
+}));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -54,12 +156,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// Maintenance mode middleware
+// Maintenance mode middleware - COM CACHE
 app.use(async (req, res, next) => {
     // Skip maintenance check for admin routes, static files, and landing page
     if (req.path.startsWith('/admin') ||
         req.path.startsWith('/css') ||
         req.path.startsWith('/js') ||
+        req.path.startsWith('/images') ||
         req.path.startsWith('/api/support-info') ||
         req.path === '/' ||
         req.path === '/privacy' ||
@@ -68,7 +171,13 @@ app.use(async (req, res, next) => {
     }
 
     try {
-        const maintenanceMode = await db.getPlatformSetting('maintenance_mode');
+        // USAR CACHE - so busca do banco a cada 30 segundos
+        let maintenanceMode = cache.get('maintenance_mode');
+
+        if (maintenanceMode === undefined) {
+            maintenanceMode = await db.getPlatformSetting('maintenance_mode');
+            cache.set('maintenance_mode', maintenanceMode, 30); // Cache por 30s
+        }
         if (maintenanceMode === 'true') {
             // Return maintenance page for HTML requests
             if (req.accepts('html')) {
@@ -195,7 +304,8 @@ app.post('/api/integrations/test-webhook', require('./middleware/auth').authMidd
         const response = await fetch(integrations.webhook_url, {
             method: 'POST',
             headers,
-            body: JSON.stringify(testData)
+            body: JSON.stringify(testData),
+            signal: AbortSignal.timeout(10000) // Timeout 10s
         });
 
         if (response.ok) {
@@ -208,14 +318,28 @@ app.post('/api/integrations/test-webhook', require('./middleware/auth').authMidd
     }
 });
 
-// API route for all complaints
+// API route for all complaints - COM PAGINACAO
 app.get('/api/complaints', require('./middleware/auth').authMiddleware, async (req, res) => {
     try {
-        const complaints = await db.getAllComplaintsByUserId(req.userId);
-        res.json(complaints);
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100
+        const offset = (page - 1) * limit;
+
+        const complaints = await db.getAllComplaintsByUserId(req.userId, limit, offset);
+        const total = await db.countComplaintsByUserId(req.userId);
+
+        res.json({
+            complaints,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         logger.error('Get all complaints error', { userId: req.userId, error: error.message });
-        res.status(500).json({ error: 'Erro ao buscar reclamações' });
+        res.status(500).json({ error: 'Erro ao buscar reclamacoes' });
     }
 });
 
@@ -249,16 +373,25 @@ app.post('/api/whatsapp-webhook/:userId', express.json(), async (req, res) => {
     }
 });
 
-// Custom domain middleware - check if request is from a custom domain
+// Custom domain middleware - check if request is from a custom domain (COM CACHE)
 app.use(async (req, res, next) => {
     const host = req.hostname;
-    // Skip if it's the main domain or localhost
-    if (host === 'localhost' || host.includes('railway.app') || host.includes('127.0.0.1')) {
+
+    // Skip known hosts
+    if (host === 'localhost' || host.includes('railway.app') || host.includes('127.0.0.1') || host === 'opinaja.com.br') {
         return next();
     }
 
-    // Check if there's a client with this custom domain
-    const client = await db.getClientByCustomDomain(host);
+    // Verificar cache primeiro
+    const cacheKey = `custom_domain:${host}`;
+    let client = cache.get(cacheKey);
+
+    if (client === undefined) {
+        client = await db.getClientByCustomDomain(host);
+        // Cache por 5 minutos (null também é cacheado para evitar queries repetidas)
+        cache.set(cacheKey, client, 300);
+    }
+
     if (client) {
         req.customDomainClient = client;
         return res.sendFile(path.join(__dirname, 'views', 'review.html'));
@@ -307,15 +440,35 @@ app.post('/custom-domain-complaint', async (req, res) => {
     res.json({ success: true, message: 'Sua mensagem foi enviada com sucesso!' });
 });
 
-// Serve HTML pages
+// Cache da landing page em memoria
+let landingPageCache = null;
+let landingPageCacheTime = 0;
+const LANDING_CACHE_TTL = 60000; // 1 minuto
+
+// Serve HTML pages - COM CACHE
 app.get('/', async (req, res) => {
     try {
+        const now = Date.now();
+
+        // Verificar se cache e valido
+        if (landingPageCache && (now - landingPageCacheTime) < LANDING_CACHE_TTL) {
+            return res.send(landingPageCache);
+        }
+
+        // Carregar e processar HTML
         const fs = require('fs');
         const whatsapp = await db.getPlatformSetting('support_whatsapp') || '5548999999999';
-        let html = fs.readFileSync(path.join(__dirname, 'views', 'landing.html'), 'utf8');
-        html = html.replace(/\{\{WHATSAPP_NUMBER\}\}/g, whatsapp);
-        res.send(html);
+        const html = await fs.promises.readFile(
+            path.join(__dirname, 'views', 'landing.html'),
+            'utf8'
+        );
+
+        landingPageCache = html.replace(/\{\{WHATSAPP_NUMBER\}\}/g, whatsapp);
+        landingPageCacheTime = now;
+
+        res.send(landingPageCache);
     } catch (error) {
+        logger.error('Landing page error', { error: error.message });
         res.sendFile(path.join(__dirname, 'views', 'landing.html'));
     }
 });

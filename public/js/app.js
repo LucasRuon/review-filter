@@ -1,34 +1,97 @@
-// API Helper
+// API Helper - COM TRATAMENTO DE ERROS MELHORADO
 const api = {
     async get(url) {
-        const res = await fetch(url);
-        if (res.status === 401) { window.location.href = '/login'; return null; }
-        return res.json();
+        try {
+            const res = await fetch(url);
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return null;
+            }
+            if (!res.ok) {
+                const error = await res.text();
+                console.error('API Error:', error);
+                return { error: error || 'Erro na requisicao' };
+            }
+            return res.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { error: 'Erro de conexao' };
+        }
     },
     async post(url, data) {
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        return res.json();
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok && res.status !== 400) {
+                return { error: 'Erro na requisicao' };
+            }
+            return res.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { error: 'Erro de conexao' };
+        }
     },
     async put(url, data) {
-        const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        return res.json();
+        try {
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok && res.status !== 400) {
+                return { error: 'Erro na requisicao' };
+            }
+            return res.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { error: 'Erro de conexao' };
+        }
     },
     async delete(url) {
-        const res = await fetch(url, { method: 'DELETE' });
-        return res.json();
+        try {
+            const res = await fetch(url, { method: 'DELETE' });
+            if (!res.ok && res.status !== 400) {
+                return { error: 'Erro na requisicao' };
+            }
+            return res.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { error: 'Erro de conexao' };
+        }
     }
 };
 
-// Toast
+// Toast - SINGLETON PATTERN (reutiliza elemento)
+let toastContainer = null;
+let toastTimeout = null;
+
 function showToast(message, type = 'success') {
-    const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+    // Limpar timeout anterior
+    if (toastTimeout) {
+        clearTimeout(toastTimeout);
+    }
+
+    // Criar container se nao existe
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Atualizar conteudo e classe
+    toastContainer.className = `toast toast-${type}`;
+    toastContainer.textContent = message;
+
+    // Mostrar
+    setTimeout(() => toastContainer.classList.add('show'), 10);
+
+    // Esconder apos 3s
+    toastTimeout = setTimeout(() => {
+        toastContainer.classList.remove('show');
+    }, 3000);
 }
 
 // Copy to clipboard
@@ -42,7 +105,7 @@ function formatDate(dateStr) {
     return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Load user info
+// Load user info - OTIMIZADO: salvar apenas dados essenciais
 async function loadUserInfo() {
     const user = await api.get('/api/auth/me');
     if (user && !user.error) {
@@ -50,8 +113,13 @@ async function loadUserInfo() {
         const emailEl = document.getElementById('user-email');
         if (nameEl) nameEl.textContent = user.name;
         if (emailEl) emailEl.textContent = user.email;
-        // Salvar dados do usuário no localStorage para usar no perfil
-        localStorage.setItem('user', JSON.stringify(user));
+        // Salvar apenas dados essenciais no localStorage
+        const userData = {
+            id: user.id,
+            name: user.name,
+            email: user.email
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
     }
 }
 
@@ -69,19 +137,29 @@ async function logout() {
     window.location.href = '/login';
 }
 
-// Phone mask
+// Phone mask - funcao mantida para compatibilidade
 function phoneMask(input) {
-    input.addEventListener('input', function(e) {
-        let v = e.target.value.replace(/\D/g, '');
-        if (v.length > 11) v = v.slice(0, 11);
-        if (v.length > 0) {
-            if (v.length <= 2) v = '(' + v;
-            else if (v.length <= 7) v = '(' + v.slice(0, 2) + ') ' + v.slice(2);
-            else v = '(' + v.slice(0, 2) + ') ' + v.slice(2, 7) + '-' + v.slice(7);
-        }
-        e.target.value = v;
-    });
+    input.addEventListener('input', handlePhoneMask);
 }
+
+// Handler para mascara de telefone
+function handlePhoneMask(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 0) {
+        if (v.length <= 2) v = '(' + v;
+        else if (v.length <= 7) v = '(' + v.slice(0, 2) + ') ' + v.slice(2);
+        else v = '(' + v.slice(0, 2) + ') ' + v.slice(2, 7) + '-' + v.slice(7);
+    }
+    e.target.value = v;
+}
+
+// Event delegation para inputs dinamicos
+document.addEventListener('input', function(e) {
+    if (e.target.matches('input[type="tel"]')) {
+        handlePhoneMask(e);
+    }
+});
 
 // Theme (only for logged in pages)
 function initTheme() {

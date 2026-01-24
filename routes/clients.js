@@ -16,26 +16,38 @@ function generateSlug(name) {
         .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
         .replace(/\s+/g, '-') // Espaços viram hífens
         .replace(/-+/g, '-') // Remove hífens duplicados
-        .replace(/^-|-$/g, ''); // Remove hífens no início/fim
+        .replace(/^-|-$/g, '') // Remove hífens no início/fim
+        .substring(0, 50); // Limitar tamanho
 }
 
-// Check if slug exists and add number if needed
+// OTIMIZADO: Buscar todos slugs similares de uma vez ao invés de loop
 async function getUniqueSlug(name, existingSlug = null) {
-    let baseSlug = generateSlug(name);
-    let slug = baseSlug;
-    let counter = 1;
+    const baseSlug = generateSlug(name);
 
-    // Check if slug already exists (excluding current client when editing)
-    while (true) {
-        const existing = await db.getClientBySlug(slug);
-        if (!existing || (existingSlug && existing.slug === existingSlug)) {
-            break;
-        }
-        counter++;
-        slug = `${baseSlug}-${counter}`;
+    // Buscar todos os slugs similares de uma vez
+    const result = await db.pool.query(
+        `SELECT slug FROM clients WHERE slug LIKE $1 ORDER BY slug`,
+        [baseSlug + '%']
+    );
+
+    const existingSlugs = new Set(result.rows.map(r => r.slug));
+
+    // Se existingSlug foi passado (edição), removê-lo do set
+    if (existingSlug) {
+        existingSlugs.delete(existingSlug);
     }
 
-    return slug;
+    if (!existingSlugs.has(baseSlug)) {
+        return baseSlug;
+    }
+
+    // Encontrar o próximo número disponível
+    let counter = 1;
+    while (existingSlugs.has(`${baseSlug}-${counter}`)) {
+        counter++;
+    }
+
+    return `${baseSlug}-${counter}`;
 }
 
 // Get all clients

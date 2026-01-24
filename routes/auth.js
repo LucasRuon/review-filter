@@ -207,7 +207,8 @@ router.post('/integrations/test-webhook', authMiddleware, async (req, res) => {
         const response = await fetch(integrations.webhook_url, {
             method: 'POST',
             headers,
-            body: JSON.stringify(testData)
+            body: JSON.stringify(testData),
+            signal: AbortSignal.timeout(10000) // Timeout 10s
         });
 
         if (response.ok) {

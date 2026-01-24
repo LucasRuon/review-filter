@@ -5,6 +5,11 @@ const logger = require('../logger');
 let transporter = null;
 let emailProvider = null; // 'smtp' ou 'resend'
 
+// Cache para configuracoes de email
+let cachedEmailFrom = null;
+let cacheTime = 0;
+const CACHE_TTL = 300000; // 5 minutos
+
 // Inicializar transporter com configurações do banco
 async function initTransporter() {
     try {
@@ -84,6 +89,9 @@ async function initTransporter() {
 async function reloadConfig() {
     transporter = null;
     emailProvider = null;
+    // Invalidar cache de email
+    cachedEmailFrom = null;
+    cacheTime = 0;
     return await initTransporter();
 }
 
@@ -132,8 +140,17 @@ async function sendEmail(to, subject, html, text = null) {
             return { success: false, error: 'Email service not configured - configure Resend API ou SMTP no painel admin' };
         }
 
-        const settings = await db.getAllPlatformSettings();
-        const fromEmail = settings.email_from || settings.smtp_from || settings.smtp_user || 'noreply@opinaja.com.br';
+        // OTIMIZADO: Usar cache para configuracoes de email
+        const now = Date.now();
+        let fromEmail;
+        if (cachedEmailFrom && (now - cacheTime) < CACHE_TTL) {
+            fromEmail = cachedEmailFrom;
+        } else {
+            const settings = await db.getAllPlatformSettings();
+            fromEmail = settings.email_from || settings.smtp_from || settings.smtp_user || 'noreply@opinaja.com.br';
+            cachedEmailFrom = fromEmail;
+            cacheTime = now;
+        }
         const fromName = 'Opina Já!';
 
         let result;
