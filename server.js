@@ -43,17 +43,7 @@ if (process.env.NODE_ENV === 'production') {
 // SECURITY HEADERS com Helmet
 if (helmet) {
     app.use(helmet({
-        contentSecurityPolicy: {
-            directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-                scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
-                styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-                fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
-                imgSrc: ["'self'", "data:", "https:"],
-                connectSrc: ["'self'", "https://api.resend.com", "https://audeagencia.uazapi.com"]
-            }
-        },
+        contentSecurityPolicy: false, // Disabled to allow inline event handlers
         crossOriginEmbedderPolicy: false // Necessario para carregar imagens externas
     }));
 }
