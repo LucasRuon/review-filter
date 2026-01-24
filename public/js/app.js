@@ -117,7 +117,8 @@ async function loadUserInfo() {
         const userData = {
             id: user.id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            phone: user.phone || ''
         };
         localStorage.setItem('user', JSON.stringify(userData));
     }
