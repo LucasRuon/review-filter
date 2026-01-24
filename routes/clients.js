@@ -25,12 +25,9 @@ async function getUniqueSlug(name, existingSlug = null) {
     const baseSlug = generateSlug(name);
 
     // Buscar todos os slugs similares de uma vez
-    const result = await db.pool.query(
-        `SELECT slug FROM clients WHERE slug LIKE $1 ORDER BY slug`,
-        [baseSlug + '%']
-    );
+    const result = await db.findSlugsByPrefix(baseSlug);
 
-    const existingSlugs = new Set(result.rows.map(r => r.slug));
+    const existingSlugs = new Set(result.map(r => r.slug));
 
     // Se existingSlug foi passado (edição), removê-lo do set
     if (existingSlug) {
@@ -53,7 +50,7 @@ async function getUniqueSlug(name, existingSlug = null) {
 // Get all clients
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const clients = await db.getClientsByUserId(req.userId);
+        const clients = await db.getClientsByUserId(req.userId, null, 0);
         res.json(clients);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar clientes' });
@@ -346,7 +343,7 @@ router.get('/:id/branches', authMiddleware, async (req, res) => {
         if (!client) {
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
-        const branches = await db.getBranchesByClientId(req.params.id);
+        const branches = await db.getBranchesByClientId(req.params.id, null);
         res.json(branches);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar filiais' });

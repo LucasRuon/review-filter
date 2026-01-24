@@ -52,6 +52,27 @@
             transition: opacity 0.2s;
         }
         .support-btn:hover .support-tooltip { opacity: 1; }
+
+        /* NPS Star Rating Buttons */
+        .nps-star {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: var(--border);
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.2s, transform 0.2s;
+        }
+        .nps-star:hover {
+            transform: scale(1.15);
+            color: #FBBF24;
+        }
+        .nps-star.active {
+            color: #FBBF24;
+        }
+        .nps-star i {
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -85,11 +106,11 @@
                 <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
             </div>
             <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
-                <a href="/complaints" class="nav-item" data-page="complaints"><span class="nav-icon">💬</span><span class="nav-text">Reclamações</span></a>
-                <a href="/clients" class="nav-item" data-page="clients"><span class="nav-icon">🏢</span><span class="nav-text">Clientes</span></a>
-                <a href="/integrations" class="nav-item" data-page="integrations"><span class="nav-icon">🔗</span><span class="nav-text">Integrações</span></a>
-                <a href="#" class="nav-item" onclick="openFeedbackModal(); return false;"><span class="nav-icon">💡</span><span class="nav-text">Sugestões</span></a>
+                <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon"><i class="fas fa-chart-bar"></i></span><span class="nav-text">Dashboard</span></a>
+                <a href="/complaints" class="nav-item" data-page="complaints"><span class="nav-icon"><i class="fas fa-comments"></i></span><span class="nav-text">Reclamações</span></a>
+                <a href="/clients" class="nav-item" data-page="clients"><span class="nav-icon"><i class="fas fa-building"></i></span><span class="nav-text">Clientes</span></a>
+                <a href="/integrations" class="nav-item" data-page="integrations"><span class="nav-icon"><i class="fas fa-plug"></i></span><span class="nav-text">Integrações</span></a>
+                <a href="#" class="nav-item" onclick="openFeedbackModal(); return false;"><span class="nav-icon"><i class="fas fa-lightbulb"></i></span><span class="nav-text">Sugestões</span></a>
             </nav>
             <div class="sidebar-footer">
                 <div class="theme-toggle" onclick="toggleTheme()"><span class="theme-toggle-label"><i class="fas fa-moon"></i><span>Modo escuro</span></span><div class="theme-toggle-switch"></div></div>
@@ -100,7 +121,7 @@
                         <div class="user-email" id="user-email"></div>
                     </div>
                 </a>
-                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-text">Sair</span></a>
+                <a href="#" onclick="logout()" class="nav-item"><span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span><span class="nav-text">Sair</span></a>
             </div>
         </aside>
 
@@ -232,8 +253,8 @@
             mainContent.classList.remove('loading');
             
             // Fechar menu mobile se estiver aberto
-            document.querySelector('.sidebar').classList.remove('mobile-open');
-            document.querySelector('.sidebar-overlay').classList.remove('active');
+            document.querySelector('.sidebar').classList.remove('open');
+            document.querySelector('.sidebar-overlay').classList.remove('show');
         }
 
         function getPageName(path) {
@@ -1399,12 +1420,12 @@
             
             if (res.success) {
                 showToast('Webhook configurado!');
-                document.getElementById('webhook-status-dot').classList.remove('inactive');
+                document.getElementById('webhook-status-dot').classList.remove('disconnected', 'connected');
                 if (url) {
-                    document.getElementById('webhook-status-dot').classList.add('active');
-                    document.getElementById('webhook-status-text').textContent = 'Ativo';
+                    document.getElementById('webhook-status-dot').classList.add('connected');
+                    document.getElementById('webhook-status-text').textContent = 'Configurado';
                 } else {
-                    document.getElementById('webhook-status-dot').classList.add('inactive');
+                    document.getElementById('webhook-status-dot').classList.add('disconnected');
                     document.getElementById('webhook-status-text').textContent = 'Não configurado';
                 }
             } else {

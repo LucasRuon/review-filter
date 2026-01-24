@@ -590,8 +590,15 @@ async function createClient(userId, data) {
     return { lastInsertRowid: clientId };
 }
 
-// COM LIMITE para evitar memory exhaustion
-async function getClientsByUserId(userId, limit = 50, offset = 0) {
+// COM LIMITE para evitar memory exhaustion (null = sem limite)
+async function getClientsByUserId(userId, limit = null, offset = 0) {
+    if (limit === null) {
+        const result = await pool.query(
+            'SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC',
+            [userId]
+        );
+        return result.rows;
+    }
     const result = await pool.query(
         'SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
         [userId, limit, offset]
@@ -623,15 +630,17 @@ async function getClientDataForReview(slug) {
         SELECT
             c.id, c.name, c.address, c.phone, c.google_review_link,
             c.business_hours, c.slug, c.logo_url, c.primary_color,
-            (
-                SELECT json_agg(t.* ORDER BY t.sort_order)
+            COALESCE(
+                (SELECT json_agg(t.* ORDER BY t.sort_order)
                 FROM complaint_topics t
-                WHERE t.client_id = c.id AND t.active = 1
+                WHERE t.client_id = c.id AND t.active = 1),
+                '[]'::json
             ) as topics,
-            (
-                SELECT json_agg(b.* ORDER BY b.is_main DESC, b.name)
+            COALESCE(
+                (SELECT json_agg(b.* ORDER BY b.is_main DESC, b.name)
                 FROM client_branches b
-                WHERE b.client_id = c.id AND b.active = 1
+                WHERE b.client_id = c.id AND b.active = 1),
+                '[]'::json
             ) as branches
         FROM clients c
         WHERE c.slug = $1
@@ -674,8 +683,15 @@ async function deleteClient(id, userId) {
     }
 }
 
-// Branch functions - COM LIMITE
-async function getBranchesByClientId(clientId, limit = 50) {
+// Branch functions - COM LIMITE (null = sem limite)
+async function getBranchesByClientId(clientId, limit = null) {
+    if (limit === null) {
+        const result = await pool.query(
+            'SELECT * FROM client_branches WHERE client_id = $1 ORDER BY is_main DESC, name ASC',
+            [clientId]
+        );
+        return result.rows;
+    }
     const result = await pool.query(
         'SELECT * FROM client_branches WHERE client_id = $1 ORDER BY is_main DESC, name ASC LIMIT $2',
         [clientId, limit]
@@ -1473,6 +1489,15 @@ async function cleanupOldData(daysToKeep = 90, batchSize = 1000) {
     return results;
 }
 
+// Funcao para buscar slugs por prefixo (usado em getUniqueSlug)
+async function findSlugsByPrefix(prefix) {
+    const result = await pool.query(
+        'SELECT slug FROM clients WHERE slug LIKE $1 ORDER BY slug',
+        [`${prefix}%`]
+    );
+    return result.rows;
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -1492,6 +1517,7 @@ module.exports = {
     getClientBySlug,
     getClientByCustomDomain,
     getClientDataForReview,
+    findSlugsByPrefix,
     updateClient,
     deleteClient,
     getBranchesByClientId,
