@@ -207,6 +207,17 @@ function closeMobileMenu() {
     overlay.classList.remove('show');
 }
 
+// Expose functions to window for onclick handlers
+window.logout = logout;
+window.toggleTheme = toggleTheme;
+window.toggleSidebar = toggleSidebar;
+window.toggleMobileMenu = toggleMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
+window.showToast = showToast;
+window.copyToClipboard = copyToClipboard;
+window.formatDate = formatDate;
+window.api = api;
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();

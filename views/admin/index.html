@@ -199,22 +199,22 @@
                 <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
             </div>
             <nav class="sidebar-nav">
-                <a class="nav-item" data-page="dashboard" onclick="navigateTo('/admin')">
+                <a href="#" class="nav-item" data-page="dashboard" onclick="navigateTo('/admin'); return false;">
                     <i class="fas fa-chart-line nav-icon"></i> Dashboard
                 </a>
-                <a class="nav-item" data-page="users" onclick="navigateTo('/admin/users')">
+                <a href="#" class="nav-item" data-page="users" onclick="navigateTo('/admin/users'); return false;">
                     <i class="fas fa-users nav-icon"></i> Usuarios
                 </a>
-                <a class="nav-item" data-page="settings" onclick="navigateTo('/admin/settings')">
+                <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('/admin/settings'); return false;">
                     <i class="fas fa-cog nav-icon"></i> Configuracoes
                 </a>
-                <a class="nav-item" data-page="logs" onclick="navigateTo('/admin/logs')">
+                <a href="#" class="nav-item" data-page="logs" onclick="navigateTo('/admin/logs'); return false;">
                     <i class="fas fa-history nav-icon"></i> Logs
                 </a>
-                <a class="nav-item" data-page="billing" onclick="navigateTo('/admin/billing')">
+                <a href="#" class="nav-item" data-page="billing" onclick="navigateTo('/admin/billing'); return false;">
                     <i class="fas fa-credit-card nav-icon"></i> Faturamento
                 </a>
-                <a class="nav-item" data-page="feedbacks" onclick="navigateTo('/admin/feedbacks')">
+                <a href="#" class="nav-item" data-page="feedbacks" onclick="navigateTo('/admin/feedbacks'); return false;">
                     <i class="fas fa-lightbulb nav-icon"></i> Feedbacks
                 </a>
             </nav>
@@ -226,7 +226,7 @@
                         <div class="admin-role" id="admin-role">Superadmin</div>
                     </div>
                 </div>
-                <a class="nav-item" onclick="logout()">
+                <a href="#" class="nav-item" onclick="logout(); return false;">
                     <i class="fas fa-sign-out-alt nav-icon"></i> Sair
                 </a>
             </div>
