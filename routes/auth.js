@@ -5,6 +5,7 @@ const db = require('../database');
 const { generateToken, authMiddleware } = require('../middleware/auth');
 const logger = require('../logger');
 const emailService = require('../services/email-service');
+const cache = require('../services/cache-service');
 
 const router = express.Router();
 
@@ -158,7 +159,15 @@ router.put('/password', authMiddleware, async (req, res) => {
 // Get dashboard stats
 router.get('/stats', authMiddleware, async (req, res) => {
     try {
-        const stats = await db.getStats(req.userId);
+        // FASE 4: Cache por usuário - TTL de 30 segundos
+        const cacheKey = `stats_${req.userId}`;
+        let stats = cache.get(cacheKey);
+
+        if (!stats) {
+            stats = await db.getStats(req.userId);
+            cache.set(cacheKey, stats, 30); // 30 segundos
+        }
+
         res.json(stats);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar estatísticas' });

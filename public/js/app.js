@@ -105,22 +105,31 @@ function formatDate(dateStr) {
     return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Update user UI - NOVA FUNCAO: reutiliza dados do checkAuth
+function updateUserUI(user) {
+    if (!user) return;
+
+    const nameEl = document.getElementById('user-name');
+    const emailEl = document.getElementById('user-email');
+    if (nameEl) nameEl.textContent = user.name;
+    if (emailEl) emailEl.textContent = user.email;
+
+    // Salvar apenas dados essenciais no localStorage
+    const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || ''
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
+}
+
 // Load user info - OTIMIZADO: salvar apenas dados essenciais
+// Mantida para refresh manual, mas não mais usada na inicialização
 async function loadUserInfo() {
     const user = await api.get('/api/auth/me');
     if (user && !user.error) {
-        const nameEl = document.getElementById('user-name');
-        const emailEl = document.getElementById('user-email');
-        if (nameEl) nameEl.textContent = user.name;
-        if (emailEl) emailEl.textContent = user.email;
-        // Salvar apenas dados essenciais no localStorage
-        const userData = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone || ''
-        };
-        localStorage.setItem('user', JSON.stringify(userData));
+        updateUserUI(user);
     }
 }
 
@@ -217,6 +226,7 @@ window.closeMobileMenu = closeMobileMenu;
 window.showToast = showToast;
 window.copyToClipboard = copyToClipboard;
 window.formatDate = formatDate;
+window.updateUserUI = updateUserUI;
 window.api = api;
 
 // Init

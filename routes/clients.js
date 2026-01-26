@@ -4,6 +4,7 @@ const db = require('../database');
 const { authMiddleware } = require('../middleware/auth');
 const whatsappService = require('../services/whatsapp-service');
 const logger = require('../logger');
+const cache = require('../services/cache-service');
 
 const router = express.Router();
 
@@ -85,6 +86,8 @@ router.post('/', authMiddleware, async (req, res) => {
         });
 
         logger.info('Client created', { userId: req.userId, clientId: result.lastInsertRowid, name, slug });
+        // FASE 7: Invalidar cache de stats
+        cache.delete(`stats_${req.userId}`);
         res.json({ success: true, id: result.lastInsertRowid, slug, message: 'Cliente cadastrado com sucesso!' });
     } catch (error) {
         logger.error('Create client error', { userId: req.userId, error: error.message });
@@ -111,6 +114,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         });
 
         logger.info('Client updated', { userId: req.userId, clientId: req.params.id, name });
+        // FASE 7: Invalidar cache de stats
+        cache.delete(`stats_${req.userId}`);
         res.json({ success: true, message: 'Cliente atualizado com sucesso!' });
     } catch (error) {
         logger.error('Update client error', { userId: req.userId, clientId: req.params.id, error: error.message });
@@ -128,6 +133,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
         await db.deleteClient(req.params.id, req.userId);
         logger.info('Client deleted', { userId: req.userId, clientId: req.params.id, name: client.name });
+        // FASE 7: Invalidar cache de stats
+        cache.delete(`stats_${req.userId}`);
         res.json({ success: true, message: 'Cliente excluído com sucesso!' });
     } catch (error) {
         logger.error('Delete client error', { userId: req.userId, clientId: req.params.id, error: error.message });
@@ -172,6 +179,8 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
 
         await db.updateComplaintStatus(req.params.complaintId, req.params.clientId, status);
         logger.info('Complaint status updated', { clientId: req.params.clientId, complaintId: req.params.complaintId, status });
+        // FASE 7: Invalidar cache de stats
+        cache.delete(`stats_${req.userId}`);
 
         // Enviar mensagem WhatsApp se configurado
         if (complaint && (status === 'in_progress' || status === 'resolved')) {

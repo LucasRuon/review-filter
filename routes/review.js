@@ -3,6 +3,7 @@ const path = require('path');
 const db = require('../database');
 const whatsappService = require('../services/whatsapp-service');
 const logger = require('../logger');
+const cache = require('../services/cache-service');
 
 const router = express.Router();
 
@@ -74,6 +75,9 @@ router.post('/:slug/complaint', async (req, res) => {
         await db.createComplaint(client.id, sanitizedData);
 
         logger.info('New complaint received', { clientId: client.id, clientName: client.name, customerName: sanitizedData.name, topic: sanitizedData.topic_name, branchId: sanitizedData.branch_id });
+
+        // FASE 7: Invalidar cache de stats do usuário
+        cache.delete(`stats_${client.user_id}`);
 
         // CORRECAO: Responder IMEDIATAMENTE ao usuario
         res.json({ success: true, message: 'Sua mensagem foi enviada com sucesso!' });

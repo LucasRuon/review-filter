@@ -157,16 +157,21 @@
             const user = await checkAuth();
             if (!user) return;
 
-            await loadUserInfo();
+            // FASE 1: Reutilizar dados do checkAuth em vez de chamar loadUserInfo
+            updateUserUI(user);
             loadUserAvatar();
-            loadSupportButton();
 
             // Configurar navegação SPA
             setupNavigation();
 
             // Carregar página inicial baseada na URL
             const path = window.location.pathname;
-            await navigateTo(path, false);
+
+            // FASE 2: Executar em paralelo: navegação + suporte
+            await Promise.all([
+                navigateTo(path, false),
+                loadSupportButton()
+            ]);
 
             hideLoading();
         }
@@ -276,12 +281,20 @@
         }
 
         async function loadPageContent(pageName, path) {
+            // FASE 5: Verificar cache primeiro
+            if (pageCache[pageName]) {
+                return pageCache[pageName];
+            }
+
             // Buscar template da página
             const response = await fetch(`/spa/${pageName}`);
             if (!response.ok) throw new Error('Página não encontrada');
-            
+
             let content = await response.text();
-            
+
+            // Salvar no cache
+            pageCache[pageName] = content;
+
             return content;
         }
 
@@ -571,17 +584,22 @@
         }
 
         async function loadAllComplaintsData() {
-            const clients = await api.get('/api/clients') || [];
-            const response = await api.get('/api/complaints') || { complaints: [] };
-            const complaints = response.complaints || [];
+            // FASE 3: Buscar em paralelo
+            const [clients, response] = await Promise.all([
+                api.get('/api/clients'),
+                api.get('/api/complaints')
+            ]);
+
+            const clientsList = clients || [];
+            const complaints = response?.complaints || [];
 
             // Popular filtro de clientes
             const clientFilter = document.getElementById('clientFilter');
             clientFilter.innerHTML = '<option value="">Todos os clientes</option>' +
-                clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                clientsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
             window.allComplaints = complaints;
-            window.allClients = clients;
+            window.allClients = clientsList;
             renderComplaints(complaints);
         }
 

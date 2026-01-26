@@ -247,9 +247,18 @@ app.use('/admin', adminRoutes);
 // API para informações de suporte (público)
 app.get('/api/support-info', async (req, res) => {
     try {
-        const whatsapp = await db.getPlatformSetting('support_whatsapp');
-        const email = await db.getPlatformSetting('support_email');
-        res.json({ whatsapp, email });
+        // FASE 4: Usar cache - TTL de 5 minutos
+        const cacheKey = 'support_info';
+        let supportInfo = cache.get(cacheKey);
+
+        if (!supportInfo) {
+            const whatsapp = await db.getPlatformSetting('support_whatsapp');
+            const email = await db.getPlatformSetting('support_email');
+            supportInfo = { whatsapp, email };
+            cache.set(cacheKey, supportInfo, 300); // 5 minutos
+        }
+
+        res.json(supportInfo);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar informações' });
     }

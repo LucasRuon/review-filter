@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../database');
+const cache = require('../services/cache-service');
 
 // JWT_SECRET obrigatorio em producao
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -36,19 +37,31 @@ async function authMiddleware(req, res, next) {
         return res.status(401).json({ error: 'Token invalido' });
     }
 
-    // CORRECAO: Uma unica query direta por ID ao inves de 2 queries
-    try {
-        const user = await db.getUserByIdWithStatus(decoded.userId);
-        if (!user) {
-            res.clearCookie('token');
-            return res.status(401).json({ error: 'Usuario nao encontrado' });
+    // FASE 6: Cache de verificação do usuário - TTL de 60 segundos
+    const cacheKey = `auth_user_${decoded.userId}`;
+    let user = cache.get(cacheKey);
+
+    if (!user) {
+        try {
+            user = await db.getUserByIdWithStatus(decoded.userId);
+            if (!user) {
+                res.clearCookie('token');
+                return res.status(401).json({ error: 'Usuario nao encontrado' });
+            }
+            if (user.active === 0) {
+                res.clearCookie('token');
+                return res.status(403).json({ error: 'Sua conta esta desativada. Entre em contato com o suporte.' });
+            }
+            // Cachear usuário válido
+            cache.set(cacheKey, user, 60); // 60 segundos
+        } catch (error) {
+            return res.status(500).json({ error: 'Erro ao verificar usuario' });
         }
-        if (user.active === 0) {
-            res.clearCookie('token');
-            return res.status(403).json({ error: 'Sua conta esta desativada. Entre em contato com o suporte.' });
-        }
-    } catch (error) {
-        return res.status(500).json({ error: 'Erro ao verificar usuario' });
+    } else if (user.active === 0) {
+        // Re-verificar do cache
+        res.clearCookie('token');
+        cache.delete(cacheKey);
+        return res.status(403).json({ error: 'Sua conta esta desativada. Entre em contato com o suporte.' });
     }
 
     req.userId = decoded.userId;
