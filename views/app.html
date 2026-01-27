@@ -1199,7 +1199,6 @@
         }
 
         // Função para impressão profissional para loja (Design Figma v2)
-        // Suporta tamanhos: A5 (14.8 x 21 cm), A6 (10.5 x 14.8 cm)
         window.printStoreDisplay = function(options = {}) {
             const {
                 clientName = window.currentQRClientName,
@@ -1227,33 +1226,6 @@
             const displayTitle = branchName ? `${clientName} - ${branchName}` : clientName;
             const displayName = branchName ? clientName : displayTitle;
 
-            // Configurações responsivas por tamanho
-            const isA6 = size === 'A6';
-            const styles = {
-                padding: isA6 ? '0.75rem' : '1.25rem',
-                headerPadding: isA6 ? '0.875rem 1rem' : '1.25rem 1.5rem',
-                headerLogoSize: isA6 ? '40px' : '52px',
-                headerFontSize: isA6 ? '1.25rem' : '1.6rem',
-                bodyPadding: isA6 ? '1rem' : '1.5rem',
-                titleFontSize: isA6 ? '1.1rem' : '1.35rem',
-                starsFontSize: isA6 ? '1.4rem' : '1.8rem',
-                descPadding: isA6 ? '0.625rem 0.75rem' : '0.875rem 1rem',
-                descFontSize: isA6 ? '0.8rem' : '0.95rem',
-                qrSize: isA6 ? '140px' : '180px',
-                qrPadding: isA6 ? '0.5rem' : '0.625rem',
-                qrBorder: isA6 ? '3px' : '4px',
-                instrPadding: isA6 ? '0.75rem 1rem' : '1rem 1.25rem',
-                instrTitleSize: isA6 ? '0.9rem' : '1rem',
-                instrItemSize: isA6 ? '0.8rem' : '0.9rem',
-                instrLineHeight: isA6 ? '1.5' : '1.65',
-                brandFontSize: isA6 ? '1.1rem' : '1.35rem',
-                taglineFontSize: isA6 ? '0.6rem' : '0.7rem',
-                borderRadius: isA6 ? '16px' : '20px',
-                cardBorder: isA6 ? '2px' : '3px',
-                marginBottom: isA6 ? '0.875rem' : '1.25rem',
-                starsMargin: isA6 ? '0.5rem' : '0.75rem'
-            };
-
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <!DOCTYPE html>
@@ -1271,90 +1243,77 @@
                             justify-content: center;
                             min-height: 100vh;
                             background: #374151;
-                            padding: ${styles.padding};
+                            padding: 1.5rem;
                         }
                         .card {
                             background: white;
-                            border-radius: ${styles.borderRadius};
+                            border-radius: 24px;
                             overflow: hidden;
+                            max-width: 400px;
                             width: 100%;
-                            height: 100%;
-                            border: ${styles.cardBorder} solid #374151;
-                            display: flex;
-                            flex-direction: column;
+                            border: 3px solid #374151;
                         }
                         .header {
                             background: ${primaryColor};
-                            padding: ${styles.headerPadding};
+                            padding: 1.5rem 2rem;
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            gap: 0.75rem;
-                            flex-shrink: 0;
+                            gap: 1rem;
                         }
                         .header-logo {
-                            width: ${styles.headerLogoSize};
-                            height: ${styles.headerLogoSize};
-                            border-radius: 10px;
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 12px;
                             object-fit: contain;
                             background: white;
-                            padding: 3px;
+                            padding: 4px;
                         }
                         .header-logo-placeholder {
-                            width: ${styles.headerLogoSize};
-                            height: ${styles.headerLogoSize};
-                            border-radius: 10px;
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 12px;
                             background: white;
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            font-size: ${isA6 ? '1.1rem' : '1.4rem'};
+                            font-size: 1.5rem;
                             font-weight: 700;
                             color: ${primaryColor};
                         }
                         .header-title {
                             color: white;
-                            font-size: ${styles.headerFontSize};
+                            font-size: 1.75rem;
                             font-weight: 700;
                             letter-spacing: 0.5px;
                         }
                         .body {
-                            padding: ${styles.bodyPadding};
+                            padding: 2rem;
                             text-align: center;
-                            flex: 1;
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: space-between;
-                        }
-                        .content {
-                            flex: 1;
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
                         }
                         .title {
-                            font-size: ${styles.titleFontSize};
+                            font-size: 1.5rem;
                             font-weight: 700;
                             color: #1E293B;
-                            margin-bottom: ${isA6 ? '0.375rem' : '0.5rem'};
+                            margin-bottom: 0.75rem;
                         }
                         .stars {
                             color: #F59E0B;
-                            font-size: ${styles.starsFontSize};
-                            letter-spacing: 0.2rem;
-                            margin-bottom: ${styles.starsMargin};
+                            font-size: 2rem;
+                            letter-spacing: 0.25rem;
+                            margin-bottom: 1rem;
                         }
                         .description-box {
                             background: #F3F4F6;
-                            border-radius: ${isA6 ? '8px' : '10px'};
-                            padding: ${styles.descPadding};
-                            margin-bottom: ${styles.marginBottom};
+                            border-radius: 12px;
+                            padding: 1rem 1.25rem;
+                            margin-bottom: 1.5rem;
                             text-align: center;
                         }
                         .description-box p {
                             color: #4B5563;
-                            font-size: ${styles.descFontSize};
-                            line-height: 1.4;
+                            font-size: 1rem;
+                            line-height: 1.5;
                         }
                         .description-box .highlight {
                             color: #FF9900;
@@ -1362,28 +1321,28 @@
                         }
                         .qr-container {
                             display: inline-block;
-                            padding: ${styles.qrPadding};
-                            border: ${styles.qrBorder} solid ${primaryColor};
-                            border-radius: ${isA6 ? '8px' : '10px'};
-                            margin-bottom: ${styles.marginBottom};
+                            padding: 0.75rem;
+                            border: 4px solid ${primaryColor};
+                            border-radius: 12px;
+                            margin-bottom: 1.5rem;
                         }
                         .qr-container img {
-                            width: ${styles.qrSize};
-                            height: ${styles.qrSize};
+                            width: 200px;
+                            height: 200px;
                             display: block;
                         }
                         .instructions {
                             background: #F9FAFB;
-                            border-radius: ${isA6 ? '8px' : '10px'};
-                            padding: ${styles.instrPadding};
+                            border-radius: 12px;
+                            padding: 1.25rem 1.5rem;
                             text-align: left;
-                            margin-bottom: ${styles.marginBottom};
+                            margin-bottom: 1.5rem;
                         }
                         .instructions h3 {
                             color: #1E293B;
-                            font-size: ${styles.instrTitleSize};
+                            font-size: 1.1rem;
                             font-weight: 700;
-                            margin-bottom: ${isA6 ? '0.375rem' : '0.5rem'};
+                            margin-bottom: 0.75rem;
                         }
                         .instructions ol {
                             list-style: none;
@@ -1391,8 +1350,8 @@
                         }
                         .instructions li {
                             color: #4B5563;
-                            font-size: ${styles.instrItemSize};
-                            line-height: ${styles.instrLineHeight};
+                            font-size: 1rem;
+                            line-height: 1.75;
                         }
                         .instructions li strong {
                             color: #1E293B;
@@ -1400,10 +1359,10 @@
                         }
                         .footer-logo {
                             text-align: center;
-                            flex-shrink: 0;
+                            padding-top: 0.5rem;
                         }
                         .footer-logo .brand {
-                            font-size: ${styles.brandFontSize};
+                            font-size: 1.5rem;
                             font-weight: 700;
                         }
                         .footer-logo .brand-opina {
@@ -1414,8 +1373,8 @@
                         }
                         .footer-logo .tagline {
                             color: ${primaryColor};
-                            font-size: ${styles.taglineFontSize};
-                            margin-top: 0.125rem;
+                            font-size: 0.75rem;
+                            margin-top: 0.25rem;
                         }
                         @media print {
                             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1434,27 +1393,25 @@
                         </div>
 
                         <div class="body">
-                            <div class="content">
-                                <h1 class="title">Sua opinião é muito importante!</h1>
-                                <div class="stars">★★★★★</div>
+                            <h1 class="title">Sua opinião é muito importante!</h1>
+                            <div class="stars">★★★★★</div>
 
-                                <div class="description-box">
-                                    <p><span class="highlight">Sua avaliação 5 estrelas no Google</span> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
-                                </div>
+                            <div class="description-box">
+                                <p><span class="highlight">Sua avaliação 5 estrelas no Google</span> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
+                            </div>
 
-                                <div class="qr-container">
-                                    <img src="${qrDataUrl}" alt="QR Code">
-                                </div>
+                            <div class="qr-container">
+                                <img src="${qrDataUrl}" alt="QR Code">
+                            </div>
 
-                                <div class="instructions">
-                                    <h3>Como avaliar:</h3>
-                                    <ol>
-                                        <li><strong>1.</strong> Abra a câmera do seu celular</li>
-                                        <li><strong>2.</strong> Aponte para o QR Code acima</li>
-                                        <li><strong>3.</strong> Clique no link que aparecer</li>
-                                        <li><strong>4.</strong> Deixe sua avaliação!</li>
-                                    </ol>
-                                </div>
+                            <div class="instructions">
+                                <h3>Como avaliar:</h3>
+                                <ol>
+                                    <li><strong>1.</strong> Abra a câmera do seu celular</li>
+                                    <li><strong>2.</strong> Aponte para o QR Code acima</li>
+                                    <li><strong>3.</strong> Clique no link que aparecer</li>
+                                    <li><strong>4.</strong> Deixe sua avaliação!</li>
+                                </ol>
                             </div>
 
                             <div class="footer-logo">
@@ -1466,7 +1423,7 @@
                         </div>
                     </div>
 
-                    <button class="no-print" onclick="window.print()" style="margin-top:1rem;padding:0.75rem 1.5rem;background:white;color:#1E293B;border:none;border-radius:10px;cursor:pointer;font-size:0.95rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                    <button class="no-print" onclick="window.print()" style="margin-top:1.5rem;padding:1rem 2rem;background:white;color:#1E293B;border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
                         🖨️ Imprimir
                     </button>
                 </body>
