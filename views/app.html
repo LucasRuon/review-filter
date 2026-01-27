@@ -1199,14 +1199,14 @@
         }
 
         // Função para impressão profissional para loja (Design Figma v2)
+        // Tamanho fixo: A6 (10.5 x 14.8 cm) vertical
         window.printStoreDisplay = function(options = {}) {
             const {
                 clientName = window.currentQRClientName,
                 link = window.currentQRLink,
                 logoUrl = null,
                 primaryColor = '#4CBB63',
-                branchName = null,
-                size = 'A5'
+                branchName = null
             } = options;
 
             const container = document.getElementById('qr-canvas');
@@ -1233,7 +1233,7 @@
                 <head>
                     <title>Opina Já! - ${displayTitle}</title>
                     <style>
-                        @page { size: ${size}; margin: 0; }
+                        @page { size: A6 portrait; margin: 0; }
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body {
                             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1243,112 +1243,111 @@
                             justify-content: center;
                             min-height: 100vh;
                             background: #374151;
-                            padding: 1.5rem;
+                            padding: 1rem;
                         }
                         .card {
                             background: white;
                             border-radius: 24px;
                             overflow: hidden;
-                            width: 460px;
-                            height: 850px;
+                            width: 480px;
+                            height: 100%;
                             border: 3px solid #374151;
                             display: flex;
                             flex-direction: column;
                         }
                         .header {
                             background: ${primaryColor};
-                            padding: 1.5rem 2rem;
+                            padding: 1.25rem 1.5rem;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             gap: 1rem;
                         }
-                        .header-logo {
-                            width: 56px;
-                            height: 56px;
-                            border-radius: 12px;
+                        .header-logo-full {
+                            max-height: 60px;
+                            max-width: 280px;
                             object-fit: contain;
-                            background: white;
-                            padding: 4px;
                         }
-                        .header-logo-placeholder {
-                            width: 56px;
-                            height: 56px;
-                            border-radius: 12px;
-                            background: white;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 1.5rem;
-                            font-weight: 700;
-                            color: ${primaryColor};
-                        }
-                        .header-title {
+                        .header-text {
                             color: white;
                             font-size: 1.75rem;
                             font-weight: 700;
                             letter-spacing: 0.5px;
+                            text-align: center;
                         }
                         .body {
-                            padding: 2rem;
+                            padding: 1.5rem;
                             text-align: center;
                             flex: 1;
                             display: flex;
                             flex-direction: column;
                             justify-content: space-between;
                         }
+                        .content {
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                        }
                         .title {
-                            font-size: 1.5rem;
+                            font-size: 1.4rem;
                             font-weight: 700;
                             color: #1E293B;
-                            margin-bottom: 0.75rem;
+                            margin-bottom: 0.5rem;
                         }
                         .stars {
                             color: #F59E0B;
-                            font-size: 2rem;
-                            letter-spacing: 0.25rem;
-                            margin-bottom: 1rem;
+                            font-size: 1.75rem;
+                            letter-spacing: 0.2rem;
+                            margin-bottom: 0.75rem;
                         }
                         .description-box {
                             background: #F3F4F6;
-                            border-radius: 12px;
-                            padding: 1rem 1.25rem;
-                            margin-bottom: 1.5rem;
+                            border-radius: 10px;
+                            padding: 0.875rem 1rem;
+                            margin-bottom: 1.25rem;
                             text-align: center;
+                            width: 100%;
                         }
                         .description-box p {
                             color: #4B5563;
-                            font-size: 1rem;
-                            line-height: 1.5;
+                            font-size: 0.95rem;
+                            line-height: 1.4;
                         }
                         .description-box .highlight {
                             color: #FF9900;
                             font-weight: 700;
                         }
+                        .qr-wrapper {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            margin-bottom: 1.25rem;
+                        }
                         .qr-container {
                             display: inline-block;
-                            padding: 0.75rem;
+                            padding: 0.625rem;
                             border: 4px solid ${primaryColor};
-                            border-radius: 12px;
-                            margin-bottom: 1.5rem;
+                            border-radius: 10px;
                         }
                         .qr-container img {
-                            width: 240px;
-                            height: 240px;
+                            width: 200px;
+                            height: 200px;
                             display: block;
                         }
                         .instructions {
                             background: #F9FAFB;
-                            border-radius: 12px;
-                            padding: 1.25rem 1.5rem;
+                            border-radius: 10px;
+                            padding: 1rem 1.25rem;
                             text-align: left;
-                            margin-bottom: 1.5rem;
+                            width: 100%;
                         }
                         .instructions h3 {
                             color: #1E293B;
-                            font-size: 1.1rem;
+                            font-size: 1rem;
                             font-weight: 700;
-                            margin-bottom: 0.75rem;
+                            margin-bottom: 0.5rem;
                         }
                         .instructions ol {
                             list-style: none;
@@ -1356,8 +1355,8 @@
                         }
                         .instructions li {
                             color: #4B5563;
-                            font-size: 1rem;
-                            line-height: 1.75;
+                            font-size: 0.9rem;
+                            line-height: 1.6;
                         }
                         .instructions li strong {
                             color: #1E293B;
@@ -1365,22 +1364,11 @@
                         }
                         .footer-logo {
                             text-align: center;
-                            padding-top: 0.5rem;
+                            padding-top: 1rem;
                         }
-                        .footer-logo .brand {
-                            font-size: 1.5rem;
-                            font-weight: 700;
-                        }
-                        .footer-logo .brand-opina {
-                            color: #1E293B;
-                        }
-                        .footer-logo .brand-ja {
-                            color: ${primaryColor};
-                        }
-                        .footer-logo .tagline {
-                            color: ${primaryColor};
-                            font-size: 0.75rem;
-                            margin-top: 0.25rem;
+                        .footer-logo img {
+                            height: 32px;
+                            width: auto;
                         }
                         @media print {
                             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1392,44 +1380,44 @@
                     <div class="card">
                         <div class="header">
                             ${logoUrl
-                                ? `<img src="${logoUrl}" class="header-logo" alt="${displayName}">`
-                                : `<div class="header-logo-placeholder">${displayName.charAt(0).toUpperCase()}</div>`
+                                ? `<img src="${logoUrl}" class="header-logo-full" alt="${displayName}">`
+                                : `<span class="header-text">${displayName.toUpperCase()}</span>`
                             }
-                            <span class="header-title">${displayName.toUpperCase()}</span>
                         </div>
 
                         <div class="body">
-                            <h1 class="title">Sua opinião é muito importante!</h1>
-                            <div class="stars">★★★★★</div>
+                            <div class="content">
+                                <h1 class="title">Sua opinião é muito importante!</h1>
+                                <div class="stars">★★★★★</div>
 
-                            <div class="description-box">
-                                <p><span class="highlight">Sua avaliação 5 estrelas no Google</span> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
-                            </div>
+                                <div class="description-box">
+                                    <p><span class="highlight">Sua avaliação 5 estrelas no Google</span> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
+                                </div>
 
-                            <div class="qr-container">
-                                <img src="${qrDataUrl}" alt="QR Code">
-                            </div>
+                                <div class="qr-wrapper">
+                                    <div class="qr-container">
+                                        <img src="${qrDataUrl}" alt="QR Code">
+                                    </div>
+                                </div>
 
-                            <div class="instructions">
-                                <h3>Como avaliar:</h3>
-                                <ol>
-                                    <li><strong>1.</strong> Abra a câmera do seu celular</li>
-                                    <li><strong>2.</strong> Aponte para o QR Code acima</li>
-                                    <li><strong>3.</strong> Clique no link que aparecer</li>
-                                    <li><strong>4.</strong> Deixe sua avaliação!</li>
-                                </ol>
+                                <div class="instructions">
+                                    <h3>Como avaliar:</h3>
+                                    <ol>
+                                        <li><strong>1.</strong> Abra a câmera do seu celular</li>
+                                        <li><strong>2.</strong> Aponte para o QR Code acima</li>
+                                        <li><strong>3.</strong> Clique no link que aparecer</li>
+                                        <li><strong>4.</strong> Deixe sua avaliação!</li>
+                                    </ol>
+                                </div>
                             </div>
 
                             <div class="footer-logo">
-                                <div class="brand">
-                                    <span class="brand-opina">Opina</span><span class="brand-ja">Já!</span>
-                                </div>
-                                <div class="tagline">Feedback Inteligente</div>
+                                <img src="/images/logo-dark.png" alt="Opina Já!">
                             </div>
                         </div>
                     </div>
 
-                    <button class="no-print" onclick="window.print()" style="margin-top:1.5rem;padding:1rem 2rem;background:white;color:#1E293B;border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                    <button class="no-print" onclick="window.print()" style="margin-top:1rem;padding:0.75rem 1.5rem;background:white;color:#1E293B;border:none;border-radius:10px;cursor:pointer;font-size:0.95rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
                         🖨️ Imprimir
                     </button>
                 </body>
@@ -1438,50 +1426,12 @@
             printWindow.document.close();
         };
 
-        // Modal de opções de impressão
+        // Impressão direta para loja (tamanho fixo A6)
         window.showPrintOptions = function() {
-            // Remover modal existente se houver
-            const existingModal = document.getElementById('printOptionsModal');
-            if (existingModal) existingModal.remove();
-
-            const modal = document.createElement('div');
-            modal.id = 'printOptionsModal';
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width:400px">
-                    <div class="modal-header">
-                        <h3>Opcoes de Impressao</h3>
-                        <button class="modal-close" onclick="document.getElementById('printOptionsModal').remove()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">Tamanho do papel</label>
-                            <select id="printSize" class="form-input form-select">
-                                <option value="A5" selected>A5 (14.8 x 21 cm) - Recomendado</option>
-                                <option value="A6">A6 (10.5 x 14.8 cm)</option>
-                            </select>
-                        </div>
-                        <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.5rem">
-                            <button class="btn btn-secondary" onclick="document.getElementById('printOptionsModal').remove()">Cancelar</button>
-                            <button class="btn btn-primary" onclick="executePrint()">
-                                <i class="fas fa-print"></i> Imprimir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        };
-
-        window.executePrint = function() {
-            const size = document.getElementById('printSize').value;
-            document.getElementById('printOptionsModal').remove();
-
             // Buscar informações do cliente atual se disponível
             const currentClient = window.clients?.find(c => c.id === window.currentClientId);
 
             printStoreDisplay({
-                size: size,
                 clientName: window.currentQRClientName,
                 link: window.currentQRLink,
                 primaryColor: currentClient?.primary_color || '#4CBB63',
