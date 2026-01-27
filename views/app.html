@@ -1198,13 +1198,13 @@
             return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
         }
 
-        // Função para impressão profissional para loja
+        // Função para impressão profissional para loja (Design Figma v2)
         window.printStoreDisplay = function(options = {}) {
             const {
                 clientName = window.currentQRClientName,
                 link = window.currentQRLink,
                 logoUrl = null,
-                primaryColor = '#3750F0',
+                primaryColor = '#4CBB63',
                 branchName = null,
                 size = 'A5'
             } = options;
@@ -1231,7 +1231,7 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Opina Ja! - ${displayTitle}</title>
+                    <title>Opina Já! - ${displayTitle}</title>
                     <style>
                         @page { size: ${size}; margin: 0; }
                         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1242,87 +1242,139 @@
                             align-items: center;
                             justify-content: center;
                             min-height: 100vh;
-                            background: linear-gradient(135deg, ${primaryColor} 0%, ${adjustColor(primaryColor, -20)} 100%);
-                            color: white;
-                            padding: 2rem;
-                            text-align: center;
+                            background: #374151;
+                            padding: 1.5rem;
                         }
-                        .container {
+                        .card {
                             background: white;
                             border-radius: 24px;
-                            padding: 2.5rem;
-                            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                            max-width: 90%;
+                            overflow: hidden;
+                            max-width: 400px;
+                            width: 100%;
+                            border: 3px solid #374151;
                         }
-                        .logo {
-                            max-width: 180px;
-                            max-height: 60px;
-                            margin-bottom: 1.5rem;
+                        .header {
+                            background: ${primaryColor};
+                            padding: 1.5rem 2rem;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 1rem;
                         }
-                        .logo-text {
-                            font-size: 1.8rem;
+                        .header-logo {
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 12px;
+                            object-fit: contain;
+                            background: white;
+                            padding: 4px;
+                        }
+                        .header-logo-placeholder {
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 12px;
+                            background: white;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 1.5rem;
                             font-weight: 700;
                             color: ${primaryColor};
-                            margin-bottom: 1.5rem;
+                        }
+                        .header-title {
+                            color: white;
+                            font-size: 1.75rem;
+                            font-weight: 700;
+                            letter-spacing: 0.5px;
+                        }
+                        .body {
+                            padding: 2rem;
+                            text-align: center;
                         }
                         .title {
                             font-size: 1.5rem;
                             font-weight: 700;
                             color: #1E293B;
-                            margin-bottom: 0.5rem;
+                            margin-bottom: 0.75rem;
                         }
-                        .subtitle {
-                            font-size: 1rem;
-                            color: #64748B;
+                        .stars {
+                            color: #F59E0B;
+                            font-size: 2rem;
+                            letter-spacing: 0.25rem;
+                            margin-bottom: 1rem;
+                        }
+                        .description-box {
+                            background: #F3F4F6;
+                            border-radius: 12px;
+                            padding: 1rem 1.25rem;
                             margin-bottom: 1.5rem;
+                            text-align: center;
+                        }
+                        .description-box p {
+                            color: #4B5563;
+                            font-size: 1rem;
+                            line-height: 1.5;
+                        }
+                        .description-box .highlight {
+                            color: #FF9900;
+                            font-weight: 700;
                         }
                         .qr-container {
-                            background: white;
-                            padding: 1rem;
-                            border-radius: 16px;
-                            border: 3px solid ${primaryColor};
                             display: inline-block;
+                            padding: 0.75rem;
+                            border: 4px solid ${primaryColor};
+                            border-radius: 12px;
                             margin-bottom: 1.5rem;
                         }
                         .qr-container img {
                             width: 200px;
                             height: 200px;
+                            display: block;
                         }
                         .instructions {
-                            background: #F1F5F9;
-                            padding: 1rem 1.5rem;
+                            background: #F9FAFB;
                             border-radius: 12px;
-                            margin-bottom: 1rem;
+                            padding: 1.25rem 1.5rem;
+                            text-align: left;
+                            margin-bottom: 1.5rem;
                         }
                         .instructions h3 {
-                            color: ${primaryColor};
+                            color: #1E293B;
                             font-size: 1.1rem;
-                            margin-bottom: 0.5rem;
+                            font-weight: 700;
+                            margin-bottom: 0.75rem;
                         }
-                        .instructions p {
-                            color: #475569;
-                            font-size: 0.9rem;
-                            line-height: 1.5;
+                        .instructions ol {
+                            list-style: none;
+                            padding: 0;
                         }
-                        .stars {
-                            color: #FBBF24;
+                        .instructions li {
+                            color: #4B5563;
+                            font-size: 1rem;
+                            line-height: 1.75;
+                        }
+                        .instructions li strong {
+                            color: #1E293B;
+                            font-weight: 600;
+                        }
+                        .footer-logo {
+                            text-align: center;
+                            padding-top: 0.5rem;
+                        }
+                        .footer-logo .brand {
                             font-size: 1.5rem;
-                            letter-spacing: 0.25rem;
-                            margin-bottom: 1rem;
+                            font-weight: 700;
                         }
-                        .footer {
-                            margin-top: 1.5rem;
-                            padding-top: 1rem;
-                            border-top: 1px solid #E2E8F0;
+                        .footer-logo .brand-opina {
+                            color: #1E293B;
                         }
-                        .footer p {
-                            color: #94A3B8;
+                        .footer-logo .brand-ja {
+                            color: ${primaryColor};
+                        }
+                        .footer-logo .tagline {
+                            color: ${primaryColor};
                             font-size: 0.75rem;
-                        }
-                        .powered-by {
-                            margin-top: 2rem;
-                            color: rgba(255,255,255,0.7);
-                            font-size: 0.75rem;
+                            margin-top: 0.25rem;
                         }
                         @media print {
                             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1331,36 +1383,48 @@
                     </style>
                 </head>
                 <body>
-                    <div class="container">
-                        ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="${displayName}">` : `<div class="logo-text">${displayName}</div>`}
-                        ${branchName ? `<p style="color:#64748B;margin-bottom:1rem;font-size:0.9rem">${branchName}</p>` : ''}
-
-                        <h1 class="title">Sua opiniao e muito importante!</h1>
-                        <p class="subtitle">Avalie nossa experiencia</p>
-
-                        <div class="stars">&#9733; &#9733; &#9733; &#9733; &#9733;</div>
-
-                        <div class="qr-container">
-                            <img src="${qrDataUrl}" alt="QR Code">
+                    <div class="card">
+                        <div class="header">
+                            ${logoUrl
+                                ? `<img src="${logoUrl}" class="header-logo" alt="${displayName}">`
+                                : `<div class="header-logo-placeholder">${displayName.charAt(0).toUpperCase()}</div>`
+                            }
+                            <span class="header-title">${displayName.toUpperCase()}</span>
                         </div>
 
-                        <div class="instructions">
-                            <h3>Como avaliar:</h3>
-                            <p>1. Abra a camera do seu celular<br>
-                               2. Aponte para o QR Code acima<br>
-                               3. Clique no link que aparecer<br>
-                               4. Deixe sua avaliacao!</p>
-                        </div>
+                        <div class="body">
+                            <h1 class="title">Sua opinião é muito importante!</h1>
+                            <div class="stars">★★★★★</div>
 
-                        <div class="footer">
-                            <p>Obrigado por nos ajudar a melhorar!</p>
+                            <div class="description-box">
+                                <p><span class="highlight">Sua avaliação 5 estrelas no Google</span> nos ajuda muito a crescer e continuar oferecendo o melhor atendimento!</p>
+                            </div>
+
+                            <div class="qr-container">
+                                <img src="${qrDataUrl}" alt="QR Code">
+                            </div>
+
+                            <div class="instructions">
+                                <h3>Como avaliar:</h3>
+                                <ol>
+                                    <li><strong>1.</strong> Abra a câmera do seu celular</li>
+                                    <li><strong>2.</strong> Aponte para o QR Code acima</li>
+                                    <li><strong>3.</strong> Clique no link que aparecer</li>
+                                    <li><strong>4.</strong> Deixe sua avaliação!</li>
+                                </ol>
+                            </div>
+
+                            <div class="footer-logo">
+                                <div class="brand">
+                                    <span class="brand-opina">Opina</span><span class="brand-ja">Já!</span>
+                                </div>
+                                <div class="tagline">Feedback Inteligente</div>
+                            </div>
                         </div>
                     </div>
 
-                    <p class="powered-by">Powered by Opina Ja!</p>
-
-                    <button class="no-print" onclick="window.print()" style="margin-top:2rem;padding:1rem 2rem;background:white;color:${primaryColor};border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600;">
-                        Imprimir
+                    <button class="no-print" onclick="window.print()" style="margin-top:1.5rem;padding:1rem 2rem;background:white;color:#1E293B;border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                        🖨️ Imprimir
                     </button>
                 </body>
                 </html>
@@ -1415,7 +1479,7 @@
                 size: size,
                 clientName: window.currentQRClientName,
                 link: window.currentQRLink,
-                primaryColor: currentClient?.primary_color || '#3750F0',
+                primaryColor: currentClient?.primary_color || '#4CBB63',
                 logoUrl: currentClient?.logo_url || null
             });
         };
