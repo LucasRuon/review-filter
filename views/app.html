@@ -1379,7 +1379,10 @@
                 <body>
                     <div class="card">
                         <div class="header">
-                            <span class="header-text">${displayName.toUpperCase()}</span>
+                            ${logoUrl
+                                ? `<img src="${logoUrl}" class="header-logo-full" alt="${displayName}">`
+                                : `<span class="header-text">${displayName.toUpperCase()}</span>`
+                            }
                         </div>
 
                         <div class="body">
