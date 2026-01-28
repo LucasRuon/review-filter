@@ -246,7 +246,8 @@
                 const headerLogo = document.getElementById('header-logo');
 
                 if (data.logo_url) {
-                    const hasDarkLogo = data.logo_url.includes('.jpg') || data.logo_url.includes('.jpeg');
+                    const isBase64 = data.logo_url.startsWith('data:');
+                    const hasDarkLogo = isBase64 || data.logo_url.includes('.jpg') || data.logo_url.includes('.jpeg') || data.logo_url.includes('.png') || data.logo_url.includes('.webp') || data.logo_url.includes('.svg');
                     if (hasDarkLogo) headerLogo.classList.add('has-dark-logo');
                     headerLogo.innerHTML = `<img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.innerHTML='<span class=\\'logo-initials\\'>${initials}</span>'">`;
                     document.getElementById('footer-logo').innerHTML = `<img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.textContent='${initials}'">`;
