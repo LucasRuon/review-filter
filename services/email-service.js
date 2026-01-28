@@ -189,7 +189,7 @@ async function sendEmail(to, subject, html, text = null) {
 
 // Template base
 function getBaseTemplate(content, title = 'Opina Já!') {
-    const logoUrl = 'https://opinaja.com.br/images/logo-light.png';
+    const logoUrl = 'https://app.opinaja.com.br/images/logo-light.png';
     return `
 <!DOCTYPE html>
 <html>
