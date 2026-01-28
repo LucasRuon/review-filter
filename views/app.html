@@ -422,7 +422,7 @@
                                 ${c.custom_domain ? '<div class="client-domain-badge"><i class="fas fa-check-circle"></i> Domínio personalizado</div>' : ''}
                                 <div class="client-actions">
                                     <div class="client-main-actions">
-                                        <button class="btn btn-secondary" onclick="showQRCode('${safeName}', '${escapeAttr(clientLink)}')"><i class="fas fa-qrcode"></i> QR Code</button>
+                                        <button class="btn btn-secondary" onclick="showQRCode('${safeName}', '${escapeAttr(clientLink)}', ${c.id})"><i class="fas fa-qrcode"></i> QR Code</button>
                                         <a href="/clients/${c.id}/complaints" class="btn btn-primary"><i class="fas fa-comments"></i> Reclamações</a>
                                     </div>
                                     <div class="client-quick-actions">
@@ -1048,9 +1048,10 @@
         window.currentQRClientName = '';
         window.currentQRLink = '';
 
-        window.showQRCode = async function(clientName, link) {
+        window.showQRCode = async function(clientName, link, clientId) {
             window.currentQRClientName = clientName;
             window.currentQRLink = link;
+            if (clientId) window.currentClientId = clientId;
 
             const modalTitle = document.getElementById('qr-modal-title');
             const linkText = document.getElementById('qr-link-text');
