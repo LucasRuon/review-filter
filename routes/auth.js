@@ -257,7 +257,7 @@ router.post('/forgot-password', async (req, res) => {
         await db.setPasswordResetToken(user.id, resetToken, expiresAt);
 
         // Gerar URL de reset
-        const baseUrl = process.env.BASE_URL || 'https://opinaja.com.br';
+        const baseUrl = process.env.BASE_URL || 'https://app.opinaja.com.br';
         const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
         // Enviar email
