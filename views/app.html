@@ -387,6 +387,7 @@
 
         async function loadClientsData() {
             const clients = await api.get('/api/clients');
+            window.clients = clients;
             const grid = document.getElementById('clients-grid');
 
             // Check for API error or empty array
