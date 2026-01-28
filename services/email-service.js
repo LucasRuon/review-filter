@@ -253,7 +253,7 @@ async function sendWelcomeEmail(userEmail, userName) {
             <li>Melhorar a reputação do seu negócio</li>
         </ul>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://opinaja.com.br/login" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+            <a href="https://app.opinaja.com.br/login" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 Acessar minha conta
             </a>
         </div>
@@ -321,7 +321,7 @@ async function sendPasswordChangedEmail(userEmail, userName) {
             </p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://opinaja.com.br/login" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+            <a href="https://app.opinaja.com.br/login" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 Acessar minha conta
             </a>
         </div>
@@ -354,7 +354,7 @@ async function sendNewComplaintEmail(userEmail, userName, clientName, complaint)
             <p style="margin: 5px 0; color: #475569; font-size: 15px; white-space: pre-wrap;">${complaint.complaint}</p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://opinaja.com.br/complaints" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+            <a href="https://app.opinaja.com.br/complaints" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 Ver reclamação
             </a>
         </div>
