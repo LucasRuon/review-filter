@@ -7,7 +7,23 @@
     <link rel="icon" type="image/png" href="/images/logo-icon-dark.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        :root { --primary: #3750F0; --primary-dark: #2840D0; --text: #1E293B; --text-light: #64748B; --bg-dark: #0F172A; }
+        :root {
+  /* Verde Opina Já */
+  --primary: #00BF63;        /* Verde principal da logo */
+  --primary-dark: #00A654;   /* Hover (mais escuro) */
+  --primary-light: #33D18A;  /* Verde mais claro para gradientes */
+
+  /* Apoio */
+  --accent: #22C55E;         /* Verde neutro de apoio (não compete com o primary) */
+  
+  /* Texto */
+  --text: #1E293B;           /* Texto principal */
+  --text-light: #64748B;     /* Texto secundário */
+
+  /* Backgrounds */
+  --bg-dark: #181f30;        /* Hero / seções dark */
+  --bg-darker: #020617;      /* Footer / deep dark */
+}
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); line-height: 1.8; background: #F8FAFC; }
 
@@ -39,8 +55,7 @@
     <header class="header">
         <div class="header-inner">
             <a href="/" class="logo">
-                <div class="logo-icon">OJ</div>
-                <span class="logo-text">Opina Já!</span>
+                <img src="/images/logo-dark.png" alt="Opina Já!" class="logo-img logo-desktop">
             </a>
             <a href="/" class="btn"><i class="fas fa-arrow-left"></i> Voltar ao início</a>
         </div>
@@ -48,7 +63,7 @@
 
     <main class="content">
         <h1>Termos de Uso</h1>
-        <p class="subtitle">Última atualização: Janeiro de 2025</p>
+        <p class="subtitle">Última atualização: Janeiro de 2026</p>
 
         <p>Bem-vindo ao <strong>Opina Já!</strong>. Ao acessar ou utilizar nossa plataforma, você concorda com estes Termos de Uso. Leia-os atentamente antes de utilizar nossos serviços.</p>
 
@@ -158,7 +173,7 @@
     </main>
 
     <footer class="footer">
-        <p>&copy; 2025 Opina Já! Todos os direitos reservados.</p>
+        <p>&copy; 2026 Opina Já! Todos os direitos reservados.</p>
         <div style="margin-top: 1rem;">
             <a href="/">Início</a>
             <a href="/privacy">Privacidade</a>
