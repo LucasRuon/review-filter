@@ -8,18 +8,18 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://app.opinaja.com.br/">
+    <meta property="og:url" content="https://opinaja.com.br/">
     <meta property="og:title" content="Opina Já! - Transforme feedback em crescimento">
     <meta property="og:description" content="Proteja sua reputação online direcionando elogios para o Google e capturando reclamações de forma privada. Teste grátis por 14 dias.">
-    <meta property="og:image" content="https://app.opinaja.com.br/images/og-image.png">
+    <meta property="og:image" content="https://opinaja.com.br/images/og-image.png">
     <meta property="og:locale" content="pt_BR">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://app.opinaja.com.br/">
+    <meta name="twitter:url" content="https://opinaja.com.br/">
     <meta name="twitter:title" content="Opina Já! - Transforme feedback em crescimento">
     <meta name="twitter:description" content="Proteja sua reputação online direcionando elogios para o Google e capturando reclamações de forma privada. Teste grátis por 14 dias.">
-    <meta name="twitter:image" content="https://app.opinaja.com.br/images/og-image.png">
+    <meta name="twitter:image" content="https://opinaja.com.br/images/og-image.png">
 
     <link rel="icon" type="image/png" href="/images/logo-icon-dark.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -50,6 +50,7 @@
         .header-inner { max-width: 1200px; margin: 0 auto; padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
         .logo-img { height: 48px; width: auto; }
+        .logo-mobile { display: none; } /* Esconde no desktop por padrão */
         .logo-icon { width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1rem; }
         .logo-text { font-weight: 800; font-size: 1.25rem; color: white; }
         .header-nav { display: flex; gap: 2.5rem; align-items: center; }
@@ -216,6 +217,17 @@
         @media (max-width: 768px) {
             .header-nav { display: none; }
             .mobile-nav { display: flex; gap: 0.5rem; }
+            
+            /* Logo responsiva */
+            .logo-desktop {
+                display: none;
+            }
+            .logo-mobile {
+                display: block;
+                height: 36px;
+                width: auto;
+            }
+            
             .hero-content h1 { font-size: 2.25rem; }
             .features-grid { grid-template-columns: 1fr; }
             .segments-grid { grid-template-columns: repeat(2, 1fr); }
@@ -233,7 +245,8 @@
     <header class="header" id="header">
         <div class="header-inner">
             <a href="/" class="logo">
-                <img src="/images/logo-dark.png" alt="Opina Já!" class="logo-img">
+                <img src="/images/logo-dark.png" alt="Opina Já!" class="logo-img logo-desktop">
+                <img src="/images/logo-icon-dark.png" alt="Opina Já!" class="logo-img logo-mobile">
             </a>
             <nav class="header-nav" aria-label="Navegação principal">
                 <a href="#features">Recursos</a>
