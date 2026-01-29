@@ -30,6 +30,8 @@
         .header { background: var(--bg-dark); padding: 1.5rem 2rem; }
         .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
         .logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+        .logo-img { height: 48px; width: auto; }
+        .logo-mobile { display: none; } /* Esconde no desktop por padrão */
         .logo-icon { width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1rem; }
         .logo-text { font-weight: 800; font-size: 1.25rem; color: white; }
         .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 10px; text-decoration: none; background: var(--primary); color: white; }
@@ -56,6 +58,7 @@
         <div class="header-inner">
             <a href="/" class="logo">
                 <img src="/images/logo-dark.png" alt="Opina Já!" class="logo-img logo-desktop">
+                <img src="/images/logo-icon-dark.png" alt="Opina Já!" class="logo-img logo-mobile">
             </a>
             <a href="/" class="btn"><i class="fas fa-arrow-left"></i> Voltar ao início</a>
         </div>
