@@ -51,6 +51,36 @@
         .footer p { color: rgba(255,255,255,0.4); font-size: 0.875rem; }
         .footer a { color: rgba(255,255,255,0.6); text-decoration: none; margin: 0 1rem; }
         .footer a:hover { color: white; }
+
+                        /* Mobile */
+        .mobile-nav { display: none; }
+        @media (max-width: 1024px) {
+            .hero-inner { grid-template-columns: 1fr; text-align: center; }
+            .hero-content p { margin: 0 auto 2rem; }
+            .hero-buttons { justify-content: center; }
+            .hero-trust { justify-content: center; }
+            .hero-visual { display: none; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .segments-grid { grid-template-columns: repeat(3, 1fr); }
+            .testimonials-grid { grid-template-columns: repeat(2, 1fr); }
+            .steps { grid-template-columns: repeat(2, 1fr); }
+            .step::after { display: none; }
+            .footer-top { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 768px) {
+            .header-nav { display: none; }
+            .mobile-nav { display: flex; gap: 0.5rem; }
+            
+            /* Logo responsiva */
+            .logo-desktop {
+                display: none;
+            }
+            .logo-mobile {
+                display: block;
+                height: 36px;
+                width: auto;
+            }
+        }
     </style>
 </head>
 <body>
