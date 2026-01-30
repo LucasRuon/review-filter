@@ -445,32 +445,9 @@ let landingPageCache = null;
 let landingPageCacheTime = 0;
 const LANDING_CACHE_TTL = 60000; // 1 minuto
 
-// Serve HTML pages - COM CACHE
-app.get('/', async (req, res) => {
-    try {
-        const now = Date.now();
-
-        // Verificar se cache e valido
-        if (landingPageCache && (now - landingPageCacheTime) < LANDING_CACHE_TTL) {
-            return res.send(landingPageCache);
-        }
-
-        // Carregar e processar HTML
-        const fs = require('fs');
-        const whatsapp = await db.getPlatformSetting('support_whatsapp') || '5548999999999';
-        const html = await fs.promises.readFile(
-            path.join(__dirname, 'views', 'landing.html'),
-            'utf8'
-        );
-
-        landingPageCache = html.replace(/\{\{WHATSAPP_NUMBER\}\}/g, whatsapp);
-        landingPageCacheTime = now;
-
-        res.send(landingPageCache);
-    } catch (error) {
-        logger.error('Landing page error', { error: error.message });
-        res.sendFile(path.join(__dirname, 'views', 'landing.html'));
-    }
+// Redirecionar rota raiz para login
+app.get('/', (req, res) => {
+    res.redirect('/login');
 });
 
 app.get('/login', (req, res) => {
