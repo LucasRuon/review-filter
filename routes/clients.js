@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../database');
 const { authMiddleware } = require('../middleware/auth');
+const { requireSubscription, checkPlanLimit, loadSubscriptionInfo } = require('../middleware/subscription');
 const whatsappService = require('../services/whatsapp-service');
 const logger = require('../logger');
 const cache = require('../services/cache-service');
@@ -48,8 +49,8 @@ async function getUniqueSlug(name, existingSlug = null) {
     return `${baseSlug}-${counter}`;
 }
 
-// Get all clients
-router.get('/', authMiddleware, async (req, res) => {
+// Get all clients (leitura permitida mesmo com trial expirado)
+router.get('/', authMiddleware, loadSubscriptionInfo, async (req, res) => {
     try {
         const clients = await db.getClientsByUserId(req.userId, null, 0);
         res.json(clients);
@@ -71,8 +72,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-// Create client
-router.post('/', authMiddleware, async (req, res) => {
+// Create client (protegido por subscription e limite de clientes)
+router.post('/', authMiddleware, requireSubscription('any'), checkPlanLimit('clients'), async (req, res) => {
     try {
         const { name, address, phone, google_review_link, business_hours, logo_url, primary_color, custom_domain } = req.body;
 
@@ -96,7 +97,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Update client
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const { name, address, phone, google_review_link, business_hours, logo_url, primary_color, custom_domain } = req.body;
 
@@ -124,7 +125,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete client
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const client = await db.getClientById(req.params.id, req.userId);
         if (!client) {
@@ -273,7 +274,7 @@ router.get('/:id/topics', authMiddleware, async (req, res) => {
 });
 
 // Add topic
-router.post('/:id/topics', authMiddleware, async (req, res) => {
+router.post('/:id/topics', authMiddleware, requireSubscription('any'), checkPlanLimit('topics'), async (req, res) => {
     try {
         const { name, icon } = req.body;
         if (!name) {
@@ -292,7 +293,7 @@ router.post('/:id/topics', authMiddleware, async (req, res) => {
 });
 
 // Update topic
-router.put('/:clientId/topics/:topicId', authMiddleware, async (req, res) => {
+router.put('/:clientId/topics/:topicId', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const client = await db.getClientById(req.params.clientId, req.userId);
         if (!client) {
@@ -311,7 +312,7 @@ router.put('/:clientId/topics/:topicId', authMiddleware, async (req, res) => {
 });
 
 // Delete topic
-router.delete('/:clientId/topics/:topicId', authMiddleware, async (req, res) => {
+router.delete('/:clientId/topics/:topicId', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const client = await db.getClientById(req.params.clientId, req.userId);
         if (!client) {
@@ -330,7 +331,7 @@ router.delete('/:clientId/topics/:topicId', authMiddleware, async (req, res) => 
 });
 
 // Reset topics to niche template
-router.post('/:id/topics/reset', authMiddleware, async (req, res) => {
+router.post('/:id/topics/reset', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const { niche } = req.body;
         const client = await db.getClientById(req.params.id, req.userId);
@@ -362,7 +363,7 @@ router.get('/:id/branches', authMiddleware, async (req, res) => {
 });
 
 // Create branch
-router.post('/:id/branches', authMiddleware, async (req, res) => {
+router.post('/:id/branches', authMiddleware, requireSubscription('any'), checkPlanLimit('branches'), async (req, res) => {
     try {
         const { name, address, phone, business_hours, is_main, google_review_link } = req.body;
         if (!name || !address) {
@@ -381,7 +382,7 @@ router.post('/:id/branches', authMiddleware, async (req, res) => {
 });
 
 // Update branch
-router.put('/:clientId/branches/:branchId', authMiddleware, async (req, res) => {
+router.put('/:clientId/branches/:branchId', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const client = await db.getClientById(req.params.clientId, req.userId);
         if (!client) {
@@ -399,7 +400,7 @@ router.put('/:clientId/branches/:branchId', authMiddleware, async (req, res) => 
 });
 
 // Delete branch
-router.delete('/:clientId/branches/:branchId', authMiddleware, async (req, res) => {
+router.delete('/:clientId/branches/:branchId', authMiddleware, requireSubscription('any'), async (req, res) => {
     try {
         const client = await db.getClientById(req.params.clientId, req.userId);
         if (!client) {

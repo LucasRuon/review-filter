@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planos e Precos - Opina Ja!</title>
+    <meta name="description" content="Escolha o plano ideal para proteger a reputacao do seu negocio. Teste gratis por 14 dias.">
+    <link rel="icon" type="image/png" href="/images/logo-icon-dark.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00BF63;
+            --primary-dark: #00A654;
+            --primary-light: #33D18A;
+            --bg-dark: #181f30;
+            --bg-darker: #020617;
+            --text: #1E293B;
+            --text-light: #64748B;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%); min-height: 100vh; color: white; }
+
+        /* Header */
+        .header { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); padding: 1rem 0; position: sticky; top: 0; z-index: 100; }
+        .header-inner { max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+        .logo-img { height: 40px; }
+        .header-nav { display: flex; gap: 1.5rem; align-items: center; }
+        .header-nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .header-nav a:hover { color: white; }
+
+        /* Main */
+        .main { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; }
+
+        /* Hero */
+        .hero { text-align: center; margin-bottom: 4rem; }
+        .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
+        .hero h1 span { color: var(--primary); }
+        .hero p { font-size: 1.25rem; color: rgba(255,255,255,0.7); max-width: 600px; margin: 0 auto; }
+
+        /* Toggle */
+        .billing-toggle { display: flex; justify-content: center; gap: 1rem; margin-bottom: 3rem; align-items: center; }
+        .billing-toggle span { color: rgba(255,255,255,0.7); font-size: 0.9rem; }
+        .billing-toggle span.active { color: white; font-weight: 600; }
+        .toggle-switch { width: 60px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 999px; position: relative; cursor: pointer; transition: background 0.3s; }
+        .toggle-switch.yearly { background: var(--primary); }
+        .toggle-switch::after { content: ''; position: absolute; width: 26px; height: 26px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.3s; }
+        .toggle-switch.yearly::after { transform: translateX(28px); }
+        .discount-badge { background: var(--primary); color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+        /* Plans Grid */
+        .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 4rem; }
+
+        /* Plan Card */
+        .plan-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 2rem; position: relative; transition: all 0.3s; }
+        .plan-card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,0.2); }
+        .plan-card.popular { background: rgba(0, 191, 99, 0.1); border-color: var(--primary); }
+        .plan-card.popular::before { content: 'Mais Popular'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 0.25rem 1rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+        .plan-name { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .plan-description { color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+        .plan-price { margin-bottom: 1.5rem; }
+        .plan-price .amount { font-size: 3rem; font-weight: 800; }
+        .plan-price .currency { font-size: 1.5rem; vertical-align: top; }
+        .plan-price .period { color: rgba(255,255,255,0.5); font-size: 0.9rem; }
+        .plan-price .original { text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 1rem; margin-left: 0.5rem; }
+
+        .plan-features { list-style: none; margin-bottom: 2rem; }
+        .plan-features li { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; color: rgba(255,255,255,0.8); font-size: 0.95rem; }
+        .plan-features li i { color: var(--primary); margin-top: 3px; flex-shrink: 0; }
+        .plan-features li.disabled { color: rgba(255,255,255,0.3); }
+        .plan-features li.disabled i { color: rgba(255,255,255,0.2); }
+
+        .plan-btn { display: block; width: 100%; padding: 1rem; border-radius: 12px; text-align: center; font-weight: 600; font-size: 1rem; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; }
+        .plan-btn.primary { background: var(--primary); color: white; }
+        .plan-btn.primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .plan-btn.secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .plan-btn.secondary:hover { background: rgba(255,255,255,0.15); }
+
+        /* FAQ Section */
+        .faq-section { margin-top: 4rem; }
+        .faq-section h2 { text-align: center; font-size: 2rem; margin-bottom: 2rem; }
+        .faq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+        .faq-item { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; }
+        .faq-item h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--primary); }
+        .faq-item p { color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.6; }
+
+        /* Footer */
+        .footer { text-align: center; padding: 2rem; color: rgba(255,255,255,0.5); font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4rem; }
+        .footer a { color: rgba(255,255,255,0.7); text-decoration: none; }
+        .footer a:hover { color: white; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .plans-grid { grid-template-columns: 1fr; }
+            .faq-grid { grid-template-columns: 1fr; }
+            .header-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <a href="/" class="logo">
+                <img src="/images/logo-dark.png" alt="Opina Ja!" class="logo-img">
+            </a>
+            <nav class="header-nav">
+                <a href="/">Inicio</a>
+                <a href="/login">Entrar</a>
+                <a href="/register" style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px;">Comecar gratis</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Escolha o plano <span>ideal</span> para voce</h1>
+            <p>Comece gratis por 14 dias. Cancele quando quiser.</p>
+        </div>
+
+        <!-- Billing Toggle -->
+        <div class="billing-toggle">
+            <span id="monthlyLabel" class="active">Mensal</span>
+            <div class="toggle-switch" id="billingToggle" onclick="toggleBilling()"></div>
+            <span id="yearlyLabel">Anual</span>
+            <span class="discount-badge">20% OFF</span>
+        </div>
+
+        <!-- Plans Grid -->
+        <div class="plans-grid" id="plansGrid">
+            <!-- Gratuito -->
+            <div class="plan-card">
+                <div class="plan-name">Gratuito</div>
+                <div class="plan-description">Para comecar a experimentar</div>
+                <div class="plan-price">
+                    <span class="currency">R$</span>
+                    <span class="amount">0</span>
+                    <span class="period">/mes</span>
+                </div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> 1 cliente</li>
+                    <li><i class="fas fa-check"></i> 1 filial</li>
+                    <li><i class="fas fa-check"></i> Topicos ilimitados</li>
+                    <li><i class="fas fa-check"></i> Reclamacoes ilimitadas</li>
+                    <li><i class="fas fa-check"></i> Suporte por email</li>
+                    <li class="disabled"><i class="fas fa-times"></i> Integracao WhatsApp</li>
+                    <li class="disabled"><i class="fas fa-times"></i> Webhooks</li>
+                    <li class="disabled"><i class="fas fa-times"></i> Relatorios avancados</li>
+                </ul>
+                <a href="/register" class="plan-btn secondary">Comecar gratis</a>
+            </div>
+
+            <!-- PRO -->
+            <div class="plan-card popular">
+                <div class="plan-name">PRO</div>
+                <div class="plan-description">Para negocios em crescimento</div>
+                <div class="plan-price" id="proPricing">
+                    <span class="currency">R$</span>
+                    <span class="amount" id="proPrice">97</span>
+                    <span class="period">/mes</span>
+                    <span class="original" id="proOriginal" style="display:none"></span>
+                </div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> <strong>10 clientes</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>10 filiais</strong> por cliente</li>
+                    <li><i class="fas fa-check"></i> Topicos ilimitados</li>
+                    <li><i class="fas fa-check"></i> Reclamacoes ilimitadas</li>
+                    <li><i class="fas fa-check"></i> <strong>Integracao WhatsApp</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>Webhooks</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>Relatorios avancados</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>Exportacao de dados</strong></li>
+                    <li><i class="fas fa-check"></i> Suporte prioritario</li>
+                </ul>
+                <button class="plan-btn primary" onclick="subscribePro()">Assinar PRO</button>
+            </div>
+
+            <!-- Enterprise -->
+            <div class="plan-card">
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-description">Para grandes operacoes</div>
+                <div class="plan-price" id="enterprisePricing">
+                    <span class="currency">R$</span>
+                    <span class="amount" id="enterprisePrice">297</span>
+                    <span class="period">/mes</span>
+                    <span class="original" id="enterpriseOriginal" style="display:none"></span>
+                </div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> <strong>Clientes ilimitados</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>Filiais ilimitadas</strong></li>
+                    <li><i class="fas fa-check"></i> Tudo do plano PRO</li>
+                    <li><i class="fas fa-check"></i> <strong>Dominio personalizado</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>API access</strong></li>
+                    <li><i class="fas fa-check"></i> <strong>Suporte dedicado</strong></li>
+                    <li><i class="fas fa-check"></i> Onboarding personalizado</li>
+                    <li><i class="fas fa-check"></i> SLA garantido</li>
+                </ul>
+                <button class="plan-btn secondary" onclick="subscribeEnterprise()">Assinar Enterprise</button>
+            </div>
+        </div>
+
+        <!-- FAQ -->
+        <section class="faq-section">
+            <h2>Perguntas Frequentes</h2>
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <h3>Posso cancelar a qualquer momento?</h3>
+                    <p>Sim! Voce pode cancelar sua assinatura quando quiser. Voce continuara tendo acesso ate o fim do periodo pago.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>Como funciona o trial de 14 dias?</h3>
+                    <p>Ao se cadastrar, voce tem acesso a todas as funcionalidades do plano PRO por 14 dias. Nao precisa de cartao de credito.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>Posso mudar de plano depois?</h3>
+                    <p>Claro! Voce pode fazer upgrade ou downgrade a qualquer momento. O valor sera calculado proporcionalmente.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>Quais formas de pagamento aceitam?</h3>
+                    <p>Aceitamos cartoes de credito (Visa, Mastercard, Amex) via Stripe, a plataforma de pagamentos mais segura do mundo.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2024 Opina Ja! - <a href="/terms">Termos de Uso</a> | <a href="/privacy">Privacidade</a></p>
+    </footer>
+
+    <script>
+        let isYearly = false;
+
+        // Precos (em centavos convertidos para reais)
+        const prices = {
+            pro: { monthly: 97, yearly: 77.60 }, // 20% off
+            enterprise: { monthly: 297, yearly: 237.60 }
+        };
+
+        function toggleBilling() {
+            isYearly = !isYearly;
+            document.getElementById('billingToggle').classList.toggle('yearly', isYearly);
+            document.getElementById('monthlyLabel').classList.toggle('active', !isYearly);
+            document.getElementById('yearlyLabel').classList.toggle('active', isYearly);
+            updatePrices();
+        }
+
+        function updatePrices() {
+            const proPrice = isYearly ? prices.pro.yearly : prices.pro.monthly;
+            const enterprisePrice = isYearly ? prices.enterprise.yearly : prices.enterprise.monthly;
+
+            document.getElementById('proPrice').textContent = proPrice.toFixed(0);
+            document.getElementById('enterprisePrice').textContent = enterprisePrice.toFixed(0);
+
+            // Show original price for yearly
+            if (isYearly) {
+                document.getElementById('proOriginal').textContent = `R$ ${prices.pro.monthly}`;
+                document.getElementById('proOriginal').style.display = 'inline';
+                document.getElementById('enterpriseOriginal').textContent = `R$ ${prices.enterprise.monthly}`;
+                document.getElementById('enterpriseOriginal').style.display = 'inline';
+            } else {
+                document.getElementById('proOriginal').style.display = 'none';
+                document.getElementById('enterpriseOriginal').style.display = 'none';
+            }
+        }
+
+        async function subscribePro() {
+            await subscribe('pro');
+        }
+
+        async function subscribeEnterprise() {
+            await subscribe('enterprise');
+        }
+
+        async function subscribe(plan) {
+            try {
+                const billingCycle = isYearly ? 'yearly' : 'monthly';
+
+                const res = await fetch('/api/billing/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan, billing_cycle: billingCycle })
+                });
+
+                const data = await res.json();
+
+                if (data.url) {
+                    window.location.href = data.url;
+                } else if (res.status === 401) {
+                    // Not logged in, redirect to register
+                    window.location.href = '/register?plan=' + plan + '&billing=' + billingCycle;
+                } else {
+                    alert(data.error || 'Erro ao processar. Tente novamente.');
+                }
+            } catch (error) {
+                console.error('Subscribe error:', error);
+                alert('Erro ao conectar. Verifique sua conexao.');
+            }
+        }
+
+        // Load prices from API
+        async function loadPrices() {
+            try {
+                const res = await fetch('/api/billing/plans');
+                const data = await res.json();
+                if (data.plans) {
+                    const proPlan = data.plans.find(p => p.id === 'pro');
+                    const enterprisePlan = data.plans.find(p => p.id === 'enterprise');
+
+                    if (proPlan) {
+                        prices.pro.monthly = proPlan.price_monthly;
+                        prices.pro.yearly = proPlan.price_yearly / 12;
+                    }
+                    if (enterprisePlan) {
+                        prices.enterprise.monthly = enterprisePlan.price_monthly;
+                        prices.enterprise.yearly = enterprisePlan.price_yearly / 12;
+                    }
+                    updatePrices();
+                }
+            } catch (error) {
+                console.warn('Could not load prices from API, using defaults');
+            }
+        }
+
+        // Check URL params for checkout result
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('checkout') === 'success') {
+            alert('Assinatura realizada com sucesso! Bem-vindo ao Opina Ja PRO.');
+            window.location.href = '/app';
+        } else if (urlParams.get('checkout') === 'cancelled') {
+            // User cancelled, do nothing
+        }
+
+        // Init
+        loadPrices();
+    </script>
+</body>
+</html>

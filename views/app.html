@@ -1030,6 +1030,16 @@
         window.loadWhatsAppGroups = loadWhatsAppGroups;
 
         async function loadProfileData() {
+            // Fetch fresh user data from API (includes subscription)
+            try {
+                const res = await api.get('/api/auth/me');
+                if (res && res.id) {
+                    localStorage.setItem('user', JSON.stringify(res));
+                }
+            } catch (error) {
+                console.warn('Could not refresh user data:', error);
+            }
+
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             document.querySelector('[name="name"]').value = user.name || '';
             document.querySelector('[name="email"]').value = user.email || '';
@@ -1039,6 +1049,11 @@
             if (photoData) {
                 document.getElementById('profile-photo').innerHTML = `<img src="${photoData}" alt="Foto"><div class="photo-overlay"><i class="fas fa-camera"></i></div>`;
                 document.getElementById('removePhotoBtn').style.display = '';
+            }
+
+            // Load subscription data if function exists (defined in profile.html)
+            if (typeof loadSubscriptionData === 'function') {
+                loadSubscriptionData();
             }
         }
 

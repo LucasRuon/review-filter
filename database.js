@@ -1790,6 +1790,251 @@ async function getUserWithSubscription(userId) {
     return result.rows[0] || null;
 }
 
+// ==================== SUBSCRIPTION MANAGEMENT FUNCTIONS ====================
+
+/**
+ * Registra evento de subscription no historico
+ */
+async function logSubscriptionEvent(userId, eventType, metadata = {}) {
+    await pool.query(`
+        INSERT INTO subscription_history (user_id, event_type, metadata)
+        VALUES ($1, $2, $3)
+    `, [userId, eventType, JSON.stringify(metadata)]);
+}
+
+/**
+ * Retorna dados completos de subscription do usuario para exibicao no perfil
+ */
+async function getUserSubscriptionData(userId) {
+    const result = await pool.query(`
+        SELECT
+            id, name, email, phone,
+            subscription_status,
+            subscription_plan,
+            stripe_customer_id,
+            stripe_subscription_id,
+            subscription_ends_at,
+            trial_started_at,
+            trial_reminder_sent,
+            last_payment_at,
+            payment_failed_at,
+            cancellation_reason,
+            cancelled_at,
+            created_at
+        FROM users
+        WHERE id = $1
+    `, [userId]);
+    return result.rows[0] || null;
+}
+
+/**
+ * Obtem informacoes completas de subscription
+ */
+async function getSubscriptionInfo(userId) {
+    const result = await pool.query(`
+        SELECT
+            subscription_status,
+            subscription_plan,
+            stripe_customer_id,
+            stripe_subscription_id,
+            subscription_ends_at,
+            trial_started_at,
+            trial_reminder_sent,
+            last_payment_at,
+            payment_failed_at,
+            EXTRACT(DAY FROM (subscription_ends_at - NOW())) as days_remaining
+        FROM users WHERE id = $1
+    `, [userId]);
+
+    if (result.rows.length === 0) return null;
+
+    const user = result.rows[0];
+    const now = new Date();
+    const endsAt = user.subscription_ends_at ? new Date(user.subscription_ends_at) : null;
+
+    return {
+        status: user.subscription_status,
+        plan: user.subscription_plan,
+        stripeCustomerId: user.stripe_customer_id,
+        stripeSubscriptionId: user.stripe_subscription_id,
+        endsAt: user.subscription_ends_at,
+        trialStartedAt: user.trial_started_at,
+        trialReminderSent: user.trial_reminder_sent,
+        lastPaymentAt: user.last_payment_at,
+        paymentFailedAt: user.payment_failed_at,
+        daysRemaining: Math.max(0, Math.floor(user.days_remaining || 0)),
+        isTrialing: user.subscription_status === 'trial',
+        isActive: ['trial', 'active'].includes(user.subscription_status),
+        isExpired: user.subscription_status === 'expired' ||
+                   (user.subscription_status === 'trial' && endsAt && endsAt < now),
+        isPastDue: user.subscription_status === 'past_due'
+    };
+}
+
+/**
+ * Atualiza status de subscription
+ */
+async function updateSubscriptionStatus(userId, status, plan = null, endsAt = null) {
+    let query = `UPDATE users SET subscription_status = $1`;
+    const params = [status];
+    let paramIndex = 2;
+
+    if (plan !== null) {
+        query += `, subscription_plan = $${paramIndex++}`;
+        params.push(plan);
+    }
+
+    if (endsAt !== null) {
+        query += `, subscription_ends_at = $${paramIndex++}`;
+        params.push(endsAt);
+    }
+
+    query += ` WHERE id = $${paramIndex}`;
+    params.push(userId);
+
+    await pool.query(query, params);
+}
+
+/**
+ * Inicia trial para usuario
+ */
+async function startUserTrial(userId, trialDays = 14) {
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+
+    await pool.query(`
+        UPDATE users SET
+            subscription_status = 'trial',
+            subscription_plan = 'pro',
+            trial_started_at = NOW(),
+            subscription_ends_at = $1,
+            trial_reminder_sent = 0
+        WHERE id = $2
+    `, [trialEndsAt, userId]);
+
+    await logSubscriptionEvent(userId, 'trial_started', {
+        trial_days: trialDays,
+        ends_at: trialEndsAt.toISOString()
+    });
+
+    return trialEndsAt;
+}
+
+/**
+ * Busca usuarios com trial expirando
+ */
+async function getUsersWithExpiringTrial(daysRemaining) {
+    const result = await pool.query(`
+        SELECT id, name, email, subscription_ends_at, trial_reminder_sent
+        FROM users
+        WHERE subscription_status = 'trial'
+          AND subscription_ends_at IS NOT NULL
+          AND subscription_ends_at > NOW()
+          AND subscription_ends_at <= NOW() + INTERVAL '${daysRemaining} days'
+          AND (trial_reminder_sent IS NULL OR trial_reminder_sent < $1)
+    `, [daysRemaining]);
+
+    return result.rows;
+}
+
+/**
+ * Busca usuarios com trial expirado
+ */
+async function getUsersWithExpiredTrial() {
+    const result = await pool.query(`
+        SELECT id, name, email, subscription_ends_at
+        FROM users
+        WHERE subscription_status = 'trial'
+          AND subscription_ends_at IS NOT NULL
+          AND subscription_ends_at < NOW()
+    `);
+
+    return result.rows;
+}
+
+/**
+ * Marca lembrete de trial como enviado
+ */
+async function markTrialReminderSent(userId, reminderLevel) {
+    await pool.query(`
+        UPDATE users SET trial_reminder_sent = $1 WHERE id = $2
+    `, [reminderLevel, userId]);
+}
+
+/**
+ * Obtem limites do plano
+ */
+async function getPlanLimits(plan) {
+    const settings = await getAllPlatformSettings();
+    const suffix = `_${plan}`;
+
+    return {
+        maxClients: parseInt(settings[`max_clients${suffix}`]) || 1,
+        maxBranches: parseInt(settings[`max_branches${suffix}`]) || 1,
+        maxTopics: parseInt(settings[`max_topics${suffix}`]) || 5,
+        maxComplaints: parseInt(settings[`max_complaints${suffix}`]) || 100,
+        features: {
+            whatsapp: settings[`feature_whatsapp${suffix}`] === 'true',
+            webhook: settings[`feature_webhook${suffix}`] === 'true',
+            customDomain: settings[`feature_custom_domain${suffix}`] === 'true',
+            export: settings[`feature_export${suffix}`] === 'true',
+            reports: settings[`feature_reports${suffix}`] === 'true'
+        }
+    };
+}
+
+/**
+ * Verifica se usuario atingiu limite
+ */
+async function checkUserLimit(userId, limitType) {
+    const subInfo = await getSubscriptionInfo(userId);
+    if (!subInfo) return { allowed: false, reason: 'Usuario nao encontrado' };
+
+    const limits = await getPlanLimits(subInfo.plan);
+    let currentCount = 0;
+    let maxLimit = 0;
+
+    switch (limitType) {
+        case 'clients':
+            const clientsResult = await pool.query(
+                'SELECT COUNT(*) FROM clients WHERE user_id = $1', [userId]
+            );
+            currentCount = parseInt(clientsResult.rows[0].count);
+            maxLimit = limits.maxClients;
+            break;
+
+        case 'branches':
+            const branchesResult = await pool.query(`
+                SELECT COUNT(*) FROM client_branches cb
+                JOIN clients c ON cb.client_id = c.id
+                WHERE c.user_id = $1
+            `, [userId]);
+            currentCount = parseInt(branchesResult.rows[0].count);
+            maxLimit = limits.maxBranches;
+            break;
+
+        case 'topics':
+            const topicsResult = await pool.query(`
+                SELECT COUNT(*) FROM complaint_topics ct
+                JOIN clients c ON ct.client_id = c.id
+                WHERE c.user_id = $1
+            `, [userId]);
+            currentCount = parseInt(topicsResult.rows[0].count);
+            maxLimit = limits.maxTopics;
+            break;
+
+        default:
+            return { allowed: true };
+    }
+
+    return {
+        allowed: maxLimit === -1 || currentCount < maxLimit,
+        current: currentCount,
+        limit: maxLimit,
+        remaining: maxLimit === -1 ? 'unlimited' : Math.max(0, maxLimit - currentCount)
+    };
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -1874,6 +2119,17 @@ module.exports = {
     getClientsWithoutInstance,
     updateUserStripeCustomerId,
     getUserWithSubscription,
+    // Subscription management functions
+    logSubscriptionEvent,
+    getUserSubscriptionData,
+    getSubscriptionInfo,
+    updateSubscriptionStatus,
+    startUserTrial,
+    getUsersWithExpiringTrial,
+    getUsersWithExpiredTrial,
+    markTrialReminderSent,
+    getPlanLimits,
+    checkUserLimit,
     // Cache service export
     cache,
     // Pool export para queries diretas quando necessario

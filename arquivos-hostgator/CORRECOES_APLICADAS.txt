@@ -1,0 +1,68 @@
+╔═══════════════════════════════════════════════════════════╗
+║           CORREÇÕES APLICADAS - VERSÃO 2.0               ║
+╚═══════════════════════════════════════════════════════════╝
+
+✅ PROBLEMA 404 CORRIGIDO!
+═══════════════════════════════════════════════════════════
+
+🔧 CORREÇÕES FEITAS:
+
+1. Links de Privacy e Terms no Footer
+   ❌ Antes: /privacy e /terms
+   ✅ Agora: privacy.html e terms.html
+
+2. Caminhos das Imagens
+   ❌ Antes: /images/logo-dark.png
+   ✅ Agora: images/logo-dark.png
+   
+3. Links "Voltar ao Início"
+   ❌ Antes: href="/"
+   ✅ Agora: href="index.html"
+
+4. Favicons
+   ❌ Antes: /images/logo-icon-dark.png
+   ✅ Agora: images/logo-icon-dark.png
+
+═══════════════════════════════════════════════════════════
+
+📄 ARQUIVOS ATUALIZADOS:
+
+✅ index.html
+   - Links footer corrigidos
+   - Caminhos de imagens relativos
+   - Favicon corrigido
+
+✅ privacy.html
+   - Link "Voltar" corrigido
+   - Caminhos de imagens relativos
+   - Favicon corrigido
+
+✅ terms.html
+   - Link "Voltar" corrigido
+   - Caminhos de imagens relativos
+   - Favicon corrigido
+
+═══════════════════════════════════════════════════════════
+
+🎯 AGORA TUDO FUNCIONA:
+
+✅ Landing page: index.html
+✅ Privacidade: privacy.html
+✅ Termos: terms.html
+✅ Links do footer funcionam
+✅ Botão "Voltar" funciona
+✅ Imagens carregam corretamente
+
+═══════════════════════════════════════════════════════════
+
+📤 PRONTO PARA UPLOAD!
+
+Faça upload de TODOS os arquivos novamente no cPanel:
+- index.html (atualizado)
+- privacy.html (atualizado)
+- terms.html (atualizado)
+- pasta images/ (sem mudanças)
+
+Se você já fez upload antes, SUBSTITUA os arquivos antigos!
+
+═══════════════════════════════════════════════════════════

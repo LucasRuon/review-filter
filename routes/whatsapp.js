@@ -3,6 +3,7 @@ const db = require('../database');
 const whatsappService = require('../services/whatsapp-service');
 const stripeService = require('../services/stripe-service');
 const { authMiddleware } = require('../middleware/auth');
+const { requireSubscription, requireFeature } = require('../middleware/subscription');
 const logger = require('../logger');
 
 const router = express.Router();
@@ -109,7 +110,7 @@ router.get('/instances', authMiddleware, async (req, res) => {
 });
 
 // Criar nova instancia
-router.post('/instances', authMiddleware, async (req, res) => {
+router.post('/instances', authMiddleware, requireSubscription('any'), requireFeature('whatsapp'), async (req, res) => {
     try {
         const { clientId, createFree } = req.body;
         const user = await db.getUserById(req.userId);

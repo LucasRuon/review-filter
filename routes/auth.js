@@ -6,6 +6,7 @@ const { generateToken, authMiddleware } = require('../middleware/auth');
 const logger = require('../logger');
 const emailService = require('../services/email-service');
 const cache = require('../services/cache-service');
+const stripeService = require('../services/stripe-service');
 
 const router = express.Router();
 
@@ -30,16 +31,44 @@ router.post('/register', async (req, res) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await db.createUser(name, email.toLowerCase(), passwordHash, phone || null);
+        const userId = result.lastInsertRowid;
 
-        const token = generateToken(result.lastInsertRowid);
+        // Iniciar trial de 14 dias
+        const trialDays = parseInt(await db.getPlatformSetting('trial_days')) || 14;
+        const trialEndsAt = await db.startUserTrial(userId, trialDays);
+
+        // Criar cliente Stripe (não bloqueante)
+        try {
+            await stripeService.createOrGetCustomer(userId, email.toLowerCase(), name);
+        } catch (stripeError) {
+            logger.warn('Failed to create Stripe customer on register', {
+                userId,
+                error: stripeError.message
+            });
+            // Não bloquear registro por falha no Stripe
+        }
+
+        const token = generateToken(userId);
         res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-        logger.info('New user registered', { userId: result.lastInsertRowid, email: email.toLowerCase() });
+        logger.info('User registered with trial', {
+            userId,
+            email: email.toLowerCase(),
+            trialDays,
+            trialEndsAt
+        });
 
-        // Enviar email de boas-vindas (assíncrono, não bloqueia a resposta)
+        // Enviar email de boas-vindas com info de trial (assíncrono, não bloqueia a resposta)
         emailService.sendWelcomeEmail(email.toLowerCase(), name).catch(err => {
             logger.error('Failed to send welcome email', { email: email.toLowerCase(), error: err.message });
         });
+
+        // Enviar email de trial iniciado (se método existir)
+        if (emailService.sendTrialStartedEmail) {
+            emailService.sendTrialStartedEmail(email.toLowerCase(), name, trialDays).catch(err => {
+                logger.warn('Failed to send trial started email', { userId, error: err.message });
+            });
+        }
 
         res.json({ success: true, message: 'Conta criada com sucesso!' });
     } catch (error) {
@@ -92,15 +121,49 @@ router.post('/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Get current user
+// Get current user with subscription data
 router.get('/me', authMiddleware, async (req, res) => {
     try {
-        const user = await db.getUserById(req.userId);
+        const user = await db.getUserSubscriptionData(req.userId);
         if (!user) {
             return res.status(404).json({ error: 'Usuário não encontrado' });
         }
-        res.json(user);
+
+        // Calcular dias restantes
+        let daysRemaining = 0;
+        let isTrialing = user.subscription_status === 'trial';
+        let isActive = ['trial', 'active'].includes(user.subscription_status);
+
+        if (user.subscription_ends_at) {
+            const endsAt = new Date(user.subscription_ends_at);
+            const now = new Date();
+            daysRemaining = Math.max(0, Math.ceil((endsAt - now) / (1000 * 60 * 60 * 24)));
+        }
+
+        // Formatar resposta
+        res.json({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            created_at: user.created_at,
+            // Dados de subscription
+            subscription: {
+                status: user.subscription_status || 'free',
+                plan: user.subscription_plan || 'free',
+                ends_at: user.subscription_ends_at,
+                trial_started_at: user.trial_started_at,
+                days_remaining: daysRemaining,
+                is_trialing: isTrialing,
+                is_active: isActive,
+                last_payment_at: user.last_payment_at,
+                cancelled_at: user.cancelled_at
+            },
+            // IDs Stripe (para uso interno)
+            stripe_customer_id: user.stripe_customer_id
+        });
     } catch (error) {
+        logger.error('Get user error', { userId: req.userId, error: error.message });
         res.status(500).json({ error: 'Erro ao buscar usuário' });
     }
 });

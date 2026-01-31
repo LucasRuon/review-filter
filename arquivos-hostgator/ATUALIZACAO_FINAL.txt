@@ -1,0 +1,105 @@
+╔═══════════════════════════════════════════════════════════╗
+║        ATUALIZAÇÃO FINAL - URLs Limpas com .htaccess    ║
+╚═══════════════════════════════════════════════════════════╝
+
+✅ SOLUÇÃO IMPLEMENTADA: .htaccess
+═══════════════════════════════════════════════════════════
+
+🎯 AGORA AS URLs SÃO LIMPAS E BONITAS!
+
+❌ Antes: opinaja.com.br/privacy.html
+✅ Agora: opinaja.com.br/privacy
+
+❌ Antes: opinaja.com.br/terms.html
+✅ Agora: opinaja.com.br/terms
+
+═══════════════════════════════════════════════════════════
+
+📄 ARQUIVOS ATUALIZADOS (VERSÃO FINAL):
+
+✅ index.html
+   - Links: /privacy e /terms
+   - Imagens: caminhos relativos (images/)
+
+✅ privacy.html
+   - Link voltar: /
+   - Imagens: caminhos relativos (images/)
+
+✅ terms.html
+   - Link voltar: /
+   - Imagens: caminhos relativos (images/)
+
+✅ .htaccess (NOVO ARQUIVO!)
+   - Redireciona /privacy → privacy.html
+   - Redireciona /terms → terms.html
+   - Força HTTPS
+   - Remove www
+
+═══════════════════════════════════════════════════════════
+
+🎁 BÔNUS: Recursos Extras do .htaccess
+
+1. ✅ Força HTTPS automaticamente
+   http://opinaja.com.br → https://opinaja.com.br
+
+2. ✅ Remove www do domínio
+   www.opinaja.com.br → opinaja.com.br
+
+3. ✅ URLs profissionais sem .html
+   /privacy, /terms (em vez de .html)
+
+═══════════════════════════════════════════════════════════
+
+📤 ARQUIVOS PARA UPLOAD (TODOS!):
+
+IMPORTANTE: O arquivo .htaccess começa com PONTO (.)
+
+┌─────────────────────────────────────────┐
+│ public_html/                            │
+│ ├── .htaccess        ← NOVO! IMPORTANTE!│
+│ ├── index.html       ← Atualizado       │
+│ ├── privacy.html     ← Atualizado       │
+│ ├── terms.html       ← Atualizado       │
+│ └── images/          ← Sem mudanças     │
+│     ├── logo-dark.png                   │
+│     ├── logo-icon-dark.png              │
+│     └── og-image.png                    │
+└─────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════
+
+⚠️  ATENÇÃO: Como ver o arquivo .htaccess
+
+No gerenciador de arquivos do cPanel:
+1. Clique em "Configurações" (ícone engrenagem)
+2. Marque "Mostrar arquivos ocultos (dotfiles)"
+3. Clique em "Salvar"
+4. Agora você verá o .htaccess
+
+═══════════════════════════════════════════════════════════
+
+✅ URLS QUE VÃO FUNCIONAR:
+
+✓ https://opinaja.com.br
+✓ https://opinaja.com.br/privacy
+✓ https://opinaja.com.br/terms
+
+Redirecionamentos automáticos:
+✓ http://opinaja.com.br → https://opinaja.com.br
+✓ www.opinaja.com.br → opinaja.com.br
+
+═══════════════════════════════════════════════════════════
+
+📖 DOCUMENTAÇÃO:
+
+Leia o arquivo: SOBRE_HTACCESS.md
+Para entender como tudo funciona!
+
+═══════════════════════════════════════════════════════════
+
+🎉 PRONTO! VERSÃO FINAL!
+
+Agora é só fazer upload de TODOS os arquivos
+(incluindo o .htaccess) e testar!
+
+═══════════════════════════════════════════════════════════

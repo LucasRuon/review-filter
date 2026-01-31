@@ -509,6 +509,10 @@ app.get('/terms', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'terms.html'));
 });
 
+app.get('/pricing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'pricing.html'));
+});
+
 // SPA - Todas as rotas autenticadas vão para app.html
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'app.html'));
@@ -572,6 +576,15 @@ db.init().then(async () => {
 
     // Initialize email service
     await emailService.initTransporter();
+
+    // Initialize subscription jobs (cron jobs for trial reminders, expiration, etc)
+    try {
+        const subscriptionJobs = require('./jobs/subscription-jobs');
+        subscriptionJobs.initJobs();
+        logger.info('✅ Subscription jobs initialized');
+    } catch (error) {
+        logger.warn('Failed to initialize subscription jobs', { error: error.message });
+    }
 
     app.listen(PORT, () => {
         logger.info('='.repeat(50));

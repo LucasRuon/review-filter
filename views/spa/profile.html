@@ -12,6 +12,41 @@
     .profile-photo-info p { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
     .photo-actions { display: flex; gap: 0.5rem; }
     .photo-input { display: none; }
+
+    /* Subscription Section Styles */
+    .subscription-card { background: linear-gradient(135deg, var(--primary) 0%, #5a6fd6 100%); color: white; border: none; }
+    .subscription-card .card-header { border-bottom: 1px solid rgba(255,255,255,0.2); }
+    .subscription-card .card-title { color: white; }
+    .subscription-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .subscription-item { background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; }
+    .subscription-item-label { font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .subscription-item-value { font-size: 1.1rem; font-weight: 600; }
+    .subscription-status { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 500; }
+    .subscription-status.active { background: rgba(16, 185, 129, 0.3); }
+    .subscription-status.trial { background: rgba(251, 191, 36, 0.3); }
+    .subscription-status.expired { background: rgba(239, 68, 68, 0.3); }
+    .subscription-status.free { background: rgba(148, 163, 184, 0.3); }
+    .subscription-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+    .subscription-actions .btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; }
+    .subscription-actions .btn:hover { background: rgba(255,255,255,0.3); }
+    .subscription-actions .btn-upgrade { background: white; color: var(--primary); border: none; }
+    .subscription-actions .btn-upgrade:hover { background: rgba(255,255,255,0.9); }
+
+    /* Payment Method Styles */
+    .payment-method-card { display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+    .payment-method-icon { font-size: 2rem; }
+    .payment-method-info { flex: 1; }
+    .payment-method-brand { font-weight: 600; text-transform: capitalize; }
+    .payment-method-last4 { opacity: 0.8; font-size: 0.9rem; }
+
+    /* Invoice List */
+    .invoice-list { margin-top: 1rem; }
+    .invoice-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 0.5rem; }
+    .invoice-date { font-size: 0.9rem; color: var(--text-secondary); }
+    .invoice-amount { font-weight: 600; }
+    .invoice-status { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .invoice-status.paid { background: var(--success-bg); color: var(--success); }
+    .invoice-status.open { background: var(--warning-bg); color: var(--warning); }
 </style>
 
 <div class="page-header">
@@ -84,3 +119,187 @@
         </div>
     </div>
 </div>
+
+<!-- Subscription Section -->
+<div class="card subscription-card" style="margin-top:1rem;max-width:800px" id="subscriptionCard">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-credit-card"></i> Minha Assinatura</h2>
+    </div>
+    <div class="card-body">
+        <div class="subscription-info">
+            <div class="subscription-item">
+                <div class="subscription-item-label">Plano atual</div>
+                <div class="subscription-item-value" id="subPlanName">-</div>
+            </div>
+            <div class="subscription-item">
+                <div class="subscription-item-label">Status</div>
+                <div class="subscription-item-value">
+                    <span class="subscription-status" id="subStatus">-</span>
+                </div>
+            </div>
+            <div class="subscription-item" id="subRenewalContainer">
+                <div class="subscription-item-label" id="subRenewalLabel">Proxima renovacao</div>
+                <div class="subscription-item-value" id="subRenewalDate">-</div>
+            </div>
+            <div class="subscription-item" id="subDaysContainer" style="display:none">
+                <div class="subscription-item-label">Dias restantes</div>
+                <div class="subscription-item-value" id="subDaysRemaining">-</div>
+            </div>
+        </div>
+
+        <div class="payment-method-card" id="paymentMethodCard" style="display:none">
+            <div class="payment-method-icon"><i class="fab fa-cc-visa"></i></div>
+            <div class="payment-method-info">
+                <div class="payment-method-brand" id="paymentBrand">-</div>
+                <div class="payment-method-last4">Terminando em <span id="paymentLast4">****</span></div>
+            </div>
+        </div>
+
+        <div class="subscription-actions">
+            <button class="btn btn-sm" onclick="openBillingPortal()" id="btnManagePayment" style="display:none">
+                <i class="fas fa-cog"></i> Gerenciar pagamento
+            </button>
+            <button class="btn btn-sm" onclick="viewInvoices()" id="btnViewInvoices" style="display:none">
+                <i class="fas fa-file-invoice"></i> Ver faturas
+            </button>
+            <button class="btn btn-sm btn-upgrade" onclick="window.location.href='/pricing'" id="btnUpgrade">
+                <i class="fas fa-arrow-up"></i> Fazer upgrade
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Invoices Section (hidden by default) -->
+<div class="card" style="margin-top:1rem;max-width:800px;display:none" id="invoicesCard">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-file-invoice"></i> Faturas</h2>
+        <button class="btn btn-secondary btn-sm" onclick="hideInvoices()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="card-body">
+        <div class="invoice-list" id="invoiceList">
+            <p class="text-muted">Carregando faturas...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load subscription data
+async function loadSubscriptionData() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const sub = user.subscription || {};
+
+        // Plan name
+        const planNames = { free: 'Gratuito', pro: 'PRO', enterprise: 'Enterprise', trial: 'Trial' };
+        const planName = planNames[sub.plan] || 'Gratuito';
+        document.getElementById('subPlanName').textContent = planName;
+
+        // Status
+        const statusEl = document.getElementById('subStatus');
+        const statusLabels = {
+            active: 'Ativo',
+            trial: 'Periodo de teste',
+            expired: 'Expirado',
+            canceled: 'Cancelado',
+            past_due: 'Pagamento pendente',
+            free: 'Gratuito'
+        };
+        statusEl.textContent = statusLabels[sub.status] || sub.status || 'Gratuito';
+        statusEl.className = 'subscription-status ' + (sub.status || 'free');
+
+        // Renewal date
+        if (sub.ends_at) {
+            const endsAt = new Date(sub.ends_at);
+            const label = sub.is_trialing ? 'Fim do trial' : 'Proxima renovacao';
+            document.getElementById('subRenewalLabel').textContent = label;
+            document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
+                day: '2-digit', month: 'long', year: 'numeric'
+            });
+        } else {
+            document.getElementById('subRenewalContainer').style.display = 'none';
+        }
+
+        // Days remaining (show for trial)
+        if (sub.is_trialing && sub.days_remaining !== undefined) {
+            document.getElementById('subDaysContainer').style.display = 'block';
+            document.getElementById('subDaysRemaining').textContent = sub.days_remaining + ' dias';
+        }
+
+        // Show/hide buttons based on status
+        if (user.stripe_customer_id && (sub.status === 'active' || sub.status === 'trial')) {
+            document.getElementById('btnManagePayment').style.display = 'inline-flex';
+            document.getElementById('btnViewInvoices').style.display = 'inline-flex';
+        }
+
+        // Hide upgrade button if already on paid plan
+        if (sub.status === 'active' && sub.plan !== 'free') {
+            document.getElementById('btnUpgrade').textContent = 'Alterar plano';
+        }
+
+    } catch (error) {
+        console.error('Error loading subscription data:', error);
+    }
+}
+
+async function openBillingPortal() {
+    try {
+        showLoading('Abrindo portal de pagamento...');
+        const res = await fetch('/api/billing/portal');
+        const data = await res.json();
+        hideLoading();
+        if (data.url) {
+            window.open(data.url, '_blank');
+        } else {
+            showToast(data.error || 'Erro ao abrir portal', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('Erro ao abrir portal de pagamento', 'error');
+    }
+}
+
+async function viewInvoices() {
+    const card = document.getElementById('invoicesCard');
+    const list = document.getElementById('invoiceList');
+    card.style.display = 'block';
+    list.innerHTML = '<p class="text-muted">Carregando faturas...</p>';
+
+    try {
+        const res = await fetch('/api/billing/invoices');
+        const data = await res.json();
+
+        if (data.invoices && data.invoices.length > 0) {
+            list.innerHTML = data.invoices.map(inv => `
+                <div class="invoice-item">
+                    <div>
+                        <div class="invoice-date">${new Date(inv.created).toLocaleDateString('pt-BR')}</div>
+                        <small class="text-muted">${inv.number || '-'}</small>
+                    </div>
+                    <div class="invoice-amount">R$ ${inv.amount.toFixed(2)}</div>
+                    <span class="invoice-status ${inv.paid ? 'paid' : 'open'}">${inv.paid ? 'Pago' : 'Pendente'}</span>
+                    ${inv.invoice_pdf ? `<a href="${inv.invoice_pdf}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-download"></i></a>` : ''}
+                </div>
+            `).join('');
+        } else {
+            list.innerHTML = '<p class="text-muted">Nenhuma fatura encontrada.</p>';
+        }
+    } catch (error) {
+        list.innerHTML = '<p class="text-muted">Erro ao carregar faturas.</p>';
+    }
+}
+
+function hideInvoices() {
+    document.getElementById('invoicesCard').style.display = 'none';
+}
+
+// Call on page load
+document.addEventListener('DOMContentLoaded', loadSubscriptionData);
+// Also call when profile data loads (in case it's called later)
+if (typeof loadProfileData === 'function') {
+    const originalLoadProfileData = loadProfileData;
+    loadProfileData = function() {
+        originalLoadProfileData();
+        loadSubscriptionData();
+    };
+}
+</script>

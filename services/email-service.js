@@ -410,6 +410,126 @@ async function testEmailConfig() {
     }
 }
 
+/**
+ * Envia email de trial iniciado
+ */
+async function sendTrialStartedEmail(email, name, trialDays) {
+    const subject = `Bem-vindo ao Opina Ja! Seu trial de ${trialDays} dias comecou`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #667eea;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">Seu periodo de teste de <strong>${trialDays} dias</strong> no Opina Ja comecou.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Durante esse periodo, voce tera acesso completo a todas as funcionalidades PRO:</p>
+            <ul style="font-size: 16px; line-height: 1.8;">
+                <li>Ate 10 clientes</li>
+                <li>Integracao com WhatsApp</li>
+                <li>Webhooks personalizados</li>
+                <li>Relatorios avancados</li>
+                <li>Exportacao de dados</li>
+            </ul>
+            <p style="font-size: 16px; line-height: 1.5;">Aproveite ao maximo!</p>
+            <a href="${process.env.BASE_URL}/app" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Acessar Dashboard</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
+/**
+ * Envia lembrete de trial expirando
+ */
+async function sendTrialReminder(email, name, daysRemaining) {
+    const subject = daysRemaining === 1
+        ? 'Ultimo dia do seu trial no Opina Ja!'
+        : `Seu trial expira em ${daysRemaining} dias`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #f5576c;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">
+                ${daysRemaining === 1
+                    ? 'Hoje e o <strong>ultimo dia</strong> do seu periodo de teste!'
+                    : `Restam apenas <strong>${daysRemaining} dias</strong> do seu periodo de teste.`
+                }
+            </p>
+            <p style="font-size: 16px; line-height: 1.5;">Para continuar usando todas as funcionalidades, faca upgrade para um plano pago.</p>
+            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #f5576c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Ver Planos</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
+/**
+ * Envia email de trial expirado
+ */
+async function sendTrialExpiredEmail(email, name) {
+    const subject = 'Seu periodo de teste terminou';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">Seu periodo de teste no Opina Ja terminou.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Algumas funcionalidades foram bloqueadas, mas voce ainda pode:</p>
+            <ul style="font-size: 16px; line-height: 1.8;">
+                <li>Visualizar seus dados</li>
+                <li>Acessar configuracoes</li>
+                <li>Fazer upgrade a qualquer momento</li>
+            </ul>
+            <p style="font-size: 16px; line-height: 1.5;">Para desbloquear todas as funcionalidades, escolha um plano:</p>
+            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Fazer Upgrade</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
+/**
+ * Envia email de assinatura ativada
+ */
+async function sendSubscriptionActivatedEmail(email, name, plan) {
+    const subject = 'Sua assinatura esta ativa!';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #667eea;">Obrigado, ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">Sua assinatura do plano <strong>${plan.toUpperCase()}</strong> foi ativada com sucesso.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Agora voce tem acesso completo a todas as funcionalidades do seu plano.</p>
+            <a href="${process.env.BASE_URL}/app" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Acessar Dashboard</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
+/**
+ * Envia email de falha no pagamento
+ */
+async function sendPaymentFailedEmail(email, name) {
+    const subject = 'Problema com seu pagamento';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #f5576c;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">Houve um problema ao processar seu pagamento.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Por favor, atualize suas informacoes de pagamento para evitar a interrupcao do servico.</p>
+            <a href="${process.env.BASE_URL}/billing" style="display: inline-block; background: #f5576c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Atualizar Pagamento</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
+/**
+ * Envia email de assinatura cancelada
+ */
+async function sendSubscriptionCanceledEmail(email, name, endsAt) {
+    const formattedDate = new Date(endsAt).toLocaleDateString('pt-BR');
+    const subject = 'Sua assinatura foi cancelada';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.5;">Sua assinatura no Opina Ja foi cancelada.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Voce ainda tera acesso ate <strong>${formattedDate}</strong>.</p>
+            <p style="font-size: 16px; line-height: 1.5;">Mudou de ideia? Voce pode reativar sua assinatura a qualquer momento.</p>
+            <a href="${process.env.BASE_URL}/billing" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Reativar Assinatura</a>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
 module.exports = {
     initTransporter,
     reloadConfig,
@@ -418,5 +538,12 @@ module.exports = {
     sendPasswordResetEmail,
     sendPasswordChangedEmail,
     sendNewComplaintEmail,
-    testEmailConfig
+    testEmailConfig,
+    // Novos metodos de subscription
+    sendTrialStartedEmail,
+    sendTrialReminder,
+    sendTrialExpiredEmail,
+    sendSubscriptionActivatedEmail,
+    sendPaymentFailedEmail,
+    sendSubscriptionCanceledEmail
 };

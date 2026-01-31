@@ -224,15 +224,54 @@ class StripeService {
     }
 
     /**
-     * Processa checkout completado - criar instancia WhatsApp
+     * Processa checkout completado - criar instancia WhatsApp ou ativar subscription
      */
     async handleCheckoutCompleted(session) {
         const metadata = session.metadata || {};
         const userId = parseInt(metadata.user_id);
-        const clientId = metadata.client_id ? parseInt(metadata.client_id) : null;
 
-        if (!userId || metadata.type !== 'whatsapp_instance') {
-            logger.warn('Invalid checkout session metadata', { metadata });
+        if (!userId) {
+            logger.warn('Invalid checkout session metadata - missing user_id', { metadata });
+            return;
+        }
+
+        // Checkout de plano de plataforma
+        if (metadata.type === 'platform_subscription') {
+            logger.info('Platform subscription checkout completed', {
+                userId,
+                sessionId: session.id
+            });
+
+            // Buscar subscription para obter detalhes
+            if (session.subscription) {
+                const subscription = await stripe.subscriptions.retrieve(session.subscription);
+                const priceId = subscription.items.data[0]?.price?.id;
+                const plan = await this.getPlanFromPriceId(priceId);
+                const endsAt = new Date(subscription.current_period_end * 1000);
+
+                await db.pool.query(`
+                    UPDATE users SET
+                        subscription_status = 'active',
+                        subscription_plan = $1,
+                        stripe_subscription_id = $2,
+                        subscription_ends_at = $3,
+                        last_payment_at = NOW()
+                    WHERE id = $4
+                `, [plan, session.subscription, endsAt, userId]);
+
+                await db.logSubscriptionEvent(userId, 'subscription_activated', {
+                    plan,
+                    subscription_id: session.subscription,
+                    ends_at: endsAt.toISOString()
+                });
+            }
+            return;
+        }
+
+        // Checkout de WhatsApp instance
+        const clientId = metadata.client_id ? parseInt(metadata.client_id) : null;
+        if (metadata.type !== 'whatsapp_instance') {
+            logger.warn('Invalid checkout session type', { metadata });
             return;
         }
 
@@ -337,6 +376,200 @@ class StripeService {
             customerId: invoice.customer,
             amount: invoice.amount_paid / 100
         });
+    }
+
+    /**
+     * Cria sessao de checkout para plano de assinatura (nao WhatsApp instance)
+     */
+    async createPlanCheckoutSession(userId, priceId, successUrl, cancelUrl) {
+        if (!this.isConfigured()) {
+            throw new Error('Stripe nao configurado');
+        }
+
+        const user = await db.getUserWithSubscription(userId);
+        if (!user) {
+            throw new Error('Usuario nao encontrado');
+        }
+
+        const customerId = await this.createOrGetCustomer(userId, user.email, user.name);
+
+        const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            line_items: [{
+                price: priceId,
+                quantity: 1
+            }],
+            metadata: {
+                user_id: userId.toString(),
+                type: 'platform_subscription'
+            },
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            locale: 'pt-BR',
+            billing_address_collection: 'auto',
+            allow_promotion_codes: true,
+            subscription_data: {
+                metadata: {
+                    user_id: userId.toString()
+                }
+            }
+        });
+
+        logger.info('Plan checkout session created', {
+            userId,
+            priceId,
+            sessionId: session.id
+        });
+
+        return session;
+    }
+
+    /**
+     * Cancela assinatura do usuario
+     */
+    async cancelUserSubscription(userId, immediate = false, reason = null) {
+        const user = await db.getUserWithSubscription(userId);
+        if (!user || !user.stripe_subscription_id) {
+            throw new Error('Nenhuma assinatura encontrada');
+        }
+
+        const subscription = await stripe.subscriptions.update(
+            user.stripe_subscription_id,
+            {
+                cancel_at_period_end: !immediate,
+                metadata: {
+                    cancellation_reason: reason || 'user_requested'
+                }
+            }
+        );
+
+        if (immediate) {
+            await stripe.subscriptions.cancel(user.stripe_subscription_id);
+        }
+
+        // Atualizar banco
+        await db.pool.query(`
+            UPDATE users SET
+                cancellation_reason = $1,
+                cancelled_at = NOW()
+            WHERE id = $2
+        `, [reason, userId]);
+
+        await db.logSubscriptionEvent(userId, 'subscription_canceled', {
+            immediate,
+            reason,
+            ends_at: immediate ? new Date() : new Date(subscription.current_period_end * 1000)
+        });
+
+        return subscription;
+    }
+
+    /**
+     * Reativa assinatura cancelada
+     */
+    async reactivateSubscription(userId) {
+        const user = await db.getUserWithSubscription(userId);
+        if (!user || !user.stripe_subscription_id) {
+            throw new Error('Nenhuma assinatura encontrada');
+        }
+
+        const subscription = await stripe.subscriptions.update(
+            user.stripe_subscription_id,
+            { cancel_at_period_end: false }
+        );
+
+        await db.updateSubscriptionStatus(userId, 'active');
+        await db.logSubscriptionEvent(userId, 'subscription_reactivated', {});
+
+        return subscription;
+    }
+
+    /**
+     * Altera plano da assinatura
+     */
+    async changePlan(userId, newPriceId, prorate = true) {
+        const user = await db.getUserWithSubscription(userId);
+        if (!user || !user.stripe_subscription_id) {
+            throw new Error('Nenhuma assinatura encontrada');
+        }
+
+        const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+        const currentItemId = subscription.items.data[0]?.id;
+
+        if (!currentItemId) {
+            throw new Error('Item de assinatura nao encontrado');
+        }
+
+        const updatedSubscription = await stripe.subscriptions.update(
+            user.stripe_subscription_id,
+            {
+                items: [{
+                    id: currentItemId,
+                    price: newPriceId
+                }],
+                proration_behavior: prorate ? 'create_prorations' : 'none'
+            }
+        );
+
+        // Determinar novo plano pelo price ID
+        const newPlan = await this.getPlanFromPriceId(newPriceId);
+        await db.updateSubscriptionStatus(userId, 'active', newPlan);
+        await db.logSubscriptionEvent(userId, 'plan_changed', {
+            old_plan: user.subscription_plan,
+            new_plan: newPlan,
+            new_price_id: newPriceId
+        });
+
+        return updatedSubscription;
+    }
+
+    /**
+     * Retorna plano baseado no Price ID
+     */
+    async getPlanFromPriceId(priceId) {
+        const settings = await db.getAllPlatformSettings();
+
+        if (priceId === settings.stripe_price_id_pro_monthly ||
+            priceId === settings.stripe_price_id_pro_yearly) {
+            return 'pro';
+        }
+        if (priceId === settings.stripe_price_id_enterprise_monthly ||
+            priceId === settings.stripe_price_id_enterprise_yearly) {
+            return 'enterprise';
+        }
+        return 'free';
+    }
+
+    /**
+     * Retorna proxima fatura
+     */
+    async getUpcomingInvoice(customerId) {
+        if (!this.isConfigured()) {
+            throw new Error('Stripe nao configurado');
+        }
+
+        try {
+            const invoice = await stripe.invoices.retrieveUpcoming({
+                customer: customerId
+            });
+
+            return {
+                amount: invoice.amount_due / 100,
+                currency: invoice.currency,
+                period_start: new Date(invoice.period_start * 1000),
+                period_end: new Date(invoice.period_end * 1000),
+                next_payment_attempt: invoice.next_payment_attempt
+                    ? new Date(invoice.next_payment_attempt * 1000)
+                    : null
+            };
+        } catch (error) {
+            if (error.code === 'invoice_upcoming_none') {
+                return null;
+            }
+            throw error;
+        }
     }
 }
 
