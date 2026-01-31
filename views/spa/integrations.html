@@ -230,10 +230,11 @@ let canCreateFree = false;
 let currentConfigInstanceId = null;
 
 // Carregar instancias ao iniciar
-document.addEventListener('DOMContentLoaded', function() {
+// Executa imediatamente pois e carregado via SPA (innerHTML)
+(function() {
     loadWhatsAppInstances();
     loadWebhookConfig();
-});
+})();
 
 // Carregar instancias WhatsApp
 async function loadWhatsAppInstances() {

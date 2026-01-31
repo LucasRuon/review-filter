@@ -343,7 +343,8 @@
                     await loadAllComplaintsData();
                     break;
                 case 'integrations':
-                    await loadIntegrationsData();
+                    // O novo integrations.html tem seu proprio script interno
+                    // que carrega via loadWhatsAppInstances() no DOMContentLoaded
                     break;
                 case 'profile':
                     await loadProfileData();
