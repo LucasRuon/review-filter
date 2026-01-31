@@ -12,14 +12,22 @@ const router = express.Router();
 // Listar todas instancias do usuario
 router.get('/instances', authMiddleware, async (req, res) => {
     try {
-        // Buscar instancias do banco local
-        let instances = await db.getWhatsAppInstancesByUser(req.userId);
+        let instances = [];
+        let clientsWithoutInstance = [];
+        let hasFreeInstance = false;
 
-        // Se nao tem instancias no banco, buscar da UAZAPI e sincronizar
+        // Buscar instancias do banco local (com tratamento de erro caso tabela nao exista)
+        try {
+            instances = await db.getWhatsAppInstancesByUser(req.userId);
+        } catch (dbError) {
+            logger.warn('Error fetching instances from DB (table may not exist)', { error: dbError.message });
+            instances = [];
+        }
+
+        // Se nao tem instancias no banco, tentar buscar da UAZAPI e sincronizar
         if (instances.length === 0) {
             try {
                 const uazapiResult = await whatsappService.listAllInstances();
-                const user = await db.getUserById(req.userId);
 
                 // Filtrar instancias do usuario (pelo prefixo opinaja-{userId})
                 const userInstances = (uazapiResult.instances || []).filter(inst => {
@@ -55,15 +63,32 @@ router.get('/instances', authMiddleware, async (req, res) => {
                 }
 
                 // Buscar novamente apos sincronizacao
-                instances = await db.getWhatsAppInstancesByUser(req.userId);
+                try {
+                    instances = await db.getWhatsAppInstancesByUser(req.userId);
+                } catch (e) {
+                    instances = [];
+                }
             } catch (uazapiError) {
                 logger.warn('Could not sync with UAZAPI', { error: uazapiError.message });
                 // Continua mesmo sem sincronizacao
             }
         }
 
-        const clientsWithoutInstance = await db.getClientsWithoutInstance(req.userId);
-        const hasFreeInstance = await db.hasUserFreeInstance(req.userId);
+        // Buscar clientes sem instancia (com tratamento de erro)
+        try {
+            clientsWithoutInstance = await db.getClientsWithoutInstance(req.userId);
+        } catch (e) {
+            logger.warn('Error fetching clients without instance', { error: e.message });
+            clientsWithoutInstance = [];
+        }
+
+        // Verificar se tem instancia gratuita (com tratamento de erro)
+        try {
+            hasFreeInstance = await db.hasUserFreeInstance(req.userId);
+        } catch (e) {
+            logger.warn('Error checking free instance', { error: e.message });
+            hasFreeInstance = false;
+        }
 
         res.json({
             success: true,
@@ -73,7 +98,13 @@ router.get('/instances', authMiddleware, async (req, res) => {
         });
     } catch (error) {
         logger.error('List WhatsApp instances error', { userId: req.userId, error: error.message });
-        res.status(500).json({ error: 'Erro ao listar instancias' });
+        // Retorna resposta vazia em vez de erro para nao travar a UI
+        res.json({
+            success: true,
+            instances: [],
+            clientsWithoutInstance: [],
+            canCreateFree: true
+        });
     }
 });
 
