@@ -2520,8 +2520,9 @@
                 if (data.success && data.groups) {
                     select.innerHTML = '<option value="">-- Selecione um grupo --</option>';
                     for (const group of data.groups) {
-                        const name = group.subject || group.name || 'Grupo sem nome';
-                        const jid = group.id || group.jid;
+                        // UAZAPI retorna Name e JID com letra maiuscula
+                        const name = group.Name || group.subject || group.name || 'Grupo sem nome';
+                        const jid = group.JID || group.id || group.jid;
                         select.innerHTML += `<option value="${jid}">${name}</option>`;
                     }
                 } else {
