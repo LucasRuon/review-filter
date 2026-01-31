@@ -229,13 +229,6 @@ let clientsWithoutInstance = [];
 let canCreateFree = false;
 let currentConfigInstanceId = null;
 
-// Carregar instancias ao iniciar
-// Executa imediatamente pois e carregado via SPA (innerHTML)
-(function() {
-    loadWhatsAppInstances();
-    loadWebhookConfig();
-})();
-
 // Carregar instancias WhatsApp
 async function loadWhatsAppInstances() {
     try {
@@ -788,4 +781,9 @@ async function testWebhook() {
         showToast(error.message || 'Erro ao testar webhook', 'error');
     }
 }
+
+// ========== INICIALIZACAO ==========
+// Executa imediatamente pois e carregado via SPA (innerHTML)
+loadWhatsAppInstances();
+loadWebhookConfig();
 </script>
