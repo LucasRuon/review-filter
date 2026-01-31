@@ -13,7 +13,18 @@ class StripeService {
         this.priceId = process.env.STRIPE_PRICE_WHATSAPP_INSTANCE;
     }
 
+    /**
+     * Verifica se o Stripe esta minimamente configurado
+     * Para checkout de planos, nao precisa do priceId de WhatsApp
+     */
     isConfigured() {
+        return stripe !== null;
+    }
+
+    /**
+     * Verifica se o checkout de WhatsApp instance esta configurado
+     */
+    isWhatsAppCheckoutConfigured() {
         return stripe !== null && this.priceId;
     }
 

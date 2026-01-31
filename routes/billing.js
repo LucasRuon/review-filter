@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/status', authMiddleware, (req, res) => {
     res.json({
         configured: stripeService.isConfigured(),
+        whatsappConfigured: stripeService.isWhatsAppCheckoutConfigured(),
         priceId: process.env.STRIPE_PRICE_WHATSAPP_INSTANCE ? 'configured' : 'missing'
     });
 });
@@ -17,8 +18,8 @@ router.get('/status', authMiddleware, (req, res) => {
 // Criar sessao de checkout para nova instancia WhatsApp
 router.post('/create-checkout', authMiddleware, async (req, res) => {
     try {
-        if (!stripeService.isConfigured()) {
-            return res.status(503).json({ error: 'Sistema de pagamento nao configurado' });
+        if (!stripeService.isWhatsAppCheckoutConfigured()) {
+            return res.status(503).json({ error: 'Sistema de pagamento para WhatsApp nao configurado' });
         }
 
         const { clientId } = req.body;

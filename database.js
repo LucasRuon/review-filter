@@ -1962,25 +1962,89 @@ async function markTrialReminderSent(userId, reminderLevel) {
 }
 
 /**
- * Obtem limites do plano
+ * Obtem limites do plano com defaults robustos
  */
 async function getPlanLimits(plan) {
-    const settings = await getAllPlatformSettings();
-    const suffix = `_${plan}`;
-
-    return {
-        maxClients: parseInt(settings[`max_clients${suffix}`]) || 1,
-        maxBranches: parseInt(settings[`max_branches${suffix}`]) || 1,
-        maxTopics: parseInt(settings[`max_topics${suffix}`]) || 5,
-        maxComplaints: parseInt(settings[`max_complaints${suffix}`]) || 100,
-        features: {
-            whatsapp: settings[`feature_whatsapp${suffix}`] === 'true',
-            webhook: settings[`feature_webhook${suffix}`] === 'true',
-            customDomain: settings[`feature_custom_domain${suffix}`] === 'true',
-            export: settings[`feature_export${suffix}`] === 'true',
-            reports: settings[`feature_reports${suffix}`] === 'true'
+    // Defaults por plano
+    const planDefaults = {
+        free: {
+            maxClients: 1,
+            maxBranches: 1,
+            maxTopics: 5,
+            maxComplaints: 100,
+            whatsapp: false,
+            webhook: false,
+            customDomain: false,
+            export: false,
+            reports: false
+        },
+        trial: {
+            maxClients: 10,
+            maxBranches: 10,
+            maxTopics: 999999,
+            maxComplaints: 999999,
+            whatsapp: true,
+            webhook: true,
+            customDomain: false,
+            export: true,
+            reports: true
+        },
+        pro: {
+            maxClients: 10,
+            maxBranches: 10,
+            maxTopics: 999999,
+            maxComplaints: 999999,
+            whatsapp: true,
+            webhook: true,
+            customDomain: false,
+            export: true,
+            reports: true
+        },
+        enterprise: {
+            maxClients: 999999,
+            maxBranches: 999999,
+            maxTopics: 999999,
+            maxComplaints: 999999,
+            whatsapp: true,
+            webhook: true,
+            customDomain: true,
+            export: true,
+            reports: true
         }
     };
+
+    const defaults = planDefaults[plan] || planDefaults.free;
+
+    // Tentar buscar configuracoes customizadas do banco
+    try {
+        const settings = await getAllPlatformSettings();
+        const suffix = `_${plan}`;
+
+        return {
+            maxClients: parseInt(settings[`max_clients${suffix}`]) || defaults.maxClients,
+            maxBranches: parseInt(settings[`max_branches${suffix}`]) || defaults.maxBranches,
+            maxTopics: parseInt(settings[`max_topics${suffix}`]) || defaults.maxTopics,
+            maxComplaints: parseInt(settings[`max_complaints${suffix}`]) || defaults.maxComplaints,
+            whatsapp: settings[`feature_whatsapp${suffix}`] === 'true' || defaults.whatsapp,
+            webhook: settings[`feature_webhook${suffix}`] === 'true' || defaults.webhook,
+            customDomain: settings[`feature_custom_domain${suffix}`] === 'true' || defaults.customDomain,
+            export: settings[`feature_export${suffix}`] === 'true' || defaults.export,
+            reports: settings[`feature_reports${suffix}`] === 'true' || defaults.reports
+        };
+    } catch (error) {
+        // Se falhar, retorna defaults
+        return {
+            maxClients: defaults.maxClients,
+            maxBranches: defaults.maxBranches,
+            maxTopics: defaults.maxTopics,
+            maxComplaints: defaults.maxComplaints,
+            whatsapp: defaults.whatsapp,
+            webhook: defaults.webhook,
+            customDomain: defaults.customDomain,
+            export: defaults.export,
+            reports: defaults.reports
+        };
+    }
 }
 
 /**

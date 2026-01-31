@@ -47,6 +47,119 @@
     .invoice-status { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
     .invoice-status.paid { background: var(--success-bg); color: var(--success); }
     .invoice-status.open { background: var(--warning-bg); color: var(--warning); }
+
+    /* Trial Banners */
+    .trial-banner, .trial-expiring-banner, .trial-expired-banner {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+    .trial-banner {
+        background: rgba(251, 191, 36, 0.2);
+        border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+    .trial-expiring-banner {
+        background: rgba(249, 115, 22, 0.2);
+        border: 1px solid rgba(249, 115, 22, 0.4);
+    }
+    .trial-expired-banner {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .trial-banner-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+    .trial-banner .trial-banner-icon { color: #fbbf24; }
+    .trial-expiring-banner .trial-banner-icon { color: #f97316; }
+    .trial-expired-banner .trial-banner-icon { color: #ef4444; }
+    .trial-banner-content { flex: 1; }
+    .trial-banner-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+    .trial-banner-text {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    .trial-banner-days {
+        text-align: center;
+        background: rgba(255,255,255,0.15);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+    }
+    .trial-days-number {
+        display: block;
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .trial-days-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+    }
+
+    /* Plan Limits */
+    .plan-limits {
+        background: rgba(255,255,255,0.1);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+    .plan-limits-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.7;
+        margin-bottom: 0.75rem;
+    }
+    .plan-limits-grid {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .plan-limit-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .plan-limit-item i {
+        opacity: 0.8;
+    }
+
+    /* Subscription Card Variations */
+    .subscription-card.trial-active {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    .subscription-card.trial-expiring {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    }
+    .subscription-card.expired {
+        background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    }
+    .subscription-card.active {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    @media (max-width: 600px) {
+        .trial-banner, .trial-expiring-banner, .trial-expired-banner {
+            flex-direction: column;
+            text-align: center;
+        }
+        .trial-banner-days {
+            width: 100%;
+        }
+        .plan-limits-grid {
+            justify-content: center;
+        }
+    }
 </style>
 
 <div class="page-header">
@@ -126,6 +239,43 @@
         <h2 class="card-title"><i class="fas fa-credit-card"></i> Minha Assinatura</h2>
     </div>
     <div class="card-body">
+        <!-- Banner de Trial -->
+        <div class="trial-banner" id="trialBanner" style="display:none">
+            <div class="trial-banner-icon"><i class="fas fa-clock"></i></div>
+            <div class="trial-banner-content">
+                <div class="trial-banner-title">Periodo de teste ativo</div>
+                <div class="trial-banner-text">Voce esta no periodo de teste gratuito. Aproveite todos os recursos PRO!</div>
+            </div>
+            <div class="trial-banner-days">
+                <span class="trial-days-number" id="trialDaysNumber">14</span>
+                <span class="trial-days-label">dias restantes</span>
+            </div>
+        </div>
+
+        <!-- Banner de Trial Expirando -->
+        <div class="trial-expiring-banner" id="trialExpiringBanner" style="display:none">
+            <div class="trial-banner-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="trial-banner-content">
+                <div class="trial-banner-title">Seu trial esta acabando!</div>
+                <div class="trial-banner-text">Assine agora para continuar usando todos os recursos.</div>
+            </div>
+            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()">
+                <i class="fas fa-bolt"></i> Assinar agora
+            </button>
+        </div>
+
+        <!-- Banner de Trial Expirado -->
+        <div class="trial-expired-banner" id="trialExpiredBanner" style="display:none">
+            <div class="trial-banner-icon"><i class="fas fa-lock"></i></div>
+            <div class="trial-banner-content">
+                <div class="trial-banner-title">Seu periodo de teste terminou</div>
+                <div class="trial-banner-text">Assine para continuar usando os recursos premium.</div>
+            </div>
+            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()">
+                <i class="fas fa-unlock"></i> Desbloquear acesso
+            </button>
+        </div>
+
         <div class="subscription-info">
             <div class="subscription-item">
                 <div class="subscription-item-label">Plano atual</div>
@@ -147,6 +297,25 @@
             </div>
         </div>
 
+        <!-- Limites do Plano -->
+        <div class="plan-limits" id="planLimits" style="display:none">
+            <div class="plan-limits-title">Limites do seu plano</div>
+            <div class="plan-limits-grid">
+                <div class="plan-limit-item">
+                    <i class="fas fa-building"></i>
+                    <span id="limitClients">-</span> clientes
+                </div>
+                <div class="plan-limit-item">
+                    <i class="fas fa-store"></i>
+                    <span id="limitBranches">-</span> filiais/cliente
+                </div>
+                <div class="plan-limit-item" id="limitWhatsappContainer">
+                    <i class="fab fa-whatsapp"></i>
+                    WhatsApp <span id="limitWhatsapp">-</span>
+                </div>
+            </div>
+        </div>
+
         <div class="payment-method-card" id="paymentMethodCard" style="display:none">
             <div class="payment-method-icon"><i class="fab fa-cc-visa"></i></div>
             <div class="payment-method-info">
@@ -162,8 +331,11 @@
             <button class="btn btn-sm" onclick="viewInvoices()" id="btnViewInvoices" style="display:none">
                 <i class="fas fa-file-invoice"></i> Ver faturas
             </button>
-            <button class="btn btn-sm btn-upgrade" onclick="window.location.href='/pricing'" id="btnUpgrade">
+            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()" id="btnUpgrade">
                 <i class="fas fa-arrow-up"></i> Fazer upgrade
+            </button>
+            <button class="btn btn-sm" onclick="cancelSubscription()" id="btnCancelSub" style="display:none">
+                <i class="fas fa-times"></i> Cancelar assinatura
             </button>
         </div>
     </div>
@@ -183,14 +355,24 @@
 </div>
 
 <script>
-// Load subscription data
+// Load subscription data from API
 async function loadSubscriptionData() {
     try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const sub = user.subscription || {};
+        // Buscar dados atualizados do servidor
+        const res = await fetch('/api/billing/subscription');
+        const data = await res.json();
+
+        if (!data.success) {
+            console.error('Error loading subscription:', data.error);
+            return;
+        }
+
+        const sub = data.subscription || {};
+        const limits = data.limits || {};
+        const card = document.getElementById('subscriptionCard');
 
         // Plan name
-        const planNames = { free: 'Gratuito', pro: 'PRO', enterprise: 'Enterprise', trial: 'Trial' };
+        const planNames = { free: 'Gratuito', pro: 'PRO', enterprise: 'Enterprise' };
         const planName = planNames[sub.plan] || 'Gratuito';
         document.getElementById('subPlanName').textContent = planName;
 
@@ -207,37 +389,151 @@ async function loadSubscriptionData() {
         statusEl.textContent = statusLabels[sub.status] || sub.status || 'Gratuito';
         statusEl.className = 'subscription-status ' + (sub.status || 'free');
 
-        // Renewal date
-        if (sub.ends_at) {
-            const endsAt = new Date(sub.ends_at);
-            const label = sub.is_trialing ? 'Fim do trial' : 'Proxima renovacao';
+        // Esconder todos os banners primeiro
+        document.getElementById('trialBanner').style.display = 'none';
+        document.getElementById('trialExpiringBanner').style.display = 'none';
+        document.getElementById('trialExpiredBanner').style.display = 'none';
+
+        // Calcular dias restantes
+        const daysRemaining = sub.daysRemaining || 0;
+
+        // Mostrar banner apropriado baseado no status
+        if (sub.status === 'trial' || sub.isTrialing) {
+            card.className = 'card subscription-card trial-active';
+
+            if (daysRemaining <= 3 && daysRemaining > 0) {
+                // Trial expirando (3 dias ou menos)
+                card.className = 'card subscription-card trial-expiring';
+                document.getElementById('trialExpiringBanner').style.display = 'flex';
+            } else if (daysRemaining > 0) {
+                // Trial ativo normal
+                document.getElementById('trialBanner').style.display = 'flex';
+                document.getElementById('trialDaysNumber').textContent = daysRemaining;
+            }
+
+            // Mostrar dias restantes
+            document.getElementById('subDaysContainer').style.display = 'block';
+            document.getElementById('subDaysRemaining').textContent = daysRemaining + ' dias';
+        } else if (sub.status === 'expired' || sub.isExpired) {
+            // Trial expirado
+            card.className = 'card subscription-card expired';
+            document.getElementById('trialExpiredBanner').style.display = 'flex';
+        } else if (sub.status === 'active') {
+            // Assinatura ativa
+            card.className = 'card subscription-card active';
+        }
+
+        // Data de fim/renovacao
+        if (sub.endsAt) {
+            const endsAt = new Date(sub.endsAt);
+            const label = (sub.status === 'trial' || sub.isTrialing) ? 'Fim do trial' : 'Proxima renovacao';
             document.getElementById('subRenewalLabel').textContent = label;
             document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
                 day: '2-digit', month: 'long', year: 'numeric'
             });
+            document.getElementById('subRenewalContainer').style.display = 'block';
         } else {
             document.getElementById('subRenewalContainer').style.display = 'none';
         }
 
-        // Days remaining (show for trial)
-        if (sub.is_trialing && sub.days_remaining !== undefined) {
-            document.getElementById('subDaysContainer').style.display = 'block';
-            document.getElementById('subDaysRemaining').textContent = sub.days_remaining + ' dias';
+        // Mostrar limites do plano
+        if (limits) {
+            document.getElementById('planLimits').style.display = 'block';
+            document.getElementById('limitClients').textContent = limits.maxClients === 999999 ? 'Ilimitados' : limits.maxClients;
+            document.getElementById('limitBranches').textContent = limits.maxBranches === 999999 ? 'Ilimitadas' : limits.maxBranches;
+            document.getElementById('limitWhatsapp').textContent = limits.whatsapp ? 'Ativado' : 'Desativado';
+            document.getElementById('limitWhatsappContainer').style.color = limits.whatsapp ? 'inherit' : 'rgba(255,255,255,0.5)';
         }
 
-        // Show/hide buttons based on status
-        if (user.stripe_customer_id && (sub.status === 'active' || sub.status === 'trial')) {
-            document.getElementById('btnManagePayment').style.display = 'inline-flex';
-            document.getElementById('btnViewInvoices').style.display = 'inline-flex';
-        }
+        // Botoes baseados no status
+        const btnUpgrade = document.getElementById('btnUpgrade');
+        const btnManagePayment = document.getElementById('btnManagePayment');
+        const btnViewInvoices = document.getElementById('btnViewInvoices');
+        const btnCancelSub = document.getElementById('btnCancelSub');
 
-        // Hide upgrade button if already on paid plan
         if (sub.status === 'active' && sub.plan !== 'free') {
-            document.getElementById('btnUpgrade').textContent = 'Alterar plano';
+            // Usuario com assinatura ativa paga
+            btnUpgrade.innerHTML = '<i class="fas fa-exchange-alt"></i> Alterar plano';
+            btnManagePayment.style.display = 'inline-flex';
+            btnViewInvoices.style.display = 'inline-flex';
+            btnCancelSub.style.display = 'inline-flex';
+        } else if (sub.status === 'trial' || sub.isTrialing) {
+            // Usuario em trial
+            btnUpgrade.innerHTML = '<i class="fas fa-bolt"></i> Assinar agora';
+            btnManagePayment.style.display = 'none';
+            btnViewInvoices.style.display = 'none';
+            btnCancelSub.style.display = 'none';
+        } else {
+            // Usuario free ou expirado
+            btnUpgrade.innerHTML = '<i class="fas fa-arrow-up"></i> Fazer upgrade';
+            btnManagePayment.style.display = 'none';
+            btnViewInvoices.style.display = 'none';
+            btnCancelSub.style.display = 'none';
         }
+
+        // Salvar dados no localStorage para uso em outras paginas
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        userData.subscription = sub;
+        userData.stripe_customer_id = sub.stripeCustomerId;
+        localStorage.setItem('user', JSON.stringify(userData));
 
     } catch (error) {
         console.error('Error loading subscription data:', error);
+        showToast('Erro ao carregar dados da assinatura', 'error');
+    }
+}
+
+// Assinar plano PRO
+async function subscribePro() {
+    try {
+        showLoading('Redirecionando para pagamento...');
+        const res = await fetch('/api/billing/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: 'pro', billing_cycle: 'monthly' })
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.url) {
+            window.location.href = data.url;
+        } else if (res.status === 401) {
+            window.location.href = '/login';
+        } else {
+            showToast(data.error || 'Erro ao processar. Tente novamente.', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Subscribe error:', error);
+        showToast('Erro ao conectar. Verifique sua conexao.', 'error');
+    }
+}
+
+// Cancelar assinatura
+async function cancelSubscription() {
+    if (!confirm('Tem certeza que deseja cancelar sua assinatura? Voce continuara tendo acesso ate o fim do periodo pago.')) {
+        return;
+    }
+
+    try {
+        showLoading('Cancelando assinatura...');
+        const res = await fetch('/api/billing/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ immediate: false, reason: 'user_requested' })
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            showToast('Assinatura cancelada. Voce tera acesso ate o fim do periodo.');
+            loadSubscriptionData();
+        } else {
+            showToast(data.error || 'Erro ao cancelar', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('Erro ao cancelar assinatura', 'error');
     }
 }
 

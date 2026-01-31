@@ -114,14 +114,26 @@ function updateUserUI(user) {
     if (nameEl) nameEl.textContent = user.name;
     if (emailEl) emailEl.textContent = user.email;
 
-    // Salvar apenas dados essenciais no localStorage
+    // Salvar dados essenciais + subscription no localStorage
     const userData = {
         id: user.id,
         name: user.name,
         email: user.email,
-        phone: user.phone || ''
+        phone: user.phone || '',
+        subscription: user.subscription || {},
+        stripe_customer_id: user.stripe_customer_id
     };
     localStorage.setItem('user', JSON.stringify(userData));
+}
+
+// Show loading with custom message
+function showLoading(message) {
+    const loading = document.getElementById('loading-screen');
+    if (loading) {
+        const text = loading.querySelector('.loading-text');
+        if (text && message) text.textContent = message;
+        loading.classList.remove('hidden');
+    }
 }
 
 // Load user info - OTIMIZADO: salvar apenas dados essenciais
@@ -224,6 +236,7 @@ window.toggleSidebar = toggleSidebar;
 window.toggleMobileMenu = toggleMobileMenu;
 window.closeMobileMenu = closeMobileMenu;
 window.showToast = showToast;
+window.showLoading = showLoading;
 window.copyToClipboard = copyToClipboard;
 window.formatDate = formatDate;
 window.updateUserUI = updateUserUI;
