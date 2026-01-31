@@ -86,18 +86,20 @@ router.post('/:slug/complaint', async (req, res) => {
         setImmediate(async () => {
             try {
                 const branch = sanitizedData.branch_id ? await db.getBranchById(sanitizedData.branch_id, client.id) : null;
+
+                // NOVA ARQUITETURA: Buscar instancia WhatsApp especifica do cliente
+                const instance = await db.getWhatsAppInstanceByClient(client.id);
                 const integrations = await db.getIntegrationsByUserId(client.user_id);
 
-                // Verificar se notificacoes de nova reclamacao estao habilitadas
-                const notifyNewComplaint = integrations?.whatsapp_notify_new_complaint !== 0;
+                // WhatsApp notification (usando instancia do cliente)
+                if (instance &&
+                    instance.instance_token &&
+                    (instance.status === 'open' || instance.status === 'connected') &&
+                    instance.message_new_complaint &&
+                    instance.send_to_jid &&
+                    instance.notify_new_complaint) {
 
-                // WhatsApp notification
-                if (integrations?.whatsapp_token &&
-                    (integrations.whatsapp_status === 'open' || integrations.whatsapp_status === 'connected') &&
-                    integrations.whatsapp_message && integrations.whatsapp_send_to_jid &&
-                    notifyNewComplaint) {
-
-                    const message = whatsappService.replaceMessageVariables(integrations.whatsapp_message, {
+                    const message = whatsappService.replaceMessageVariables(instance.message_new_complaint, {
                         clientName: client.name,
                         branchName: branch?.name || 'Sede Principal',
                         customerName: sanitizedData.name,
@@ -108,13 +110,21 @@ router.post('/:slug/complaint', async (req, res) => {
                     });
 
                     whatsappService.sendTextMessage(
-                        integrations.whatsapp_token,
-                        integrations.whatsapp_send_to_jid,
+                        instance.instance_token,
+                        instance.send_to_jid,
                         message
                     ).then(result => {
-                        logger.info('WhatsApp notification sent (background)', { clientId: client.id, result });
+                        logger.info('WhatsApp notification sent (background)', {
+                            clientId: client.id,
+                            instanceId: instance.id,
+                            result
+                        });
                     }).catch(err => {
-                        logger.error('WhatsApp notification error (background)', { clientId: client.id, error: err.message });
+                        logger.error('WhatsApp notification error (background)', {
+                            clientId: client.id,
+                            instanceId: instance.id,
+                            error: err.message
+                        });
                     });
                 }
 

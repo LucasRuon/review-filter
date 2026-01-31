@@ -182,22 +182,22 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
         // FASE 7: Invalidar cache de stats
         cache.delete(`stats_${req.userId}`);
 
-        // Enviar mensagem WhatsApp se configurado
+        // NOVA ARQUITETURA: Enviar mensagem WhatsApp usando instancia do cliente
         if (complaint && (status === 'in_progress' || status === 'resolved')) {
-            const integrations = await db.getIntegrationsByUserId(req.userId);
+            const instance = await db.getWhatsAppInstanceByClient(req.params.clientId);
 
-            if (integrations &&
-                integrations.whatsapp_token &&
-                (integrations.whatsapp_status === 'open' || integrations.whatsapp_status === 'connected') &&
-                integrations.whatsapp_notify_status_change &&
+            if (instance &&
+                instance.instance_token &&
+                (instance.status === 'open' || instance.status === 'connected') &&
+                instance.notify_status_change &&
                 complaint.customer_phone) {
 
                 let messageTemplate = null;
 
-                if (status === 'in_progress' && integrations.whatsapp_message_in_progress) {
-                    messageTemplate = integrations.whatsapp_message_in_progress;
-                } else if (status === 'resolved' && integrations.whatsapp_message_resolved) {
-                    messageTemplate = integrations.whatsapp_message_resolved;
+                if (status === 'in_progress' && instance.message_in_progress) {
+                    messageTemplate = instance.message_in_progress;
+                } else if (status === 'resolved' && instance.message_resolved) {
+                    messageTemplate = instance.message_resolved;
                 }
 
                 if (messageTemplate) {
@@ -207,13 +207,13 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
                             customerName: complaint.customer_name,
                             customerEmail: complaint.customer_email,
                             customerPhone: complaint.customer_phone,
-                            topicName: complaint.topic_name || 'Não especificado',
+                            topicName: complaint.topic_name || 'Nao especificado',
                             complaintText: complaint.complaint_text
                         });
 
-                        // Enviar para o telefone do cliente (que fez a reclamação)
+                        // Enviar para o telefone do cliente (que fez a reclamacao)
                         await whatsappService.sendTextMessage(
-                            integrations.whatsapp_token,
+                            instance.instance_token,
                             complaint.customer_phone,
                             message
                         );
@@ -221,6 +221,7 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
                         logger.info('WhatsApp status notification sent to customer', {
                             clientId: req.params.clientId,
                             complaintId: req.params.complaintId,
+                            instanceId: instance.id,
                             status,
                             customerPhone: complaint.customer_phone
                         });
@@ -228,6 +229,7 @@ router.put('/:clientId/complaints/:complaintId/status', authMiddleware, async (r
                         logger.error('WhatsApp status notification error', {
                             clientId: req.params.clientId,
                             complaintId: req.params.complaintId,
+                            instanceId: instance.id,
                             error: whatsappError.message
                         });
                     }

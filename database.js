@@ -488,6 +488,65 @@ async function init() {
             CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON user_feedbacks(status)
         `);
 
+        // ========== WHATSAPP INSTANCES (Multi-instancias por cliente) ==========
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS whatsapp_instances (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+
+                -- Dados UAZAPI
+                instance_name TEXT NOT NULL UNIQUE,
+                instance_token TEXT,
+                status TEXT DEFAULT 'disconnected',
+                qrcode TEXT,
+
+                -- Configuracoes de envio
+                send_to_type TEXT DEFAULT 'contact',
+                send_to_jid TEXT,
+
+                -- Templates de mensagem
+                message_new_complaint TEXT,
+                message_in_progress TEXT,
+                message_resolved TEXT,
+
+                -- Configuracoes de notificacao
+                notify_new_complaint INTEGER DEFAULT 1,
+                notify_status_change INTEGER DEFAULT 1,
+
+                -- Billing
+                is_free INTEGER DEFAULT 0,
+                stripe_subscription_item_id TEXT,
+                price_monthly DECIMAL(10,2) DEFAULT 39.90,
+
+                -- Metadata
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Constraint unica: cada cliente pode ter apenas 1 instancia
+        // (mas um cliente pode nao ter nenhuma, e uma instancia pode nao ter cliente)
+        await client.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_instances_user_client
+            ON whatsapp_instances(user_id, client_id)
+            WHERE client_id IS NOT NULL
+        `);
+
+        // Indices para whatsapp_instances
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_instances_user_id ON whatsapp_instances(user_id)
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_instances_client_id ON whatsapp_instances(client_id)
+            WHERE client_id IS NOT NULL
+        `);
+
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_instances_status ON whatsapp_instances(status)
+        `);
+
         console.log('Database indexes created');
         console.log('Database initialized');
     } finally {
@@ -1524,6 +1583,213 @@ async function findSlugsByPrefix(prefix) {
     return result.rows;
 }
 
+// ========== WHATSAPP INSTANCES FUNCTIONS ==========
+
+async function createWhatsAppInstance(userId, data) {
+    const result = await pool.query(`
+        INSERT INTO whatsapp_instances (
+            user_id, client_id, instance_name, instance_token, status, qrcode,
+            send_to_type, send_to_jid,
+            message_new_complaint, message_in_progress, message_resolved,
+            notify_new_complaint, notify_status_change,
+            is_free, stripe_subscription_item_id, price_monthly
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING *
+    `, [
+        userId,
+        data.client_id || null,
+        data.instance_name,
+        data.instance_token || null,
+        data.status || 'disconnected',
+        data.qrcode || null,
+        data.send_to_type || 'contact',
+        data.send_to_jid || null,
+        data.message_new_complaint || null,
+        data.message_in_progress || null,
+        data.message_resolved || null,
+        data.notify_new_complaint !== undefined ? (data.notify_new_complaint ? 1 : 0) : 1,
+        data.notify_status_change !== undefined ? (data.notify_status_change ? 1 : 0) : 1,
+        data.is_free ? 1 : 0,
+        data.stripe_subscription_item_id || null,
+        data.price_monthly || 39.90
+    ]);
+    return result.rows[0];
+}
+
+async function getWhatsAppInstancesByUser(userId) {
+    const result = await pool.query(`
+        SELECT wi.*, c.name as client_name
+        FROM whatsapp_instances wi
+        LEFT JOIN clients c ON wi.client_id = c.id
+        WHERE wi.user_id = $1
+        ORDER BY wi.is_free DESC, wi.created_at
+    `, [userId]);
+    return result.rows;
+}
+
+async function getWhatsAppInstanceById(instanceId, userId = null) {
+    if (userId) {
+        const result = await pool.query(`
+            SELECT wi.*, c.name as client_name
+            FROM whatsapp_instances wi
+            LEFT JOIN clients c ON wi.client_id = c.id
+            WHERE wi.id = $1 AND wi.user_id = $2
+        `, [instanceId, userId]);
+        return result.rows[0] || null;
+    }
+    const result = await pool.query(`
+        SELECT wi.*, c.name as client_name
+        FROM whatsapp_instances wi
+        LEFT JOIN clients c ON wi.client_id = c.id
+        WHERE wi.id = $1
+    `, [instanceId]);
+    return result.rows[0] || null;
+}
+
+async function getWhatsAppInstanceByClient(clientId) {
+    const result = await pool.query(`
+        SELECT * FROM whatsapp_instances
+        WHERE client_id = $1
+    `, [clientId]);
+    return result.rows[0] || null;
+}
+
+async function updateWhatsAppInstance(instanceId, userId, data) {
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (data.client_id !== undefined) {
+        updates.push(`client_id = $${paramIndex++}`);
+        params.push(data.client_id);
+    }
+    if (data.instance_name !== undefined) {
+        updates.push(`instance_name = $${paramIndex++}`);
+        params.push(data.instance_name);
+    }
+    if (data.instance_token !== undefined) {
+        updates.push(`instance_token = $${paramIndex++}`);
+        params.push(data.instance_token);
+    }
+    if (data.status !== undefined) {
+        updates.push(`status = $${paramIndex++}`);
+        params.push(data.status);
+    }
+    if (data.qrcode !== undefined) {
+        updates.push(`qrcode = $${paramIndex++}`);
+        params.push(data.qrcode);
+    }
+    if (data.send_to_type !== undefined) {
+        updates.push(`send_to_type = $${paramIndex++}`);
+        params.push(data.send_to_type);
+    }
+    if (data.send_to_jid !== undefined) {
+        updates.push(`send_to_jid = $${paramIndex++}`);
+        params.push(data.send_to_jid);
+    }
+    if (data.message_new_complaint !== undefined) {
+        updates.push(`message_new_complaint = $${paramIndex++}`);
+        params.push(data.message_new_complaint);
+    }
+    if (data.message_in_progress !== undefined) {
+        updates.push(`message_in_progress = $${paramIndex++}`);
+        params.push(data.message_in_progress);
+    }
+    if (data.message_resolved !== undefined) {
+        updates.push(`message_resolved = $${paramIndex++}`);
+        params.push(data.message_resolved);
+    }
+    if (data.notify_new_complaint !== undefined) {
+        updates.push(`notify_new_complaint = $${paramIndex++}`);
+        params.push(data.notify_new_complaint ? 1 : 0);
+    }
+    if (data.notify_status_change !== undefined) {
+        updates.push(`notify_status_change = $${paramIndex++}`);
+        params.push(data.notify_status_change ? 1 : 0);
+    }
+    if (data.is_free !== undefined) {
+        updates.push(`is_free = $${paramIndex++}`);
+        params.push(data.is_free ? 1 : 0);
+    }
+    if (data.stripe_subscription_item_id !== undefined) {
+        updates.push(`stripe_subscription_item_id = $${paramIndex++}`);
+        params.push(data.stripe_subscription_item_id);
+    }
+
+    if (updates.length === 0) {
+        return null;
+    }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(instanceId, userId);
+
+    const result = await pool.query(`
+        UPDATE whatsapp_instances
+        SET ${updates.join(', ')}
+        WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
+        RETURNING *
+    `, params);
+
+    return result.rows[0] || null;
+}
+
+async function deleteWhatsAppInstance(instanceId, userId) {
+    const result = await pool.query(`
+        DELETE FROM whatsapp_instances
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+    `, [instanceId, userId]);
+    return result.rowCount > 0;
+}
+
+async function countUserInstances(userId) {
+    const result = await pool.query(`
+        SELECT COUNT(*) as count FROM whatsapp_instances WHERE user_id = $1
+    `, [userId]);
+    return parseInt(result.rows[0]?.count) || 0;
+}
+
+async function hasUserFreeInstance(userId) {
+    const result = await pool.query(`
+        SELECT 1 FROM whatsapp_instances
+        WHERE user_id = $1 AND is_free = 1
+        LIMIT 1
+    `, [userId]);
+    return result.rows.length > 0;
+}
+
+async function getClientsWithoutInstance(userId) {
+    const result = await pool.query(`
+        SELECT c.id, c.name
+        FROM clients c
+        WHERE c.user_id = $1
+        AND c.id NOT IN (
+            SELECT client_id FROM whatsapp_instances
+            WHERE user_id = $1 AND client_id IS NOT NULL
+        )
+        ORDER BY c.name
+    `, [userId]);
+    return result.rows;
+}
+
+// Funcao para atualizar stripe_customer_id do usuario
+async function updateUserStripeCustomerId(userId, stripeCustomerId) {
+    await pool.query(`
+        UPDATE users SET stripe_customer_id = $1 WHERE id = $2
+    `, [stripeCustomerId, userId]);
+}
+
+// Funcao para buscar usuario com dados de subscription
+async function getUserWithSubscription(userId) {
+    const result = await pool.query(`
+        SELECT id, name, email, phone, stripe_customer_id, stripe_subscription_id,
+               subscription_status, subscription_plan, subscription_ends_at
+        FROM users WHERE id = $1
+    `, [userId]);
+    return result.rows[0] || null;
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -1596,6 +1862,18 @@ module.exports = {
     // Database stats
     getDatabaseStats,
     cleanupOldData,
+    // WhatsApp Instances functions
+    createWhatsAppInstance,
+    getWhatsAppInstancesByUser,
+    getWhatsAppInstanceById,
+    getWhatsAppInstanceByClient,
+    updateWhatsAppInstance,
+    deleteWhatsAppInstance,
+    countUserInstances,
+    hasUserFreeInstance,
+    getClientsWithoutInstance,
+    updateUserStripeCustomerId,
+    getUserWithSubscription,
     // Cache service export
     cache,
     // Pool export para queries diretas quando necessario

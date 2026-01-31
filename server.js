@@ -12,6 +12,7 @@ const clientRoutes = require('./routes/clients');
 const reviewRoutes = require('./routes/review');
 const whatsappRoutes = require('./routes/whatsapp');
 const adminRoutes = require('./routes/admin');
+const billingRoutes = require('./routes/billing');
 const emailService = require('./services/email-service');
 
 // Carregar middlewares opcionais
@@ -97,6 +98,39 @@ if (rateLimit) {
     app.use('/api/auth/register', authLimiter);
     app.use('/r/:slug/complaint', complaintLimiter);
 }
+
+// IMPORTANTE: Webhook do Stripe precisa de raw body, ANTES do express.json()
+// O billing router exporta uma funcao especial para isso
+const stripeService = require('./services/stripe-service');
+app.post('/api/billing/webhook',
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+        try {
+            if (!stripeService.isConfigured()) {
+                return res.status(503).json({ error: 'Stripe nao configurado' });
+            }
+
+            const signature = req.headers['stripe-signature'];
+            if (!signature) {
+                return res.status(400).json({ error: 'Assinatura ausente' });
+            }
+
+            let event;
+            try {
+                event = stripeService.verifyWebhookSignature(req.body, signature);
+            } catch (err) {
+                logger.error('Webhook signature verification failed', { error: err.message });
+                return res.status(400).json({ error: 'Assinatura invalida' });
+            }
+
+            await stripeService.handleWebhookEvent(event);
+            res.json({ received: true });
+        } catch (error) {
+            logger.error('Webhook error', { error: error.message });
+            res.status(500).json({ error: 'Erro ao processar webhook' });
+        }
+    }
+);
 
 // Middleware
 app.use(express.json());
@@ -242,6 +276,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/r', reviewRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/admin', adminRoutes);
 
 // API para informações de suporte (público)
