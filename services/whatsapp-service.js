@@ -420,6 +420,49 @@ class WhatsAppService {
         }
     }
 
+    /**
+     * Lista todas as instancias do usuario na UAZAPI
+     */
+    async listAllInstances() {
+        try {
+            const response = await fetchWithTimeout(`${this.baseUrl}/instance/all`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'admintoken': this.adminToken
+                }
+            }, 30000);
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Erro ao listar instancias: ${error}`);
+            }
+
+            const data = await response.json();
+
+            let instances = [];
+            if (Array.isArray(data)) {
+                instances = data;
+            } else if (data.instances && Array.isArray(data.instances)) {
+                instances = data.instances;
+            } else if (data.data && Array.isArray(data.data)) {
+                instances = data.data;
+            }
+
+            return {
+                success: true,
+                instances: instances
+            };
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                logger.error('WhatsApp listAllInstances timeout');
+                throw new Error('Timeout ao listar instancias');
+            }
+            logger.error('WhatsApp listAllInstances error', { error: error.message });
+            throw error;
+        }
+    }
+
     async listGroups(token) {
         try {
             const response = await fetchWithTimeout(`${this.baseUrl}/group/list`, {

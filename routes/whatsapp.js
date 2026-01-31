@@ -12,7 +12,56 @@ const router = express.Router();
 // Listar todas instancias do usuario
 router.get('/instances', authMiddleware, async (req, res) => {
     try {
-        const instances = await db.getWhatsAppInstancesByUser(req.userId);
+        // Buscar instancias do banco local
+        let instances = await db.getWhatsAppInstancesByUser(req.userId);
+
+        // Se nao tem instancias no banco, buscar da UAZAPI e sincronizar
+        if (instances.length === 0) {
+            try {
+                const uazapiResult = await whatsappService.listAllInstances();
+                const user = await db.getUserById(req.userId);
+
+                // Filtrar instancias do usuario (pelo prefixo opinaja-{userId})
+                const userInstances = (uazapiResult.instances || []).filter(inst => {
+                    const name = inst.name || inst.instance?.name || '';
+                    return name.startsWith(`opinaja-${req.userId}-`);
+                });
+
+                // Sincronizar com banco local
+                for (const uazapiInstance of userInstances) {
+                    const instanceName = uazapiInstance.name || uazapiInstance.instance?.name;
+                    const instanceToken = uazapiInstance.token || uazapiInstance.instance?.token;
+                    const status = uazapiInstance.status || uazapiInstance.instance?.status || 'disconnected';
+
+                    if (instanceName && instanceToken) {
+                        try {
+                            await db.createWhatsAppInstance(req.userId, {
+                                instance_name: instanceName,
+                                instance_token: instanceToken,
+                                status: status,
+                                is_free: instances.length === 0 // Primeira e gratuita
+                            });
+                            logger.info('WhatsApp instance synced from UAZAPI', {
+                                userId: req.userId,
+                                instanceName
+                            });
+                        } catch (syncError) {
+                            // Ignorar erro de duplicata
+                            if (!syncError.message.includes('duplicate')) {
+                                logger.warn('Error syncing instance', { error: syncError.message });
+                            }
+                        }
+                    }
+                }
+
+                // Buscar novamente apos sincronizacao
+                instances = await db.getWhatsAppInstancesByUser(req.userId);
+            } catch (uazapiError) {
+                logger.warn('Could not sync with UAZAPI', { error: uazapiError.message });
+                // Continua mesmo sem sincronizacao
+            }
+        }
+
         const clientsWithoutInstance = await db.getClientsWithoutInstance(req.userId);
         const hasFreeInstance = await db.hasUserFreeInstance(req.userId);
 
