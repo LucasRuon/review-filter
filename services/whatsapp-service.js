@@ -1,15 +1,8 @@
 const logger = require('../logger');
 
-// Credenciais via variaveis de ambiente
+// Credenciais via variaveis de ambiente (com fallback hardcoded)
 const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL || 'https://audeagencia.uazapi.com';
-const ADMIN_TOKEN = process.env.WHATSAPP_ADMIN_TOKEN;
-
-if (!ADMIN_TOKEN && process.env.NODE_ENV === 'production') {
-    console.warn('Warning: WHATSAPP_ADMIN_TOKEN not configured');
-}
-
-// Fallback para desenvolvimento
-const TOKEN = ADMIN_TOKEN || 'BatMrOd3sftAJGhwUApsvDt4V6XygQtTwAo5XvohTa8TW7ifal';
+const TOKEN = process.env.WHATSAPP_ADMIN_TOKEN || 'BatMrOd3sftAJGhwUApsvDt4V6XygQtTwAo5XvohTa8TW7ifal';
 
 /**
  * Fetch com timeout configuravel
