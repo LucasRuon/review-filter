@@ -48,6 +48,7 @@
         .sidebar.collapsed .nav-icon { margin: 0; font-size: 1.25rem; }
         .sidebar.collapsed .nav-item { justify-content: center; padding: 0.875rem; }
         .sidebar.collapsed .nav-item span:not(.nav-icon) { display: none; }
+        .sidebar.collapsed .nav-text { display: none; }
         .sidebar.collapsed .sidebar-header { justify-content: center; padding: 1rem; }
         .sidebar.collapsed .sidebar-brand { justify-content: center; }
         .sidebar.collapsed .sidebar-toggle { position: absolute; right: -12px; top: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 50%; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; }
@@ -201,22 +202,22 @@
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item" data-page="dashboard" onclick="navigateTo('/admin'); return false;">
-                    <i class="fas fa-chart-line nav-icon"></i> Dashboard
+                    <i class="fas fa-chart-line nav-icon"></i><span class="nav-text">Dashboard</span>
                 </a>
                 <a href="#" class="nav-item" data-page="users" onclick="navigateTo('/admin/users'); return false;">
-                    <i class="fas fa-users nav-icon"></i> Usuarios
+                    <i class="fas fa-users nav-icon"></i><span class="nav-text">Usuarios</span>
                 </a>
                 <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('/admin/settings'); return false;">
-                    <i class="fas fa-cog nav-icon"></i> Configuracoes
+                    <i class="fas fa-cog nav-icon"></i><span class="nav-text">Configuracoes</span>
                 </a>
                 <a href="#" class="nav-item" data-page="logs" onclick="navigateTo('/admin/logs'); return false;">
-                    <i class="fas fa-history nav-icon"></i> Logs
+                    <i class="fas fa-history nav-icon"></i><span class="nav-text">Logs</span>
                 </a>
                 <a href="#" class="nav-item" data-page="billing" onclick="navigateTo('/admin/billing'); return false;">
-                    <i class="fas fa-credit-card nav-icon"></i> Faturamento
+                    <i class="fas fa-credit-card nav-icon"></i><span class="nav-text">Faturamento</span>
                 </a>
                 <a href="#" class="nav-item" data-page="feedbacks" onclick="navigateTo('/admin/feedbacks'); return false;">
-                    <i class="fas fa-lightbulb nav-icon"></i> Feedbacks
+                    <i class="fas fa-lightbulb nav-icon"></i><span class="nav-text">Feedbacks</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -228,7 +229,7 @@
                     </div>
                 </div>
                 <a href="#" class="nav-item" onclick="logout(); return false;">
-                    <i class="fas fa-sign-out-alt nav-icon"></i> Sair
+                    <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-text">Sair</span>
                 </a>
             </div>
         </aside>
@@ -1245,22 +1246,263 @@
         }
 
         // ========== BILLING ==========
-        function loadBilling() {
+        async function loadBilling() {
             const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            // Check if Stripe is configured
+            const configCheck = await api.get('/admin/api/settings');
+            const stripeConfigured = configCheck?.settings?.stripe_price_id_pro_monthly;
+
+            if (!stripeConfigured) {
+                mainContent.innerHTML = `
+                    <div class="page-header">
+                        <h1 class="page-title">Faturamento</h1>
+                        <p class="page-subtitle">Gestao de assinaturas e pagamentos</p>
+                    </div>
+                    <div class="card" style="max-width: 600px;">
+                        <div class="card-body" style="text-align: center; padding: 3rem;">
+                            <i class="fas fa-credit-card" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                            <h3 style="margin-bottom: 0.5rem;">Stripe nao configurado</h3>
+                            <p style="color: var(--text-muted);">Configure as variaveis STRIPE_SECRET_KEY e os Price IDs nas configuracoes.</p>
+                            <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('/admin/settings')">
+                                <i class="fas fa-cog"></i> Ir para Configuracoes
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = await api.get('/admin/api/billing/stats');
+            if (!data || !data.success) {
+                mainContent.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar dados de faturamento</p></div>`;
+                return;
+            }
+
+            const { stats, recentSubscriptions, recentEvents } = data;
+
             mainContent.innerHTML = `
                 <div class="page-header">
                     <h1 class="page-title">Faturamento</h1>
                     <p class="page-subtitle">Gestao de assinaturas e pagamentos</p>
                 </div>
 
-                <div class="card" style="max-width: 600px;">
-                    <div class="card-body" style="text-align: center; padding: 3rem;">
-                        <i class="fas fa-credit-card" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
-                        <h3 style="margin-bottom: 0.5rem;">Stripe nao configurado</h3>
-                        <p style="color: var(--text-muted);">A integracao com Stripe sera configurada em breve. Adicione as variaveis de ambiente STRIPE_SECRET_KEY e STRIPE_WEBHOOK_SECRET para habilitar.</p>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">MRR (Receita Mensal)</span>
+                            <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+                        </div>
+                        <div class="stat-value">R$ ${stats.mrr.toFixed(2).replace('.', ',')}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Assinantes Ativos</span>
+                            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.activeSubscriptions}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Em Trial</span>
+                            <div class="stat-icon orange"><i class="fas fa-hourglass-half"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.trialUsers}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-label">Pagamento Pendente</span>
+                            <div class="stat-icon red"><i class="fas fa-exclamation-circle"></i></div>
+                        </div>
+                        <div class="stat-value">${stats.pastDueUsers}</div>
                     </div>
                 </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Distribuicao de Planos</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 200px;">
+                                <canvas id="plansChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Acoes Rapidas</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <a href="https://dashboard.stripe.com" target="_blank" class="btn btn-secondary" style="justify-content: flex-start;">
+                                    <i class="fab fa-stripe" style="font-size: 1.25rem;"></i> Abrir Dashboard Stripe
+                                </a>
+                                <a href="https://dashboard.stripe.com/subscriptions" target="_blank" class="btn btn-secondary" style="justify-content: flex-start;">
+                                    <i class="fas fa-sync-alt"></i> Gerenciar Assinaturas
+                                </a>
+                                <a href="https://dashboard.stripe.com/invoices" target="_blank" class="btn btn-secondary" style="justify-content: flex-start;">
+                                    <i class="fas fa-file-invoice"></i> Ver Faturas
+                                </a>
+                                <button onclick="navigateTo('/admin/settings')" class="btn btn-secondary" style="justify-content: flex-start;">
+                                    <i class="fas fa-cog"></i> Configurar Precos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Assinaturas Recentes</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Plano</th>
+                                        <th>Status</th>
+                                        <th>Vencimento</th>
+                                        <th>Ultimo Pagamento</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recentSubscriptions.length > 0 ? recentSubscriptions.map(sub => `
+                                        <tr>
+                                            <td>
+                                                <strong>${sub.name || 'N/A'}</strong><br>
+                                                <small style="color: var(--text-muted);">${sub.email || ''}</small>
+                                            </td>
+                                            <td><span class="badge ${sub.subscription_plan === 'pro' ? 'badge-info' : 'badge-warning'}">${(sub.subscription_plan || 'free').toUpperCase()}</span></td>
+                                            <td>${getSubscriptionStatusBadge(sub.subscription_status)}</td>
+                                            <td>${sub.subscription_ends_at ? formatDate(sub.subscription_ends_at) : '-'}</td>
+                                            <td>${sub.last_payment_at ? formatDate(sub.last_payment_at) : '-'}</td>
+                                            <td>
+                                                <button class="btn btn-ghost btn-sm" onclick="openUserModal(${sub.id})" title="Ver detalhes">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma assinatura encontrada</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                ${recentEvents.length > 0 ? `
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Historico de Eventos</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Usuario</th>
+                                        <th>Evento</th>
+                                        <th>Detalhes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recentEvents.map(event => `
+                                        <tr>
+                                            <td>${formatDate(event.created_at)}</td>
+                                            <td>${event.user_name || '-'}</td>
+                                            <td><span class="badge ${getEventBadgeClass(event.event_type)}">${formatEventType(event.event_type)}</span></td>
+                                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${formatEventMetadata(event.metadata)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
             `;
+
+            // Render plans chart
+            renderPlansChart(stats);
+        }
+
+        function getSubscriptionStatusBadge(status) {
+            const badges = {
+                'active': '<span class="badge badge-success">Ativo</span>',
+                'trial': '<span class="badge badge-warning">Trial</span>',
+                'past_due': '<span class="badge badge-danger">Pagamento Pendente</span>',
+                'canceled': '<span class="badge badge-info">Cancelado</span>',
+                'expired': '<span class="badge badge-danger">Expirado</span>'
+            };
+            return badges[status] || `<span class="badge">${status || 'N/A'}</span>`;
+        }
+
+        function getEventBadgeClass(type) {
+            if (!type) return 'badge-info';
+            if (type.includes('created') || type.includes('activated')) return 'badge-success';
+            if (type.includes('canceled') || type.includes('failed')) return 'badge-danger';
+            if (type.includes('updated') || type.includes('changed')) return 'badge-info';
+            return 'badge-warning';
+        }
+
+        function formatEventType(type) {
+            if (!type) return 'Evento';
+            const types = {
+                'subscription_created': 'Assinatura Criada',
+                'subscription_activated': 'Assinatura Ativada',
+                'subscription_canceled': 'Assinatura Cancelada',
+                'subscription_updated': 'Assinatura Atualizada',
+                'payment_failed': 'Pagamento Falhou',
+                'payment_succeeded': 'Pagamento OK',
+                'trial_started': 'Trial Iniciado',
+                'trial_ended': 'Trial Expirado',
+                'plan_changed': 'Plano Alterado'
+            };
+            return types[type] || type;
+        }
+
+        function formatEventMetadata(metadata) {
+            if (!metadata) return '-';
+            try {
+                const data = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+                if (data.plan) return `Plano: ${data.plan}`;
+                if (data.reason) return `Motivo: ${data.reason}`;
+                return JSON.stringify(data).substring(0, 50);
+            } catch {
+                return String(metadata).substring(0, 50);
+            }
+        }
+
+        function renderPlansChart(stats) {
+            const ctx = document.getElementById('plansChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pro (Ativos)', 'Trial', 'Free', 'Cancelados'],
+                    datasets: [{
+                        data: [stats.activeSubscriptions, stats.trialUsers, stats.freeUsers, stats.canceledUsers],
+                        backgroundColor: ['#22C55E', '#F59E0B', '#6B7280', '#EF4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#94A3B8', padding: 15 }
+                        }
+                    }
+                }
+            });
         }
 
         // ========== FEEDBACKS ==========

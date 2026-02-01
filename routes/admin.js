@@ -551,4 +551,86 @@ router.get('/feedbacks', requireAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'views', 'admin', 'index.html'));
 });
 
+// ========== BILLING STATS ==========
+
+router.get('/api/billing/stats', requireAdmin, async (req, res) => {
+    try {
+        // Get subscription stats
+        const stats = await db.query(`
+            SELECT
+                COUNT(CASE WHEN subscription_status = 'active' THEN 1 END) as active_subscriptions,
+                COUNT(CASE WHEN subscription_status = 'trial' THEN 1 END) as trial_users,
+                COUNT(CASE WHEN subscription_status = 'canceled' THEN 1 END) as canceled,
+                COUNT(CASE WHEN subscription_status = 'past_due' THEN 1 END) as past_due,
+                COUNT(CASE WHEN subscription_plan = 'pro' THEN 1 END) as pro_subscribers,
+                COUNT(CASE WHEN subscription_plan = 'free' OR subscription_plan IS NULL THEN 1 END) as free_users
+            FROM users
+        `);
+
+        const statsRow = stats.rows ? stats.rows[0] : stats[0] || {};
+
+        // Get recent subscriptions
+        const recentSubsResult = await db.query(`
+            SELECT u.id, u.name, u.email, u.subscription_status, u.subscription_plan,
+                   u.subscription_ends_at, u.last_payment_at, u.created_at
+            FROM users u
+            WHERE u.subscription_status IS NOT NULL
+              AND u.subscription_status NOT IN ('free', '')
+            ORDER BY COALESCE(u.last_payment_at, u.created_at) DESC
+            LIMIT 10
+        `);
+        const recentSubscriptions = recentSubsResult.rows || recentSubsResult || [];
+
+        // Get subscription history events
+        let recentEvents = [];
+        try {
+            const eventsResult = await db.query(`
+                SELECT sh.*, u.name as user_name, u.email as user_email
+                FROM subscription_history sh
+                JOIN users u ON sh.user_id = u.id
+                ORDER BY sh.created_at DESC
+                LIMIT 20
+            `);
+            recentEvents = eventsResult.rows || eventsResult || [];
+        } catch (e) {
+            // subscription_history table may not exist
+            logger.warn('subscription_history table not found or error', { error: e.message });
+        }
+
+        // Get MRR estimate
+        let monthlyPrice = 89.90;
+        try {
+            const settings = await db.query(`SELECT value FROM platform_settings WHERE key = 'pro_monthly_price_brl'`);
+            const settingsRow = settings.rows ? settings.rows[0] : settings[0];
+            if (settingsRow && settingsRow.value) {
+                monthlyPrice = parseInt(settingsRow.value) / 100;
+            }
+        } catch (e) {
+            logger.warn('Error fetching monthly price setting', { error: e.message });
+        }
+
+        const activeCount = parseInt(statsRow.active_subscriptions) || 0;
+        const mrr = activeCount * monthlyPrice;
+
+        res.json({
+            success: true,
+            stats: {
+                activeSubscriptions: activeCount,
+                trialUsers: parseInt(statsRow.trial_users) || 0,
+                canceledUsers: parseInt(statsRow.canceled) || 0,
+                pastDueUsers: parseInt(statsRow.past_due) || 0,
+                proSubscribers: parseInt(statsRow.pro_subscribers) || 0,
+                freeUsers: parseInt(statsRow.free_users) || 0,
+                mrr: mrr,
+                currency: 'BRL'
+            },
+            recentSubscriptions,
+            recentEvents
+        });
+    } catch (error) {
+        logger.error('Error fetching billing stats', { error: error.message });
+        res.status(500).json({ success: false, error: 'Erro ao carregar estatísticas de faturamento' });
+    }
+});
+
 module.exports = router;
