@@ -1051,11 +1051,218 @@
                 document.getElementById('removePhotoBtn').style.display = '';
             }
 
-            // Load subscription data if function exists (defined in profile.html)
-            if (typeof loadSubscriptionData === 'function') {
-                loadSubscriptionData();
+            // Load subscription data
+            loadSubscriptionData();
+        }
+
+        // ========== SUBSCRIPTION FUNCTIONS ==========
+
+        async function loadSubscriptionData() {
+            try {
+                const res = await fetch('/api/billing/subscription');
+                const data = await res.json();
+
+                if (!data.success) {
+                    console.error('Error loading subscription:', data.error);
+                    setFreeDefaults();
+                    return;
+                }
+
+                const sub = data.subscription || { status: 'free', plan: 'free' };
+                const limits = data.limits || {};
+                const card = document.getElementById('subscriptionCard');
+
+                // Plan name
+                const planNames = { free: 'Gratuito', trial: 'PRO (Trial)', pro: 'PRO' };
+                const planName = planNames[sub.plan] || 'Gratuito';
+                document.getElementById('subPlanName').textContent = planName;
+
+                // Status
+                const statusEl = document.getElementById('subStatus');
+                const statusLabels = {
+                    active: 'Ativo',
+                    trial: 'Periodo de teste',
+                    expired: 'Expirado',
+                    canceled: 'Cancelado',
+                    past_due: 'Pagamento pendente',
+                    free: 'Gratuito'
+                };
+                statusEl.textContent = statusLabels[sub.status] || sub.status || 'Gratuito';
+                statusEl.className = 'subscription-status ' + (sub.status || 'free');
+
+                // Esconder todos os banners primeiro
+                document.getElementById('trialBanner').style.display = 'none';
+                document.getElementById('trialExpiringBanner').style.display = 'none';
+                document.getElementById('trialExpiredBanner').style.display = 'none';
+
+                const daysRemaining = sub.daysRemaining || 0;
+
+                if (sub.status === 'trial' || sub.isTrialing) {
+                    card.className = 'card subscription-card trial-active';
+                    if (daysRemaining <= 3 && daysRemaining > 0) {
+                        card.className = 'card subscription-card trial-expiring';
+                        document.getElementById('trialExpiringBanner').style.display = 'flex';
+                    } else if (daysRemaining > 0) {
+                        document.getElementById('trialBanner').style.display = 'flex';
+                        document.getElementById('trialDaysNumber').textContent = daysRemaining;
+                    }
+                    document.getElementById('subDaysContainer').style.display = 'block';
+                    document.getElementById('subDaysRemaining').textContent = daysRemaining + ' dias';
+                } else if (sub.status === 'expired' || sub.isExpired) {
+                    card.className = 'card subscription-card expired';
+                    document.getElementById('trialExpiredBanner').style.display = 'flex';
+                } else if (sub.status === 'active') {
+                    card.className = 'card subscription-card active';
+                } else if (sub.status === 'free' || !sub.status) {
+                    card.className = 'card subscription-card';
+                }
+
+                if (sub.endsAt) {
+                    const endsAt = new Date(sub.endsAt);
+                    const label = (sub.status === 'trial' || sub.isTrialing) ? 'Fim do trial' : 'Proxima renovacao';
+                    document.getElementById('subRenewalLabel').textContent = label;
+                    document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: 'long', year: 'numeric'
+                    });
+                    document.getElementById('subRenewalContainer').style.display = 'block';
+                } else if (sub.status === 'free' || !sub.status) {
+                    document.getElementById('subRenewalLabel').textContent = 'Assinatura';
+                    document.getElementById('subRenewalDate').textContent = 'Sem assinatura ativa';
+                    document.getElementById('subRenewalContainer').style.display = 'block';
+                } else {
+                    document.getElementById('subRenewalContainer').style.display = 'none';
+                }
+
+                if (limits) {
+                    document.getElementById('planLimits').style.display = 'block';
+                    document.getElementById('limitClients').textContent = limits.maxClients === 999999 ? 'Ilimitados' : limits.maxClients;
+                    document.getElementById('limitBranches').textContent = limits.maxBranches === 999999 ? 'Ilimitadas' : limits.maxBranches;
+                    document.getElementById('limitWhatsapp').textContent = limits.whatsapp ? 'Ativado' : 'Desativado';
+                    document.getElementById('limitWhatsappContainer').style.color = limits.whatsapp ? 'inherit' : 'rgba(255,255,255,0.5)';
+                }
+
+                const btnUpgrade = document.getElementById('btnUpgrade');
+                const btnManagePayment = document.getElementById('btnManagePayment');
+                const btnViewInvoices = document.getElementById('btnViewInvoices');
+                const btnCancelSub = document.getElementById('btnCancelSub');
+
+                if (sub.status === 'active' && sub.plan !== 'free') {
+                    btnUpgrade.innerHTML = '<i class="fas fa-exchange-alt"></i> Alterar plano';
+                    btnManagePayment.style.display = 'inline-flex';
+                    btnViewInvoices.style.display = 'inline-flex';
+                    btnCancelSub.style.display = 'inline-flex';
+                } else if (sub.status === 'trial' || sub.isTrialing) {
+                    btnUpgrade.innerHTML = '<i class="fas fa-bolt"></i> Assinar agora';
+                    btnManagePayment.style.display = 'none';
+                    btnViewInvoices.style.display = 'none';
+                    btnCancelSub.style.display = 'none';
+                } else {
+                    btnUpgrade.innerHTML = '<i class="fas fa-arrow-up"></i> Fazer upgrade';
+                    btnManagePayment.style.display = 'none';
+                    btnViewInvoices.style.display = 'none';
+                    btnCancelSub.style.display = 'none';
+                }
+
+                const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                userData.subscription = sub;
+                userData.stripe_customer_id = sub.stripeCustomerId;
+                localStorage.setItem('user', JSON.stringify(userData));
+
+            } catch (error) {
+                console.error('Error loading subscription data:', error);
+                setFreeDefaults();
             }
         }
+
+        function setFreeDefaults() {
+            document.getElementById('subPlanName').textContent = 'Gratuito';
+            const statusEl = document.getElementById('subStatus');
+            statusEl.textContent = 'Gratuito';
+            statusEl.className = 'subscription-status free';
+            document.getElementById('subRenewalContainer').style.display = 'none';
+            document.getElementById('planLimits').style.display = 'block';
+            document.getElementById('limitClients').textContent = '1';
+            document.getElementById('limitBranches').textContent = '1';
+            document.getElementById('limitWhatsapp').textContent = 'Desativado';
+            document.getElementById('limitWhatsappContainer').style.color = 'rgba(255,255,255,0.5)';
+        }
+
+        window.cancelSubscription = async function() {
+            if (!confirm('Tem certeza que deseja cancelar sua assinatura? Voce continuara tendo acesso ate o fim do periodo pago.')) {
+                return;
+            }
+            try {
+                showLoading('Cancelando assinatura...');
+                const res = await fetch('/api/billing/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ immediate: false, reason: 'user_requested' })
+                });
+                const data = await res.json();
+                hideLoading();
+                if (data.success) {
+                    showToast('Assinatura cancelada. Voce tera acesso ate o fim do periodo.');
+                    loadSubscriptionData();
+                } else {
+                    showToast(data.error || 'Erro ao cancelar', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('Erro ao cancelar assinatura', 'error');
+            }
+        };
+
+        window.openBillingPortal = async function() {
+            try {
+                showLoading('Abrindo portal de pagamento...');
+                const res = await fetch('/api/billing/portal');
+                const data = await res.json();
+                hideLoading();
+                if (data.url) {
+                    window.open(data.url, '_blank');
+                } else {
+                    showToast(data.error || 'Erro ao abrir portal', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('Erro ao abrir portal de pagamento', 'error');
+            }
+        };
+
+        window.viewInvoices = async function() {
+            const card = document.getElementById('invoicesCard');
+            const list = document.getElementById('invoiceList');
+            card.style.display = 'block';
+            list.innerHTML = '<p class="text-muted">Carregando faturas...</p>';
+
+            try {
+                const res = await fetch('/api/billing/invoices');
+                const data = await res.json();
+
+                if (data.invoices && data.invoices.length > 0) {
+                    list.innerHTML = data.invoices.map(inv => `
+                        <div class="invoice-item">
+                            <div>
+                                <div class="invoice-date">${new Date(inv.created).toLocaleDateString('pt-BR')}</div>
+                                <small class="text-muted">${inv.number || '-'}</small>
+                            </div>
+                            <div class="invoice-amount">R$ ${inv.amount.toFixed(2)}</div>
+                            <span class="invoice-status ${inv.paid ? 'paid' : 'open'}">${inv.paid ? 'Pago' : 'Pendente'}</span>
+                            ${inv.invoice_pdf ? `<a href="${inv.invoice_pdf}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-download"></i></a>` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<p class="text-muted">Nenhuma fatura encontrada.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                list.innerHTML = '<p class="text-muted">Erro ao carregar faturas.</p>';
+            }
+        };
+
+        window.hideInvoices = function() {
+            document.getElementById('invoicesCard').style.display = 'none';
+        };
 
         // ========== FUNÇÕES AUXILIARES GLOBAIS ==========
 

@@ -259,9 +259,9 @@
                 <div class="trial-banner-title">Seu trial esta acabando!</div>
                 <div class="trial-banner-text">Assine agora para continuar usando todos os recursos.</div>
             </div>
-            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()">
+            <a href="/pricing" class="btn btn-sm btn-upgrade">
                 <i class="fas fa-bolt"></i> Assinar agora
-            </button>
+            </a>
         </div>
 
         <!-- Banner de Trial Expirado -->
@@ -271,9 +271,9 @@
                 <div class="trial-banner-title">Seu periodo de teste terminou</div>
                 <div class="trial-banner-text">Assine para continuar usando os recursos premium.</div>
             </div>
-            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()">
+            <a href="/pricing" class="btn btn-sm btn-upgrade">
                 <i class="fas fa-unlock"></i> Desbloquear acesso
-            </button>
+            </a>
         </div>
 
         <div class="subscription-info">
@@ -331,9 +331,9 @@
             <button class="btn btn-sm" onclick="viewInvoices()" id="btnViewInvoices" style="display:none">
                 <i class="fas fa-file-invoice"></i> Ver faturas
             </button>
-            <button class="btn btn-sm btn-upgrade" onclick="subscribePro()" id="btnUpgrade">
+            <a href="/pricing" class="btn btn-sm btn-upgrade" id="btnUpgrade">
                 <i class="fas fa-arrow-up"></i> Fazer upgrade
-            </button>
+            </a>
             <button class="btn btn-sm" onclick="cancelSubscription()" id="btnCancelSub" style="display:none">
                 <i class="fas fa-times"></i> Cancelar assinatura
             </button>
@@ -354,272 +354,4 @@
     </div>
 </div>
 
-<script>
-// Load subscription data from API
-async function loadSubscriptionData() {
-    try {
-        // Buscar dados atualizados do servidor
-        const res = await fetch('/api/billing/subscription');
-        const data = await res.json();
-
-        if (!data.success) {
-            console.error('Error loading subscription:', data.error);
-            // Set default free values on error
-            setFreeDefaults();
-            return;
-        }
-
-        const sub = data.subscription || { status: 'free', plan: 'free' };
-        const limits = data.limits || {};
-        const card = document.getElementById('subscriptionCard');
-
-        // Plan name
-        const planNames = { free: 'Gratuito', trial: 'PRO (Trial)', pro: 'PRO' };
-        const planName = planNames[sub.plan] || 'Gratuito';
-        document.getElementById('subPlanName').textContent = planName;
-
-        // Status
-        const statusEl = document.getElementById('subStatus');
-        const statusLabels = {
-            active: 'Ativo',
-            trial: 'Periodo de teste',
-            expired: 'Expirado',
-            canceled: 'Cancelado',
-            past_due: 'Pagamento pendente',
-            free: 'Gratuito'
-        };
-        statusEl.textContent = statusLabels[sub.status] || sub.status || 'Gratuito';
-        statusEl.className = 'subscription-status ' + (sub.status || 'free');
-
-        // Esconder todos os banners primeiro
-        document.getElementById('trialBanner').style.display = 'none';
-        document.getElementById('trialExpiringBanner').style.display = 'none';
-        document.getElementById('trialExpiredBanner').style.display = 'none';
-
-        // Calcular dias restantes
-        const daysRemaining = sub.daysRemaining || 0;
-
-        // Mostrar banner apropriado baseado no status
-        if (sub.status === 'trial' || sub.isTrialing) {
-            card.className = 'card subscription-card trial-active';
-
-            if (daysRemaining <= 3 && daysRemaining > 0) {
-                // Trial expirando (3 dias ou menos)
-                card.className = 'card subscription-card trial-expiring';
-                document.getElementById('trialExpiringBanner').style.display = 'flex';
-            } else if (daysRemaining > 0) {
-                // Trial ativo normal
-                document.getElementById('trialBanner').style.display = 'flex';
-                document.getElementById('trialDaysNumber').textContent = daysRemaining;
-            }
-
-            // Mostrar dias restantes
-            document.getElementById('subDaysContainer').style.display = 'block';
-            document.getElementById('subDaysRemaining').textContent = daysRemaining + ' dias';
-        } else if (sub.status === 'expired' || sub.isExpired) {
-            // Trial expirado
-            card.className = 'card subscription-card expired';
-            document.getElementById('trialExpiredBanner').style.display = 'flex';
-        } else if (sub.status === 'active') {
-            // Assinatura ativa
-            card.className = 'card subscription-card active';
-        } else if (sub.status === 'free' || !sub.status) {
-            // Usuario free
-            card.className = 'card subscription-card';
-        }
-
-        // Data de fim/renovacao
-        if (sub.endsAt) {
-            const endsAt = new Date(sub.endsAt);
-            const label = (sub.status === 'trial' || sub.isTrialing) ? 'Fim do trial' : 'Proxima renovacao';
-            document.getElementById('subRenewalLabel').textContent = label;
-            document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
-                day: '2-digit', month: 'long', year: 'numeric'
-            });
-            document.getElementById('subRenewalContainer').style.display = 'block';
-        } else if (sub.status === 'free' || !sub.status) {
-            // Free user - show "Sem assinatura"
-            document.getElementById('subRenewalLabel').textContent = 'Assinatura';
-            document.getElementById('subRenewalDate').textContent = 'Sem assinatura ativa';
-            document.getElementById('subRenewalContainer').style.display = 'block';
-        } else {
-            document.getElementById('subRenewalContainer').style.display = 'none';
-        }
-
-        // Mostrar limites do plano
-        if (limits) {
-            document.getElementById('planLimits').style.display = 'block';
-            document.getElementById('limitClients').textContent = limits.maxClients === 999999 ? 'Ilimitados' : limits.maxClients;
-            document.getElementById('limitBranches').textContent = limits.maxBranches === 999999 ? 'Ilimitadas' : limits.maxBranches;
-            document.getElementById('limitWhatsapp').textContent = limits.whatsapp ? 'Ativado' : 'Desativado';
-            document.getElementById('limitWhatsappContainer').style.color = limits.whatsapp ? 'inherit' : 'rgba(255,255,255,0.5)';
-        }
-
-        // Botoes baseados no status
-        const btnUpgrade = document.getElementById('btnUpgrade');
-        const btnManagePayment = document.getElementById('btnManagePayment');
-        const btnViewInvoices = document.getElementById('btnViewInvoices');
-        const btnCancelSub = document.getElementById('btnCancelSub');
-
-        if (sub.status === 'active' && sub.plan !== 'free') {
-            // Usuario com assinatura ativa paga
-            btnUpgrade.innerHTML = '<i class="fas fa-exchange-alt"></i> Alterar plano';
-            btnManagePayment.style.display = 'inline-flex';
-            btnViewInvoices.style.display = 'inline-flex';
-            btnCancelSub.style.display = 'inline-flex';
-        } else if (sub.status === 'trial' || sub.isTrialing) {
-            // Usuario em trial
-            btnUpgrade.innerHTML = '<i class="fas fa-bolt"></i> Assinar agora';
-            btnManagePayment.style.display = 'none';
-            btnViewInvoices.style.display = 'none';
-            btnCancelSub.style.display = 'none';
-        } else {
-            // Usuario free ou expirado
-            btnUpgrade.innerHTML = '<i class="fas fa-arrow-up"></i> Fazer upgrade';
-            btnManagePayment.style.display = 'none';
-            btnViewInvoices.style.display = 'none';
-            btnCancelSub.style.display = 'none';
-        }
-
-        // Salvar dados no localStorage para uso em outras paginas
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        userData.subscription = sub;
-        userData.stripe_customer_id = sub.stripeCustomerId;
-        localStorage.setItem('user', JSON.stringify(userData));
-
-    } catch (error) {
-        console.error('Error loading subscription data:', error);
-        setFreeDefaults();
-    }
-}
-
-// Set default values for free plan
-function setFreeDefaults() {
-    document.getElementById('subPlanName').textContent = 'Gratuito';
-    const statusEl = document.getElementById('subStatus');
-    statusEl.textContent = 'Gratuito';
-    statusEl.className = 'subscription-status free';
-    document.getElementById('subRenewalContainer').style.display = 'none';
-    document.getElementById('planLimits').style.display = 'block';
-    document.getElementById('limitClients').textContent = '1';
-    document.getElementById('limitBranches').textContent = '1';
-    document.getElementById('limitWhatsapp').textContent = 'Desativado';
-    document.getElementById('limitWhatsappContainer').style.color = 'rgba(255,255,255,0.5)';
-}
-
-// Assinar plano PRO
-async function subscribePro() {
-    try {
-        showLoading('Redirecionando para pagamento...');
-        const res = await fetch('/api/billing/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan: 'pro', billing_cycle: 'monthly' })
-        });
-        const data = await res.json();
-        hideLoading();
-
-        if (data.url) {
-            window.location.href = data.url;
-        } else if (res.status === 401) {
-            window.location.href = '/login';
-        } else {
-            showToast(data.error || 'Erro ao processar. Tente novamente.', 'error');
-        }
-    } catch (error) {
-        hideLoading();
-        console.error('Subscribe error:', error);
-        showToast('Erro ao conectar. Verifique sua conexao.', 'error');
-    }
-}
-
-// Cancelar assinatura
-async function cancelSubscription() {
-    if (!confirm('Tem certeza que deseja cancelar sua assinatura? Voce continuara tendo acesso ate o fim do periodo pago.')) {
-        return;
-    }
-
-    try {
-        showLoading('Cancelando assinatura...');
-        const res = await fetch('/api/billing/cancel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ immediate: false, reason: 'user_requested' })
-        });
-        const data = await res.json();
-        hideLoading();
-
-        if (data.success) {
-            showToast('Assinatura cancelada. Voce tera acesso ate o fim do periodo.');
-            loadSubscriptionData();
-        } else {
-            showToast(data.error || 'Erro ao cancelar', 'error');
-        }
-    } catch (error) {
-        hideLoading();
-        showToast('Erro ao cancelar assinatura', 'error');
-    }
-}
-
-async function openBillingPortal() {
-    try {
-        showLoading('Abrindo portal de pagamento...');
-        const res = await fetch('/api/billing/portal');
-        const data = await res.json();
-        hideLoading();
-        if (data.url) {
-            window.open(data.url, '_blank');
-        } else {
-            showToast(data.error || 'Erro ao abrir portal', 'error');
-        }
-    } catch (error) {
-        hideLoading();
-        showToast('Erro ao abrir portal de pagamento', 'error');
-    }
-}
-
-async function viewInvoices() {
-    const card = document.getElementById('invoicesCard');
-    const list = document.getElementById('invoiceList');
-    card.style.display = 'block';
-    list.innerHTML = '<p class="text-muted">Carregando faturas...</p>';
-
-    try {
-        const res = await fetch('/api/billing/invoices');
-        const data = await res.json();
-
-        if (data.invoices && data.invoices.length > 0) {
-            list.innerHTML = data.invoices.map(inv => `
-                <div class="invoice-item">
-                    <div>
-                        <div class="invoice-date">${new Date(inv.created).toLocaleDateString('pt-BR')}</div>
-                        <small class="text-muted">${inv.number || '-'}</small>
-                    </div>
-                    <div class="invoice-amount">R$ ${inv.amount.toFixed(2)}</div>
-                    <span class="invoice-status ${inv.paid ? 'paid' : 'open'}">${inv.paid ? 'Pago' : 'Pendente'}</span>
-                    ${inv.invoice_pdf ? `<a href="${inv.invoice_pdf}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-download"></i></a>` : ''}
-                </div>
-            `).join('');
-        } else {
-            list.innerHTML = '<p class="text-muted">Nenhuma fatura encontrada.</p>';
-        }
-    } catch (error) {
-        list.innerHTML = '<p class="text-muted">Erro ao carregar faturas.</p>';
-    }
-}
-
-function hideInvoices() {
-    document.getElementById('invoicesCard').style.display = 'none';
-}
-
-// Call on page load
-document.addEventListener('DOMContentLoaded', loadSubscriptionData);
-// Also call when profile data loads (in case it's called later)
-if (typeof loadProfileData === 'function') {
-    const originalLoadProfileData = loadProfileData;
-    loadProfileData = function() {
-        originalLoadProfileData();
-        loadSubscriptionData();
-    };
-}
-</script>
+<!-- Script functions moved to app.html -->
