@@ -143,7 +143,8 @@ function requireFeature(featureName) {
 
         const limits = await db.getPlanLimits(req.subscription.plan);
 
-        if (!limits.features[featureName]) {
+        // Check feature directly on limits object (not limits.features)
+        if (!limits[featureName]) {
             return res.status(403).json({
                 error: true,
                 code: 'FEATURE_NOT_AVAILABLE',
