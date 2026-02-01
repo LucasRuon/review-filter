@@ -136,11 +136,11 @@ function showTrialBanner() {
     // Resetar classes
     banner.classList.remove('expired', 'warning');
 
-    if (sub.status === 'trial' && sub.days_remaining !== undefined) {
+    if (sub.status === 'trial' && sub.daysRemaining !== undefined) {
         banner.style.display = 'flex';
         daysCounter.style.display = 'flex';
 
-        const days = Math.max(0, Math.floor(sub.days_remaining));
+        const days = Math.max(0, Math.floor(sub.daysRemaining));
         daysNumber.textContent = days;
 
         if (days <= 1) {
