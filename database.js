@@ -1965,7 +1965,7 @@ async function markTrialReminderSent(userId, reminderLevel) {
  * Obtem limites do plano com defaults robustos
  */
 async function getPlanLimits(plan) {
-    // Defaults por plano
+    // Defaults por plano (FREE, TRIAL, PRO)
     const planDefaults = {
         free: {
             maxClients: 1,
@@ -1997,17 +1997,6 @@ async function getPlanLimits(plan) {
             whatsapp: true,
             webhook: true,
             customDomain: false,
-            export: true,
-            reports: true
-        },
-        enterprise: {
-            maxClients: 999999,
-            maxBranches: 999999,
-            maxTopics: 999999,
-            maxComplaints: 999999,
-            whatsapp: true,
-            webhook: true,
-            customDomain: true,
             export: true,
             reports: true
         }

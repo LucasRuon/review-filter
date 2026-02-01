@@ -68,10 +68,7 @@ function requireSubscription(level = 'any') {
                 hasAccess = sub.status === 'active';
                 break;
             case 'pro':
-                hasAccess = sub.isActive && ['pro', 'enterprise'].includes(sub.plan);
-                break;
-            case 'enterprise':
-                hasAccess = sub.isActive && sub.plan === 'enterprise';
+                hasAccess = sub.isActive && sub.plan === 'pro';
                 break;
             default:
                 hasAccess = sub.isActive;

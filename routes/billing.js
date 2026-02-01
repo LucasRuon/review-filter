@@ -294,8 +294,8 @@ router.get('/plans', async (req, res) => {
             {
                 id: 'pro',
                 name: 'PRO',
-                price_monthly: parseInt(settings.pro_monthly_price_brl) / 100,
-                price_yearly: parseInt(settings.pro_yearly_price_brl) / 100,
+                price_monthly: parseInt(settings.pro_monthly_price_brl || '8990') / 100,
+                price_yearly: parseInt(settings.pro_yearly_price_brl || '86304') / 100,
                 price_id_monthly: settings.stripe_price_id_pro_monthly,
                 price_id_yearly: settings.stripe_price_id_pro_yearly,
                 features: [
@@ -304,22 +304,7 @@ router.get('/plans', async (req, res) => {
                     'Integracao WhatsApp',
                     'Webhooks',
                     'Relatorios avancados',
-                    'Exportacao de dados'
-                ]
-            },
-            {
-                id: 'enterprise',
-                name: 'Enterprise',
-                price_monthly: parseInt(settings.enterprise_monthly_price_brl) / 100,
-                price_yearly: parseInt(settings.enterprise_yearly_price_brl) / 100,
-                price_id_monthly: settings.stripe_price_id_enterprise_monthly,
-                price_id_yearly: settings.stripe_price_id_enterprise_yearly,
-                features: [
-                    'Clientes ilimitados',
-                    'Filiais ilimitadas',
-                    'Tudo do PRO',
-                    'Dominio personalizado',
-                    'API access',
+                    'Exportacao de dados',
                     'Suporte prioritario'
                 ]
             }

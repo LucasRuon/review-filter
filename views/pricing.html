@@ -49,7 +49,7 @@
         .discount-badge { background: var(--primary); color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
 
         /* Plans Grid */
-        .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 4rem; }
+        .plans-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; margin-bottom: 4rem; max-width: 800px; margin-left: auto; margin-right: auto; }
 
         /* Plan Card */
         .plan-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 2rem; position: relative; transition: all 0.3s; }
@@ -94,7 +94,7 @@
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 { font-size: 2rem; }
-            .plans-grid { grid-template-columns: 1fr; }
+            .plans-grid { grid-template-columns: 1fr; max-width: 100%; }
             .faq-grid { grid-template-columns: 1fr; }
             .header-nav { display: none; }
         }
@@ -161,7 +161,7 @@
                 <div class="plan-description">Para negocios em crescimento</div>
                 <div class="plan-price" id="proPricing">
                     <span class="currency">R$</span>
-                    <span class="amount" id="proPrice">97</span>
+                    <span class="amount" id="proPrice">89,90</span>
                     <span class="period">/mes</span>
                     <span class="original" id="proOriginal" style="display:none"></span>
                 </div>
@@ -177,29 +177,6 @@
                     <li><i class="fas fa-check"></i> Suporte prioritario</li>
                 </ul>
                 <button class="plan-btn primary" onclick="subscribePro()">Assinar PRO</button>
-            </div>
-
-            <!-- Enterprise -->
-            <div class="plan-card">
-                <div class="plan-name">Enterprise</div>
-                <div class="plan-description">Para grandes operacoes</div>
-                <div class="plan-price" id="enterprisePricing">
-                    <span class="currency">R$</span>
-                    <span class="amount" id="enterprisePrice">297</span>
-                    <span class="period">/mes</span>
-                    <span class="original" id="enterpriseOriginal" style="display:none"></span>
-                </div>
-                <ul class="plan-features">
-                    <li><i class="fas fa-check"></i> <strong>Clientes ilimitados</strong></li>
-                    <li><i class="fas fa-check"></i> <strong>Filiais ilimitadas</strong></li>
-                    <li><i class="fas fa-check"></i> Tudo do plano PRO</li>
-                    <li><i class="fas fa-check"></i> <strong>Dominio personalizado</strong></li>
-                    <li><i class="fas fa-check"></i> <strong>API access</strong></li>
-                    <li><i class="fas fa-check"></i> <strong>Suporte dedicado</strong></li>
-                    <li><i class="fas fa-check"></i> Onboarding personalizado</li>
-                    <li><i class="fas fa-check"></i> SLA garantido</li>
-                </ul>
-                <button class="plan-btn secondary" onclick="subscribeEnterprise()">Assinar Enterprise</button>
             </div>
         </div>
 
@@ -235,10 +212,9 @@
     <script>
         let isYearly = false;
 
-        // Precos (em centavos convertidos para reais)
+        // Precos PRO (R$ 89,90 mensal, ~R$ 71,92/mes no anual)
         const prices = {
-            pro: { monthly: 97, yearly: 77.60 }, // 20% off
-            enterprise: { monthly: 297, yearly: 237.60 }
+            pro: { monthly: 89.90, yearly: 71.92 }
         };
 
         function toggleBilling() {
@@ -251,29 +227,19 @@
 
         function updatePrices() {
             const proPrice = isYearly ? prices.pro.yearly : prices.pro.monthly;
-            const enterprisePrice = isYearly ? prices.enterprise.yearly : prices.enterprise.monthly;
-
-            document.getElementById('proPrice').textContent = proPrice.toFixed(0);
-            document.getElementById('enterprisePrice').textContent = enterprisePrice.toFixed(0);
+            document.getElementById('proPrice').textContent = proPrice.toFixed(2).replace('.', ',');
 
             // Show original price for yearly
             if (isYearly) {
-                document.getElementById('proOriginal').textContent = `R$ ${prices.pro.monthly}`;
+                document.getElementById('proOriginal').textContent = `R$ ${prices.pro.monthly.toFixed(2).replace('.', ',')}`;
                 document.getElementById('proOriginal').style.display = 'inline';
-                document.getElementById('enterpriseOriginal').textContent = `R$ ${prices.enterprise.monthly}`;
-                document.getElementById('enterpriseOriginal').style.display = 'inline';
             } else {
                 document.getElementById('proOriginal').style.display = 'none';
-                document.getElementById('enterpriseOriginal').style.display = 'none';
             }
         }
 
         async function subscribePro() {
             await subscribe('pro');
-        }
-
-        async function subscribeEnterprise() {
-            await subscribe('enterprise');
         }
 
         async function subscribe(plan) {
@@ -309,15 +275,10 @@
                 const data = await res.json();
                 if (data.plans) {
                     const proPlan = data.plans.find(p => p.id === 'pro');
-                    const enterprisePlan = data.plans.find(p => p.id === 'enterprise');
 
                     if (proPlan) {
                         prices.pro.monthly = proPlan.price_monthly;
                         prices.pro.yearly = proPlan.price_yearly / 12;
-                    }
-                    if (enterprisePlan) {
-                        prices.enterprise.monthly = enterprisePlan.price_monthly;
-                        prices.enterprise.yearly = enterprisePlan.price_yearly / 12;
                     }
                     updatePrices();
                 }

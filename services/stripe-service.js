@@ -546,10 +546,6 @@ class StripeService {
             priceId === settings.stripe_price_id_pro_yearly) {
             return 'pro';
         }
-        if (priceId === settings.stripe_price_id_enterprise_monthly ||
-            priceId === settings.stripe_price_id_enterprise_yearly) {
-            return 'enterprise';
-        }
         return 'free';
     }
 
