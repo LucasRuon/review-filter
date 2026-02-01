@@ -364,15 +364,17 @@ async function loadSubscriptionData() {
 
         if (!data.success) {
             console.error('Error loading subscription:', data.error);
+            // Set default free values on error
+            setFreeDefaults();
             return;
         }
 
-        const sub = data.subscription || {};
+        const sub = data.subscription || { status: 'free', plan: 'free' };
         const limits = data.limits || {};
         const card = document.getElementById('subscriptionCard');
 
         // Plan name
-        const planNames = { free: 'Gratuito', pro: 'PRO', enterprise: 'Enterprise' };
+        const planNames = { free: 'Gratuito', trial: 'PRO (Trial)', pro: 'PRO' };
         const planName = planNames[sub.plan] || 'Gratuito';
         document.getElementById('subPlanName').textContent = planName;
 
@@ -421,6 +423,9 @@ async function loadSubscriptionData() {
         } else if (sub.status === 'active') {
             // Assinatura ativa
             card.className = 'card subscription-card active';
+        } else if (sub.status === 'free' || !sub.status) {
+            // Usuario free
+            card.className = 'card subscription-card';
         }
 
         // Data de fim/renovacao
@@ -431,6 +436,11 @@ async function loadSubscriptionData() {
             document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
                 day: '2-digit', month: 'long', year: 'numeric'
             });
+            document.getElementById('subRenewalContainer').style.display = 'block';
+        } else if (sub.status === 'free' || !sub.status) {
+            // Free user - show "Sem assinatura"
+            document.getElementById('subRenewalLabel').textContent = 'Assinatura';
+            document.getElementById('subRenewalDate').textContent = 'Sem assinatura ativa';
             document.getElementById('subRenewalContainer').style.display = 'block';
         } else {
             document.getElementById('subRenewalContainer').style.display = 'none';
@@ -479,8 +489,22 @@ async function loadSubscriptionData() {
 
     } catch (error) {
         console.error('Error loading subscription data:', error);
-        showToast('Erro ao carregar dados da assinatura', 'error');
+        setFreeDefaults();
     }
+}
+
+// Set default values for free plan
+function setFreeDefaults() {
+    document.getElementById('subPlanName').textContent = 'Gratuito';
+    const statusEl = document.getElementById('subStatus');
+    statusEl.textContent = 'Gratuito';
+    statusEl.className = 'subscription-status free';
+    document.getElementById('subRenewalContainer').style.display = 'none';
+    document.getElementById('planLimits').style.display = 'block';
+    document.getElementById('limitClients').textContent = '1';
+    document.getElementById('limitBranches').textContent = '1';
+    document.getElementById('limitWhatsapp').textContent = 'Desativado';
+    document.getElementById('limitWhatsappContainer').style.color = 'rgba(255,255,255,0.5)';
 }
 
 // Assinar plano PRO
