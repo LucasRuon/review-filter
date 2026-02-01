@@ -614,6 +614,13 @@
             window.loadWhatsAppInstances();
             // Carregar webhook
             loadWebhookConfig();
+
+            // Check for checkout success (WhatsApp addon)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('checkout') === 'success') {
+                showToast('WhatsApp adquirido com sucesso!', 'success');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         }
 
         // Funcao legada mantida para compatibilidade (nao usada mais)
@@ -1053,6 +1060,14 @@
 
             // Load subscription data
             loadSubscriptionData();
+
+            // Check for checkout success
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('checkout') === 'success') {
+                showToast('Assinatura realizada com sucesso! Bem-vindo ao PRO!', 'success');
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         }
 
         // ========== SUBSCRIPTION FUNCTIONS ==========

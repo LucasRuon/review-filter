@@ -28,8 +28,8 @@ router.post('/create-checkout', authMiddleware, async (req, res) => {
         const session = await stripeService.createCheckoutSession(
             req.userId,
             clientId || null,
-            `${baseUrl}/app#integrations?checkout=success`,
-            `${baseUrl}/app#integrations?checkout=cancelled`
+            `${baseUrl}/integrations?checkout=success`,
+            `${baseUrl}/integrations?checkout=cancelled`
         );
 
         res.json({
@@ -184,7 +184,7 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
         const session = await stripeService.createPlanCheckoutSession(
             req.userId,
             priceId,
-            `${baseUrl}/app#settings?checkout=success`,
+            `${baseUrl}/profile?checkout=success`,
             `${baseUrl}/pricing?checkout=cancelled`
         );
 
