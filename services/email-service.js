@@ -189,7 +189,7 @@ async function sendEmail(to, subject, html, text = null) {
 
 // Template base
 function getBaseTemplate(content, title = 'Opina Já!') {
-    const logoUrl = 'https://app.opinaja.com.br/images/logo-dark.png';
+    const logoUrl = 'https://app.opinaja.com.br/images/logo-light.png';
     return `
 <!DOCTYPE html>
 <html>
@@ -415,23 +415,31 @@ async function testEmailConfig() {
  */
 async function sendTrialStartedEmail(email, name, trialDays) {
     const subject = `Bem-vindo ao Opina Ja! Seu trial de ${trialDays} dias comecou`;
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #667eea;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">Seu periodo de teste de <strong>${trialDays} dias</strong> no Opina Ja comecou.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Durante esse periodo, voce tera acesso completo a todas as funcionalidades PRO:</p>
-            <ul style="font-size: 16px; line-height: 1.8;">
-                <li>Ate 10 clientes</li>
-                <li>Integracao com WhatsApp</li>
-                <li>Webhooks personalizados</li>
-                <li>Relatorios avancados</li>
-                <li>Exportacao de dados</li>
-            </ul>
-            <p style="font-size: 16px; line-height: 1.5;">Aproveite ao maximo!</p>
-            <a href="${process.env.BASE_URL}/app" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Acessar Dashboard</a>
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <p style="margin: 0 0 15px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Seu periodo de teste de <strong>${trialDays} dias</strong> no Opina Ja comecou!
+        </p>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Durante esse periodo, voce tera acesso completo a todas as funcionalidades PRO:
+        </p>
+        <ul style="margin: 0 0 25px; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+            <li>Ate 10 clientes</li>
+            <li>Integracao com WhatsApp</li>
+            <li>Webhooks personalizados</li>
+            <li>Relatorios avancados</li>
+            <li>Exportacao de dados</li>
+        </ul>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Aproveite ao maximo!
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/app" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Acessar Dashboard
+            </a>
         </div>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Trial Iniciado - Opina Ja!'));
 }
 
 /**
@@ -442,20 +450,30 @@ async function sendTrialReminder(email, name, daysRemaining) {
         ? 'Ultimo dia do seu trial no Opina Ja!'
         : `Seu trial expira em ${daysRemaining} dias`;
 
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #f5576c;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">
-                ${daysRemaining === 1
-                    ? 'Hoje e o <strong>ultimo dia</strong> do seu periodo de teste!'
-                    : `Restam apenas <strong>${daysRemaining} dias</strong> do seu periodo de teste.`
-                }
+    const urgencyMessage = daysRemaining === 1
+        ? 'Hoje e o <strong>ultimo dia</strong> do seu periodo de teste!'
+        : `Restam apenas <strong>${daysRemaining} dias</strong> do seu periodo de teste.`;
+
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #92400e; font-size: 16px;">
+                ${urgencyMessage}
             </p>
-            <p style="font-size: 16px; line-height: 1.5;">Para continuar usando todas as funcionalidades, faca upgrade para um plano pago.</p>
-            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #f5576c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Ver Planos</a>
         </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Para continuar usando todas as funcionalidades, faca upgrade para um plano pago.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/pricing" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Ver Planos
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Nao perca acesso as funcionalidades PRO que voce esta usando!
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Trial Expirando - Opina Ja!'));
 }
 
 /**
@@ -463,21 +481,34 @@ async function sendTrialReminder(email, name, daysRemaining) {
  */
 async function sendTrialExpiredEmail(email, name) {
     const subject = 'Seu periodo de teste terminou';
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #333;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">Seu periodo de teste no Opina Ja terminou.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Algumas funcionalidades foram bloqueadas, mas voce ainda pode:</p>
-            <ul style="font-size: 16px; line-height: 1.8;">
-                <li>Visualizar seus dados</li>
-                <li>Acessar configuracoes</li>
-                <li>Fazer upgrade a qualquer momento</li>
-            </ul>
-            <p style="font-size: 16px; line-height: 1.5;">Para desbloquear todas as funcionalidades, escolha um plano:</p>
-            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Fazer Upgrade</a>
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #991b1b; font-size: 16px;">
+                Seu periodo de teste no Opina Ja terminou.
+            </p>
         </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Algumas funcionalidades foram bloqueadas, mas voce ainda pode:
+        </p>
+        <ul style="margin: 0 0 25px; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+            <li>Visualizar seus dados</li>
+            <li>Acessar configuracoes</li>
+            <li>Fazer upgrade a qualquer momento</li>
+        </ul>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Para desbloquear todas as funcionalidades, escolha um plano:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/pricing" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Fazer Upgrade
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Seus dados estao seguros e serao mantidos. Faca upgrade quando quiser!
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Trial Expirado - Opina Ja!'));
 }
 
 /**
@@ -530,6 +561,53 @@ async function sendSubscriptionCanceledEmail(email, name, endsAt) {
     return sendEmail(email, subject, html);
 }
 
+/**
+ * Envia notificacao de que os servicos foram desativados
+ * @param {string} email
+ * @param {string} name
+ * @param {string} reason - 'trial_expired', 'subscription_canceled', 'payment_failed'
+ */
+async function sendServicesDeactivatedEmail(email, name, reason) {
+    const reasonMessages = {
+        'trial_expired': 'seu periodo de teste expirou',
+        'subscription_canceled': 'sua assinatura foi cancelada',
+        'payment_failed': 'houve um problema com seu pagamento'
+    };
+
+    const reasonMessage = reasonMessages[reason] || 'sua assinatura nao esta ativa';
+
+    const subject = 'Seus servicos de avaliacao foram pausados - Opina Ja';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #ef4444; margin-bottom: 20px;">Ola ${name}!</h1>
+            <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+                Seus servicos de avaliacao no Opina Ja foram pausados porque ${reasonMessage}.
+            </p>
+            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-top: 20px;">
+                <strong>O que foi desativado:</strong>
+            </p>
+            <ul style="font-size: 16px; line-height: 1.8; color: #374151;">
+                <li>Suas paginas de avaliacao estao temporariamente indisponiveis</li>
+                <li>Suas instancias de WhatsApp foram desconectadas</li>
+                <li>Novas reclamacoes nao serao recebidas</li>
+            </ul>
+            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="font-size: 16px; line-height: 1.6; color: #166534; margin: 0;">
+                    <strong>Seus dados estao seguros!</strong> Nada foi deletado.
+                    Ao reativar sua assinatura, tudo voltara a funcionar normalmente.
+                </p>
+            </div>
+            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600;">
+                Reativar Agora
+            </a>
+            <p style="font-size: 14px; color: #6B7280; margin-top: 30px;">
+                Se tiver alguma duvida, entre em contato conosco.
+            </p>
+        </div>
+    `;
+    return sendEmail(email, subject, html);
+}
+
 module.exports = {
     initTransporter,
     reloadConfig,
@@ -545,5 +623,6 @@ module.exports = {
     sendTrialExpiredEmail,
     sendSubscriptionActivatedEmail,
     sendPaymentFailedEmail,
-    sendSubscriptionCanceledEmail
+    sendSubscriptionCanceledEmail,
+    sendServicesDeactivatedEmail
 };
