@@ -189,7 +189,7 @@ async function sendEmail(to, subject, html, text = null) {
 
 // Template base
 function getBaseTemplate(content, title = 'Opina Já!') {
-    const logoUrl = 'https://app.opinaja.com.br/images/logo-light.png';
+    const logoUrl = 'https://opinaja.com.br/images/logo-light.png';
     return `
 <!DOCTYPE html>
 <html>
@@ -516,31 +516,62 @@ async function sendTrialExpiredEmail(email, name) {
  */
 async function sendSubscriptionActivatedEmail(email, name, plan) {
     const subject = 'Sua assinatura esta ativa!';
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #667eea;">Obrigado, ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">Sua assinatura do plano <strong>${plan.toUpperCase()}</strong> foi ativada com sucesso.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Agora voce tem acesso completo a todas as funcionalidades do seu plano.</p>
-            <a href="${process.env.BASE_URL}/app" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Acessar Dashboard</a>
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Obrigado, ${name}! 🎉</h2>
+        <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #166534; font-size: 16px;">
+                Sua assinatura do plano <strong>${plan.toUpperCase()}</strong> foi ativada com sucesso!
+            </p>
         </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Agora voce tem acesso completo a todas as funcionalidades do seu plano:
+        </p>
+        <ul style="margin: 0 0 25px; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+            <li>Gerenciamento de clientes</li>
+            <li>Paginas de avaliacao personalizadas</li>
+            <li>Integracao com WhatsApp</li>
+            <li>Relatorios e exportacao de dados</li>
+        </ul>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/app" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Acessar Dashboard
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Obrigado por confiar no Opina Ja!
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Assinatura Ativada - Opina Ja!'));
 }
 
 /**
  * Envia email de falha no pagamento
  */
 async function sendPaymentFailedEmail(email, name) {
-    const subject = 'Problema com seu pagamento';
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #f5576c;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">Houve um problema ao processar seu pagamento.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Por favor, atualize suas informacoes de pagamento para evitar a interrupcao do servico.</p>
-            <a href="${process.env.BASE_URL}/billing" style="display: inline-block; background: #f5576c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Atualizar Pagamento</a>
+    const subject = 'Problema com seu pagamento - Opina Ja!';
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #991b1b; font-size: 16px;">
+                <strong>⚠️ Atenção:</strong> Houve um problema ao processar seu pagamento.
+            </p>
         </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Para evitar a interrupcao do seu servico, por favor atualize suas informacoes de pagamento.
+        </p>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Se o problema persistir, entre em contato com seu banco ou tente outro metodo de pagamento.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/billing" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Atualizar Pagamento
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Precisa de ajuda? Responda este email e teremos prazer em ajudar.
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Problema no Pagamento - Opina Ja!'));
 }
 
 /**
@@ -548,17 +579,35 @@ async function sendPaymentFailedEmail(email, name) {
  */
 async function sendSubscriptionCanceledEmail(email, name, endsAt) {
     const formattedDate = new Date(endsAt).toLocaleDateString('pt-BR');
-    const subject = 'Sua assinatura foi cancelada';
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #333;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.5;">Sua assinatura no Opina Ja foi cancelada.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Voce ainda tera acesso ate <strong>${formattedDate}</strong>.</p>
-            <p style="font-size: 16px; line-height: 1.5;">Mudou de ideia? Voce pode reativar sua assinatura a qualquer momento.</p>
-            <a href="${process.env.BASE_URL}/billing" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">Reativar Assinatura</a>
+    const subject = 'Sua assinatura foi cancelada - Opina Ja!';
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #92400e; font-size: 16px;">
+                Sua assinatura no Opina Ja foi cancelada.
+            </p>
         </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Voce ainda tera acesso completo a todas as funcionalidades ate <strong>${formattedDate}</strong>.
+        </p>
+        <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #166534; font-size: 14px;">
+                <strong>Seus dados estao seguros!</strong> Mesmo apos o cancelamento, seus dados serao mantidos e voce podera reativar a qualquer momento.
+            </p>
+        </div>
+        <p style="margin: 0 0 20px; color: #475569; font-size: 16px; line-height: 1.6;">
+            Mudou de ideia? Voce pode reativar sua assinatura a qualquer momento.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/billing" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Reativar Assinatura
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Sentiremos sua falta! Esperamos ve-lo novamente em breve.
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Assinatura Cancelada - Opina Ja!'));
 }
 
 /**
@@ -576,36 +625,37 @@ async function sendServicesDeactivatedEmail(email, name, reason) {
 
     const reasonMessage = reasonMessages[reason] || 'sua assinatura nao esta ativa';
 
-    const subject = 'Seus servicos de avaliacao foram pausados - Opina Ja';
-    const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #ef4444; margin-bottom: 20px;">Ola ${name}!</h1>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+    const subject = 'Seus servicos de avaliacao foram pausados - Opina Ja!';
+    const content = `
+        <h2 style="margin: 0 0 20px; color: #1e293b; font-size: 24px;">Ola, ${name}!</h2>
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 0 0 20px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #991b1b; font-size: 16px;">
                 Seus servicos de avaliacao no Opina Ja foram pausados porque ${reasonMessage}.
             </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-top: 20px;">
-                <strong>O que foi desativado:</strong>
-            </p>
-            <ul style="font-size: 16px; line-height: 1.8; color: #374151;">
-                <li>Suas paginas de avaliacao estao temporariamente indisponiveis</li>
-                <li>Suas instancias de WhatsApp foram desconectadas</li>
-                <li>Novas reclamacoes nao serao recebidas</li>
-            </ul>
-            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="font-size: 16px; line-height: 1.6; color: #166534; margin: 0;">
-                    <strong>Seus dados estao seguros!</strong> Nada foi deletado.
-                    Ao reativar sua assinatura, tudo voltara a funcionar normalmente.
-                </p>
-            </div>
-            <a href="${process.env.BASE_URL}/pricing" style="display: inline-block; background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600;">
-                Reativar Agora
-            </a>
-            <p style="font-size: 14px; color: #6B7280; margin-top: 30px;">
-                Se tiver alguma duvida, entre em contato conosco.
+        </div>
+        <p style="margin: 0 0 15px; color: #475569; font-size: 16px; line-height: 1.6;">
+            <strong>O que foi desativado:</strong>
+        </p>
+        <ul style="margin: 0 0 25px; padding-left: 20px; color: #475569; font-size: 15px; line-height: 1.8;">
+            <li>Suas paginas de avaliacao estao temporariamente indisponiveis</li>
+            <li>Suas instancias de WhatsApp foram desconectadas</li>
+            <li>Novas reclamacoes nao serao recebidas</li>
+        </ul>
+        <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; color: #166534; font-size: 14px;">
+                <strong>Seus dados estao seguros!</strong> Nada foi deletado. Ao reativar sua assinatura, tudo voltara a funcionar normalmente.
             </p>
         </div>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.BASE_URL || 'https://app.opinaja.com.br'}/pricing" style="display: inline-block; background: linear-gradient(135deg, #3750F0 0%, #2840D0 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Reativar Agora
+            </a>
+        </div>
+        <p style="margin: 0; color: #64748b; font-size: 14px;">
+            Se tiver alguma duvida, entre em contato conosco.
+        </p>
     `;
-    return sendEmail(email, subject, html);
+    return sendEmail(email, subject, getBaseTemplate(content, 'Servicos Pausados - Opina Ja!'));
 }
 
 module.exports = {
