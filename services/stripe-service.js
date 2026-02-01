@@ -361,8 +361,66 @@ class StripeService {
     async handleSubscriptionUpdated(subscription) {
         logger.info('Subscription updated', {
             subscriptionId: subscription.id,
-            status: subscription.status
+            status: subscription.status,
+            customerId: subscription.customer
         });
+
+        try {
+            // Buscar usuario pelo stripe_customer_id
+            const userResult = await db.pool.query(
+                'SELECT id FROM users WHERE stripe_customer_id = $1',
+                [subscription.customer]
+            );
+
+            if (userResult.rows.length === 0) {
+                logger.warn('User not found for subscription update', { customerId: subscription.customer });
+                return;
+            }
+
+            const userId = userResult.rows[0].id;
+            const priceId = subscription.items?.data[0]?.price?.id;
+            const plan = priceId ? await this.getPlanFromPriceId(priceId) : 'pro';
+            const endsAt = new Date(subscription.current_period_end * 1000);
+
+            // Mapear status do Stripe para nosso status
+            let subscriptionStatus = 'active';
+            if (subscription.status === 'canceled') {
+                subscriptionStatus = 'canceled';
+            } else if (subscription.status === 'past_due') {
+                subscriptionStatus = 'past_due';
+            } else if (subscription.status === 'unpaid') {
+                subscriptionStatus = 'expired';
+            } else if (subscription.status === 'trialing') {
+                subscriptionStatus = 'trial';
+            } else if (subscription.status === 'active') {
+                subscriptionStatus = 'active';
+            }
+
+            await db.pool.query(`
+                UPDATE users SET
+                    subscription_status = $1,
+                    subscription_plan = $2,
+                    stripe_subscription_id = $3,
+                    subscription_ends_at = $4
+                WHERE id = $5
+            `, [subscriptionStatus, plan, subscription.id, endsAt, userId]);
+
+            logger.info('User subscription updated from webhook', {
+                userId,
+                status: subscriptionStatus,
+                plan,
+                endsAt
+            });
+
+            await db.logSubscriptionEvent(userId, 'subscription_updated', {
+                status: subscriptionStatus,
+                plan,
+                stripe_status: subscription.status,
+                ends_at: endsAt.toISOString()
+            });
+        } catch (error) {
+            logger.error('Error handling subscription updated', { error: error.message });
+        }
     }
 
     /**
@@ -375,18 +433,55 @@ class StripeService {
             attemptCount: invoice.attempt_count
         });
 
-        // TODO: Notificar usuario por email sobre falha de pagamento
+        try {
+            // Atualizar status do usuario para past_due
+            await db.pool.query(`
+                UPDATE users SET subscription_status = 'past_due'
+                WHERE stripe_customer_id = $1
+            `, [invoice.customer]);
+        } catch (error) {
+            logger.error('Error updating user status on payment failure', { error: error.message });
+        }
     }
 
     /**
-     * Processa fatura paga
+     * Processa fatura paga - atualiza subscription para active
      */
     async handleInvoicePaid(invoice) {
         logger.info('Invoice paid', {
             invoiceId: invoice.id,
             customerId: invoice.customer,
+            subscriptionId: invoice.subscription,
             amount: invoice.amount_paid / 100
         });
+
+        try {
+            // Se a fatura tem uma subscription associada, atualizar o status
+            if (invoice.subscription) {
+                const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+                const priceId = subscription.items?.data[0]?.price?.id;
+                const plan = priceId ? await this.getPlanFromPriceId(priceId) : 'pro';
+                const endsAt = new Date(subscription.current_period_end * 1000);
+
+                await db.pool.query(`
+                    UPDATE users SET
+                        subscription_status = 'active',
+                        subscription_plan = $1,
+                        stripe_subscription_id = $2,
+                        subscription_ends_at = $3,
+                        last_payment_at = NOW()
+                    WHERE stripe_customer_id = $4
+                `, [plan, invoice.subscription, endsAt, invoice.customer]);
+
+                logger.info('User subscription activated from invoice paid', {
+                    customerId: invoice.customer,
+                    plan,
+                    endsAt
+                });
+            }
+        } catch (error) {
+            logger.error('Error handling invoice paid', { error: error.message });
+        }
     }
 
     /**
