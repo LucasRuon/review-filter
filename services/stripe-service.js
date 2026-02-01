@@ -14,6 +14,23 @@ class StripeService {
     }
 
     /**
+     * Extrai current_period_end de uma subscription do Stripe
+     * O campo pode estar na raiz ou em items.data[0]
+     */
+    getSubscriptionEndDate(subscription) {
+        // Tentar primeiro na raiz
+        if (subscription.current_period_end) {
+            return this.getSubscriptionEndDate(subscription);
+        }
+        // Tentar em items.data[0]
+        if (subscription.items?.data?.[0]?.current_period_end) {
+            return new Date(subscription.items.data[0].current_period_end * 1000);
+        }
+        // Fallback: 30 dias a partir de agora
+        return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    /**
      * Verifica se o Stripe esta minimamente configurado
      * Para checkout de planos, nao precisa do priceId de WhatsApp
      */
@@ -258,7 +275,7 @@ class StripeService {
                 const subscription = await stripe.subscriptions.retrieve(session.subscription);
                 const priceId = subscription.items.data[0]?.price?.id;
                 const plan = await this.getPlanFromPriceId(priceId);
-                const endsAt = new Date(subscription.current_period_end * 1000);
+                const endsAt = this.getSubscriptionEndDate(subscription);
 
                 await db.pool.query(`
                     UPDATE users SET
@@ -380,7 +397,7 @@ class StripeService {
             const userId = userResult.rows[0].id;
             const priceId = subscription.items?.data[0]?.price?.id;
             const plan = priceId ? await this.getPlanFromPriceId(priceId) : 'pro';
-            const endsAt = new Date(subscription.current_period_end * 1000);
+            const endsAt = this.getSubscriptionEndDate(subscription);
 
             // Mapear status do Stripe para nosso status
             let subscriptionStatus = 'active';
@@ -461,7 +478,7 @@ class StripeService {
                 const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
                 const priceId = subscription.items?.data[0]?.price?.id;
                 const plan = priceId ? await this.getPlanFromPriceId(priceId) : 'pro';
-                const endsAt = new Date(subscription.current_period_end * 1000);
+                const endsAt = this.getSubscriptionEndDate(subscription);
 
                 await db.pool.query(`
                     UPDATE users SET
@@ -566,7 +583,7 @@ class StripeService {
         await db.logSubscriptionEvent(userId, 'subscription_canceled', {
             immediate,
             reason,
-            ends_at: immediate ? new Date() : new Date(subscription.current_period_end * 1000)
+            ends_at: immediate ? new Date() : this.getSubscriptionEndDate(subscription)
         });
 
         return subscription;
