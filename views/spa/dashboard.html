@@ -13,12 +13,16 @@
         animation: fadeInDown 0.5s ease;
     }
     .trial-banner.expired {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+    .trial-banner.warning {
+        background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%);
     }
     .trial-banner-content {
         display: flex;
         align-items: center;
         gap: 1rem;
+        flex: 1;
     }
     .trial-banner-icon {
         font-size: 1.5rem;
@@ -32,6 +36,33 @@
         font-size: 0.875rem;
         opacity: 0.9;
     }
+    /* Contador de dias do trial */
+    .trial-days-counter {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        margin-left: auto;
+    }
+    .trial-days-number {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .trial-days-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        opacity: 0.9;
+    }
+    /* Banner expirado - mais urgente */
+    .trial-banner.expired .trial-days-counter {
+        background: rgba(0, 0, 0, 0.2);
+    }
+    .trial-banner.expired .trial-days-number {
+        color: #fff;
+    }
     .trial-banner-btn {
         background: white;
         color: #d97706;
@@ -44,7 +75,13 @@
         white-space: nowrap;
     }
     .trial-banner.expired .trial-banner-btn {
-        color: #dc2626;
+        background: #fff;
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .trial-banner.expired .trial-banner-btn:hover {
+        background: #f8f9fa;
+        transform: scale(1.05);
     }
     .trial-banner-btn:hover {
         transform: translateY(-2px);
@@ -57,6 +94,7 @@
     @media (max-width: 600px) {
         .trial-banner { flex-direction: column; text-align: center; }
         .trial-banner-content { flex-direction: column; }
+        .trial-days-counter { margin-left: 0; }
     }
 </style>
 
@@ -66,38 +104,75 @@
         <div class="trial-banner-icon"><i class="fas fa-clock"></i></div>
         <div class="trial-banner-text">
             <h3 id="trialBannerTitle">Periodo de teste</h3>
-            <p id="trialBannerText">Restam X dias do seu trial. Faca upgrade para continuar usando.</p>
+            <p id="trialBannerText">Aproveite todos os recursos PRO</p>
+        </div>
+        <!-- NOVO: Contagem de dias destacada -->
+        <div class="trial-days-counter" id="trialDaysCounter">
+            <span class="trial-days-number" id="trialDaysNumber">7</span>
+            <span class="trial-days-label" id="trialDaysLabel">dias restantes</span>
         </div>
     </div>
-    <a href="/pricing" class="trial-banner-btn" id="trialBannerBtn">Fazer upgrade</a>
+    <a href="/pricing" class="trial-banner-btn" id="trialBannerBtn">
+        <i class="fas fa-rocket"></i>
+        Fazer upgrade
+    </a>
 </div>
 
 <script>
 function showTrialBanner() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const sub = user.subscription || {};
     const banner = document.getElementById('trialBanner');
+    const title = document.getElementById('trialBannerTitle');
+    const text = document.getElementById('trialBannerText');
+    const daysNumber = document.getElementById('trialDaysNumber');
+    const daysLabel = document.getElementById('trialDaysLabel');
+    const btn = document.getElementById('trialBannerBtn');
+    const daysCounter = document.getElementById('trialDaysCounter');
 
     if (!banner) return;
 
-    // Show banner for trial or expired status
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const sub = user.subscription || {};
+
+    // Resetar classes
+    banner.classList.remove('expired', 'warning');
+
     if (sub.status === 'trial' && sub.days_remaining !== undefined) {
         banner.style.display = 'flex';
-        banner.classList.remove('expired');
-        document.getElementById('trialBannerTitle').textContent = 'Periodo de teste';
-        if (sub.days_remaining <= 1) {
-            document.getElementById('trialBannerText').textContent = 'Ultimo dia do seu trial! Faca upgrade para nao perder acesso.';
-        } else if (sub.days_remaining <= 3) {
-            document.getElementById('trialBannerText').textContent = `Restam apenas ${sub.days_remaining} dias do seu trial.`;
+        daysCounter.style.display = 'flex';
+
+        const days = Math.max(0, Math.floor(sub.days_remaining));
+        daysNumber.textContent = days;
+
+        if (days <= 1) {
+            daysLabel.textContent = days === 1 ? 'dia restante' : 'dias restantes';
+            title.textContent = 'Ultimo dia de trial!';
+            text.textContent = 'Faca upgrade agora para nao perder acesso';
+            banner.classList.add('warning');
+        } else if (days <= 3) {
+            daysLabel.textContent = 'dias restantes';
+            title.textContent = 'Trial terminando';
+            text.textContent = 'Aproveite para garantir seu plano PRO';
+            banner.classList.add('warning');
         } else {
-            document.getElementById('trialBannerText').textContent = `Voce tem ${sub.days_remaining} dias restantes no seu periodo de teste.`;
+            daysLabel.textContent = 'dias restantes';
+            title.textContent = 'Periodo de teste';
+            text.textContent = 'Aproveite todos os recursos PRO';
         }
+
+        btn.innerHTML = '<i class="fas fa-rocket"></i> Fazer upgrade';
+
     } else if (sub.status === 'expired') {
         banner.style.display = 'flex';
         banner.classList.add('expired');
-        document.getElementById('trialBannerTitle').textContent = 'Trial expirado';
-        document.getElementById('trialBannerText').textContent = 'Seu periodo de teste terminou. Faca upgrade para continuar usando todas as funcionalidades.';
-        document.getElementById('trialBannerBtn').textContent = 'Ver planos';
+        daysCounter.style.display = 'flex';
+
+        daysNumber.textContent = '0';
+        daysLabel.textContent = 'dias restantes';
+
+        title.textContent = 'Trial expirado';
+        text.textContent = 'Assine o plano PRO para continuar usando todos os recursos';
+        btn.innerHTML = '<i class="fas fa-crown"></i> Assinar PRO agora';
+
     } else {
         banner.style.display = 'none';
     }

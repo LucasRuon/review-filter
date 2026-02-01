@@ -106,10 +106,16 @@ function checkPlanLimit(limitKey) {
             const limitCheck = await db.checkUserLimit(req.userId, limitKey);
 
             if (!limitCheck.allowed) {
+                const limitMessages = {
+                    clients: 'Você atingiu o limite de clientes cadastrados',
+                    reviews: 'Você atingiu o limite de avaliações',
+                    templates: 'Você atingiu o limite de templates'
+                };
+
                 return res.status(403).json({
                     error: true,
                     code: 'PLAN_LIMIT_REACHED',
-                    message: `Voce atingiu o limite de ${limitKey} do seu plano`,
+                    message: limitMessages[limitKey] || `Você atingiu o limite de ${limitKey} do seu plano`,
                     limit: {
                         type: limitKey,
                         current: limitCheck.current,

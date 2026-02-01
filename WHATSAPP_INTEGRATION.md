@@ -262,7 +262,7 @@ Exemplo: 5511999999999
 ## Segurança
 
 ### Armazenamento de Tokens
-- Tokens são armazenados criptografados no banco de dados SQLite
+- Tokens são armazenados no banco de dados PostgreSQL
 - Apenas o usuário autenticado pode acessar seu próprio token
 
 ### Validação

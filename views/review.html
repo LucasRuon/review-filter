@@ -234,6 +234,13 @@
                 const res = await fetch(endpoint);
                 const data = await res.json();
                 if (data.error) { document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:2rem"><h2>Página não encontrada</h2></div>'; return; }
+
+                // Verificar se servico esta inativo
+                if (data.service_active === false) {
+                    showInactiveServiceMessage(data);
+                    return;
+                }
+
                 clientSlug = data.slug || slug;
                 topics = data.topics || [];
                 branches = data.branches || [];
@@ -326,6 +333,38 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Mostra mensagem de servico indisponivel quando subscription esta expirada/cancelada
+        function showInactiveServiceMessage(data) {
+            document.getElementById('loading').classList.add('hidden');
+
+            const initials = data.name ? data.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : 'NA';
+            const logoHtml = data.logo_url
+                ? `<div class="logo"><img src="${data.logo_url}" alt="${data.name}" onerror="this.parentElement.innerHTML='<span class=\\'logo-initials\\'>${initials}</span>'"></div>`
+                : `<div class="logo"><span class="logo-initials">${initials}</span></div>`;
+
+            const primaryColor = data.primary_color || '#64748b';
+
+            document.getElementById('mainPopup').innerHTML = `
+                <div class="card">
+                    <div class="header" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+                        ${logoHtml}
+                        <h1 class="title">Servico Indisponivel</h1>
+                    </div>
+                    <div class="body" style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">
+                            <i class="fas fa-pause-circle" style="color: #94a3b8;"></i>
+                        </div>
+                        <p style="color: #9CA3AF; font-size: 1rem; line-height: 1.6;">
+                            ${data.message || 'Este servico de avaliacao esta temporariamente indisponivel.'}
+                        </p>
+                        <p style="color: #64748b; font-size: 0.85rem; margin-top: 1rem;">
+                            Entre em contato diretamente com o estabelecimento.
+                        </p>
+                    </div>
+                </div>
+            `;
         }
 
         // Make functions globally accessible for onclick handlers

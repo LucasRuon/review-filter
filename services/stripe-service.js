@@ -351,25 +351,51 @@ class StripeService {
     }
 
     /**
-     * Processa subscription cancelada - desativar instancia
+     * Processa subscription cancelada - desativa recursos do usuario
      */
     async handleSubscriptionDeleted(subscription) {
-        const subscriptionItemId = subscription.items?.data?.[0]?.id;
+        const deactivationService = require('./subscription-deactivation-service');
 
-        if (!subscriptionItemId) {
-            logger.warn('No subscription item ID found in deleted subscription');
-            return;
-        }
-
-        // Buscar instancia pelo subscription item ID
-        // Nota: precisamos adicionar uma funcao no db para isso
-        logger.info('Subscription deleted, should deactivate instance', {
+        logger.info('Subscription deleted, deactivating user resources', {
             subscriptionId: subscription.id,
-            subscriptionItemId
+            customerId: subscription.customer
         });
 
-        // Por enquanto, apenas logar - a instancia continuara funcionando
-        // ate que implementemos a desativacao automatica
+        try {
+            // Buscar usuario pelo stripe_customer_id
+            const userResult = await db.pool.query(
+                'SELECT id, email, name FROM users WHERE stripe_customer_id = $1',
+                [subscription.customer]
+            );
+
+            if (userResult.rows.length === 0) {
+                logger.warn('User not found for deleted subscription', {
+                    customerId: subscription.customer
+                });
+                return;
+            }
+
+            const user = userResult.rows[0];
+
+            // Atualiza status da subscription
+            await db.updateSubscriptionStatus(user.id, 'canceled');
+
+            // Desativa todos os recursos (WhatsApp + clientes)
+            await deactivationService.deactivateUserResources(
+                user.id,
+                'subscription_canceled'
+            );
+
+            logger.info('User resources deactivated after subscription deletion', {
+                userId: user.id,
+                subscriptionId: subscription.id
+            });
+        } catch (error) {
+            logger.error('Error handling subscription deletion', {
+                subscriptionId: subscription.id,
+                error: error.message
+            });
+        }
     }
 
     /**
@@ -383,9 +409,9 @@ class StripeService {
         });
 
         try {
-            // Buscar usuario pelo stripe_customer_id
+            // Buscar usuario pelo stripe_customer_id (inclui status anterior)
             const userResult = await db.pool.query(
-                'SELECT id FROM users WHERE stripe_customer_id = $1',
+                'SELECT id, subscription_status FROM users WHERE stripe_customer_id = $1',
                 [subscription.customer]
             );
 
@@ -395,6 +421,7 @@ class StripeService {
             }
 
             const userId = userResult.rows[0].id;
+            const previousStatus = userResult.rows[0].subscription_status;
             const priceId = subscription.items?.data[0]?.price?.id;
             const plan = priceId ? await this.getPlanFromPriceId(priceId) : 'pro';
             const endsAt = this.getSubscriptionEndDate(subscription);
@@ -425,12 +452,29 @@ class StripeService {
             logger.info('User subscription updated from webhook', {
                 userId,
                 status: subscriptionStatus,
+                previousStatus,
                 plan,
                 endsAt
             });
 
+            // Reativar recursos se subscription foi renovada (de canceled/expired para active/trial)
+            if ((subscriptionStatus === 'active' || subscriptionStatus === 'trial') &&
+                (previousStatus === 'canceled' || previousStatus === 'expired')) {
+                try {
+                    const deactivationService = require('./subscription-deactivation-service');
+                    await deactivationService.reactivateUserResources(userId);
+                    logger.info('User resources reactivated after subscription renewal', { userId });
+                } catch (reactivateError) {
+                    logger.error('Failed to reactivate user resources', {
+                        userId,
+                        error: reactivateError.message
+                    });
+                }
+            }
+
             await db.logSubscriptionEvent(userId, 'subscription_updated', {
                 status: subscriptionStatus,
+                previous_status: previousStatus,
                 plan,
                 stripe_status: subscription.status,
                 ends_at: endsAt.toISOString()

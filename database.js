@@ -684,11 +684,14 @@ async function getClientByCustomDomain(domain) {
 }
 
 // OTIMIZADO: 3 queries -> 1 query para página de review
+// Inclui verificacao de status de subscription do usuario
 async function getClientDataForReview(slug) {
     const result = await pool.query(`
         SELECT
             c.id, c.name, c.address, c.phone, c.google_review_link,
             c.business_hours, c.slug, c.logo_url, c.primary_color,
+            COALESCE(c.active, 1) as active,
+            u.subscription_status,
             COALESCE(
                 (SELECT json_agg(t.* ORDER BY t.sort_order)
                 FROM complaint_topics t
@@ -702,16 +705,23 @@ async function getClientDataForReview(slug) {
                 '[]'::json
             ) as branches
         FROM clients c
+        JOIN users u ON c.user_id = u.id
         WHERE c.slug = $1
     `, [slug]);
 
     const row = result.rows[0];
     if (!row) return null;
 
+    // Determinar se o servico esta ativo
+    // Ativo se: client.active = 1 E subscription_status in ('trial', 'active')
+    const isServiceActive = row.active === 1 &&
+        ['trial', 'active'].includes(row.subscription_status);
+
     return {
         ...row,
         topics: row.topics || [],
-        branches: row.branches || []
+        branches: row.branches || [],
+        service_active: isServiceActive
     };
 }
 
@@ -1842,6 +1852,7 @@ async function getSubscriptionInfo(userId) {
             trial_reminder_sent,
             last_payment_at,
             payment_failed_at,
+            cancelled_at,
             EXTRACT(DAY FROM (subscription_ends_at - NOW())) as days_remaining
         FROM users WHERE id = $1
     `, [userId]);
@@ -1867,7 +1878,11 @@ async function getSubscriptionInfo(userId) {
         isActive: ['trial', 'active'].includes(user.subscription_status),
         isExpired: user.subscription_status === 'expired' ||
                    (user.subscription_status === 'trial' && endsAt && endsAt < now),
-        isPastDue: user.subscription_status === 'past_due'
+        isPastDue: user.subscription_status === 'past_due',
+        isCanceled: user.subscription_status === 'canceled',
+        canceledAt: user.cancelled_at,
+        // Se status é 'active' mas tem cancelled_at, está agendado para cancelar
+        isCanceledAtPeriodEnd: user.subscription_status === 'active' && user.cancelled_at !== null
     };
 }
 
@@ -1990,7 +2005,7 @@ async function getPlanLimits(plan) {
             reports: true
         },
         pro: {
-            maxClients: 10,
+            maxClients: 15,
             maxBranches: 10,
             maxTopics: 999999,
             maxComplaints: 999999,
@@ -2088,6 +2103,28 @@ async function checkUserLimit(userId, limitType) {
     };
 }
 
+/**
+ * Desativa/ativa todos os clientes de um usuario
+ * Usado quando subscription expira/cancela ou e reativada
+ */
+async function setClientsActiveByUserId(userId, active) {
+    await pool.query(
+        'UPDATE clients SET active = $1 WHERE user_id = $2',
+        [active ? 1 : 0, userId]
+    );
+}
+
+/**
+ * Atualiza status de todas as instancias WhatsApp de um usuario
+ * Usado para marcar como 'disconnected' quando subscription expira
+ */
+async function updateWhatsAppInstancesStatusByUser(userId, status) {
+    await pool.query(
+        'UPDATE whatsapp_instances SET status = $1, updated_at = NOW() WHERE user_id = $2',
+        [status, userId]
+    );
+}
+
 module.exports = {
     init,
     NICHE_TEMPLATES,
@@ -2183,6 +2220,9 @@ module.exports = {
     markTrialReminderSent,
     getPlanLimits,
     checkUserLimit,
+    // Subscription deactivation functions
+    setClientsActiveByUserId,
+    updateWhatsAppInstancesStatusByUser,
     // Cache service export
     cache,
     // Pool export para queries diretas quando necessario

@@ -204,13 +204,18 @@ router.post('/cancel', authMiddleware, async (req, res) => {
     try {
         const { immediate, reason } = req.body;
 
-        await stripeService.cancelUserSubscription(req.userId, immediate, reason);
+        const subscription = await stripeService.cancelUserSubscription(req.userId, immediate, reason);
+
+        // Buscar informações atualizadas após cancelamento
+        const subInfo = await db.getSubscriptionInfo(req.userId);
 
         res.json({
             success: true,
             message: immediate
                 ? 'Assinatura cancelada imediatamente'
-                : 'Assinatura sera cancelada ao fim do periodo'
+                : 'Assinatura sera cancelada ao fim do periodo',
+            subscription_ends_at: subInfo?.endsAt || (subscription?.current_period_end ? subscription.current_period_end * 1000 : null),
+            cancel_at_period_end: !immediate
         });
     } catch (error) {
         logger.error('Cancel subscription error', { userId: req.userId, error: error.message });

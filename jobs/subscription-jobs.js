@@ -65,26 +65,27 @@ async function processTrialReminders() {
 /**
  * Processa trials expirados
  * Executa a cada hora
+ * Desativa WhatsApp e paginas de review quando trial expira
  */
 async function processExpiredTrials() {
     logger.info('Starting expired trials job');
+    const deactivationService = require('../services/subscription-deactivation-service');
 
     try {
         const expiredUsers = await db.getUsersWithExpiredTrial();
 
         for (const user of expiredUsers) {
             try {
+                // Atualiza status para expired
                 await db.updateSubscriptionStatus(user.id, 'expired');
                 await db.logSubscriptionEvent(user.id, 'trial_expired', {
                     ended_at: user.subscription_ends_at
                 });
 
-                // Enviar email de trial expirado
-                if (emailService.sendTrialExpiredEmail) {
-                    await emailService.sendTrialExpiredEmail(user.email, user.name);
-                }
+                // Desativa recursos do usuario (WhatsApp + clientes)
+                await deactivationService.deactivateUserResources(user.id, 'trial_expired');
 
-                logger.info('Trial expired', { userId: user.id });
+                logger.info('Trial expired and resources deactivated', { userId: user.id });
             } catch (error) {
                 logger.error('Failed to process expired trial', {
                     userId: user.id,

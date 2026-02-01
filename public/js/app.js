@@ -25,13 +25,19 @@ const api = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (!res.ok && res.status !== 400) {
-                return { error: 'Erro na requisicao' };
+            // Sempre tentar parsear JSON para obter mensagem de erro real
+            const json = await res.json();
+            if (!res.ok) {
+                return {
+                    error: json.message || json.error || 'Erro na requisição',
+                    code: json.code,
+                    ...json
+                };
             }
-            return res.json();
+            return json;
         } catch (error) {
             console.error('API Error:', error);
-            return { error: 'Erro de conexao' };
+            return { error: 'Erro de conexão' };
         }
     },
     async put(url, data) {
@@ -41,25 +47,38 @@ const api = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (!res.ok && res.status !== 400) {
-                return { error: 'Erro na requisicao' };
+            const json = await res.json();
+            if (!res.ok) {
+                return {
+                    error: json.message || json.error || 'Erro na requisição',
+                    code: json.code,
+                    ...json
+                };
             }
-            return res.json();
+            return json;
         } catch (error) {
             console.error('API Error:', error);
-            return { error: 'Erro de conexao' };
+            return { error: 'Erro de conexão' };
         }
     },
     async delete(url) {
         try {
-            const res = await fetch(url, { method: 'DELETE' });
-            if (!res.ok && res.status !== 400) {
-                return { error: 'Erro na requisicao' };
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                return {
+                    error: json.message || json.error || 'Erro na requisição',
+                    code: json.code,
+                    ...json
+                };
             }
-            return res.json();
+            return json;
         } catch (error) {
             console.error('API Error:', error);
-            return { error: 'Erro de conexao' };
+            return { error: 'Erro de conexão' };
         }
     }
 };

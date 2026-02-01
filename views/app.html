@@ -1134,12 +1134,27 @@
 
                 if (sub.endsAt) {
                     const endsAt = new Date(sub.endsAt);
-                    const label = (sub.status === 'trial' || sub.isTrialing) ? 'Fim do trial' : 'Proxima renovacao';
+                    let label;
+
+                    if (sub.status === 'trial' || sub.isTrialing) {
+                        label = 'Fim do trial';
+                    } else if (sub.isCanceled || sub.isCanceledAtPeriodEnd) {
+                        label = 'Acesso ate';
+                    } else {
+                        label = 'Proxima renovacao';
+                    }
+
                     document.getElementById('subRenewalLabel').textContent = label;
                     document.getElementById('subRenewalDate').textContent = endsAt.toLocaleDateString('pt-BR', {
                         day: '2-digit', month: 'long', year: 'numeric'
                     });
                     document.getElementById('subRenewalContainer').style.display = 'block';
+
+                    // Adicionar classe visual para cancelado
+                    const renewalContainer = document.getElementById('subRenewalContainer');
+                    if (renewalContainer) {
+                        renewalContainer.classList.toggle('canceled', sub.isCanceled || sub.isCanceledAtPeriodEnd);
+                    }
                 } else if (sub.status === 'free' || !sub.status) {
                     document.getElementById('subRenewalLabel').textContent = 'Assinatura';
                     document.getElementById('subRenewalDate').textContent = 'Sem assinatura ativa';
@@ -1216,7 +1231,18 @@
                 const data = await res.json();
                 hideLoading();
                 if (data.success) {
-                    showToast('Assinatura cancelada. Voce tera acesso ate o fim do periodo.');
+                    // Formatar data de término
+                    let message = 'Assinatura cancelada.';
+                    if (data.subscription_ends_at) {
+                        const endsAt = new Date(data.subscription_ends_at);
+                        const formattedDate = endsAt.toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                        });
+                        message = `Assinatura cancelada. Voce tera acesso ate ${formattedDate}.`;
+                    }
+                    showToast(message);
                     loadSubscriptionData();
                 } else {
                     showToast(data.error || 'Erro ao cancelar', 'error');

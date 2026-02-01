@@ -21,12 +21,25 @@ router.get('/:slug', async (req, res) => {
 });
 
 // Get client data for review page - OTIMIZADO: 3 queries -> 1 query
+// Inclui verificacao de status de subscription
 router.get('/:slug/data', async (req, res) => {
     try {
         const data = await db.getClientDataForReview(req.params.slug);
         if (!data) {
             return res.status(404).json({ error: 'Cliente nao encontrado' });
         }
+
+        // Se servico esta inativo, retorna dados limitados com flag
+        if (!data.service_active) {
+            return res.json({
+                name: data.name,
+                logo_url: data.logo_url,
+                primary_color: data.primary_color,
+                service_active: false,
+                message: 'Este servico de avaliacao esta temporariamente indisponivel.'
+            });
+        }
+
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao buscar dados' });
@@ -34,12 +47,25 @@ router.get('/:slug/data', async (req, res) => {
 });
 
 // Submit complaint - OTIMIZADO: notificacoes nao-bloqueantes + validacao de input
+// Bloqueia envio se servico esta inativo (subscription expirada/cancelada)
 router.post('/:slug/complaint', async (req, res) => {
     try {
-        const client = await db.getClientBySlug(req.params.slug);
-        if (!client) {
+        // Usa getClientDataForReview para verificar service_active
+        const clientData = await db.getClientDataForReview(req.params.slug);
+        if (!clientData) {
             return res.status(404).json({ error: 'Cliente nao encontrado' });
         }
+
+        // Bloqueia se servico esta inativo
+        if (!clientData.service_active) {
+            return res.status(403).json({
+                error: 'Servico temporariamente indisponivel',
+                service_active: false
+            });
+        }
+
+        // Busca cliente completo para user_id
+        const client = await db.getClientBySlug(req.params.slug);
 
         const { name, email, phone, complaint, topic_id, topic_name, branch_id } = req.body;
 
