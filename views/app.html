@@ -380,10 +380,15 @@
                 if (stats.recentComplaints.length === 0) {
                     container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3 class="empty-title">Nenhuma reclamação</h3><p class="empty-description">As reclamações aparecerão aqui quando forem recebidas.</p></div>';
                 } else {
-                    container.innerHTML = '<div class="table-container"><table><thead><tr><th>Cliente</th><th>Nome</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>' + 
-                        stats.recentComplaints.map(c => `<tr><td><strong>${c.client_name}</strong></td><td>${c.customer_name}</td><td><span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado'}</span></td><td>${formatDate(c.created_at)}</td><td><a href="/complaints" class="btn btn-link btn-sm">Ver</a></td></tr>`).join('') + 
+                    container.innerHTML = '<div class="table-container"><table><thead><tr><th>Cliente</th><th>Nome</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>' +
+                        stats.recentComplaints.map(c => `<tr><td><strong>${c.client_name}</strong></td><td>${c.customer_name}</td><td><span class="badge badge-${c.status==='pending'?'warning':c.status==='resolved'?'success':c.status==='in_progress'?'info':'secondary'}">${c.status==='pending'?'Pendente':c.status==='resolved'?'Resolvido':c.status==='in_progress'?'Em andamento':'Dispensado'}</span></td><td>${formatDate(c.created_at)}</td><td><a href="/complaints" class="btn btn-link btn-sm">Ver</a></td></tr>`).join('') +
                         '</tbody></table></div><div style="padding:1rem;text-align:center;border-top:1px solid var(--border)"><a href="/complaints" class="btn btn-link">Ver todas as reclamações</a></div>';
                 }
+            }
+
+            // Show trial banner (function defined in dashboard.html template)
+            if (typeof showTrialBanner === 'function') {
+                showTrialBanner();
             }
         }
 
