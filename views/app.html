@@ -368,6 +368,65 @@
 
         // ========== FUNÇÕES DE DADOS DAS PÁGINAS ==========
 
+        function showTrialBanner() {
+            const banner = document.getElementById('trialBanner');
+            const title = document.getElementById('trialBannerTitle');
+            const text = document.getElementById('trialBannerText');
+            const daysNumber = document.getElementById('trialDaysNumber');
+            const daysLabel = document.getElementById('trialDaysLabel');
+            const btn = document.getElementById('trialBannerBtn');
+            const daysCounter = document.getElementById('trialDaysCounter');
+
+            if (!banner) return;
+
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const sub = user.subscription || {};
+
+            // Reset classes
+            banner.classList.remove('expired', 'warning');
+
+            if (sub.status === 'trial' && sub.days_remaining !== undefined) {
+                banner.style.display = 'flex';
+                daysCounter.style.display = 'flex';
+
+                const days = Math.max(0, Math.floor(sub.days_remaining));
+                daysNumber.textContent = days;
+
+                if (days <= 1) {
+                    daysLabel.textContent = days === 1 ? 'dia restante' : 'dias restantes';
+                    title.textContent = 'Ultimo dia de trial!';
+                    text.textContent = 'Faca upgrade agora para nao perder acesso';
+                    banner.classList.add('warning');
+                } else if (days <= 3) {
+                    daysLabel.textContent = 'dias restantes';
+                    title.textContent = 'Trial terminando';
+                    text.textContent = 'Aproveite para garantir seu plano PRO';
+                    banner.classList.add('warning');
+                } else {
+                    daysLabel.textContent = 'dias restantes';
+                    title.textContent = 'Periodo de teste';
+                    text.textContent = 'Aproveite todos os recursos PRO';
+                }
+
+                btn.innerHTML = '<i class="fas fa-rocket"></i> Fazer upgrade';
+
+            } else if (sub.status === 'expired') {
+                banner.style.display = 'flex';
+                banner.classList.add('expired');
+                daysCounter.style.display = 'flex';
+
+                daysNumber.textContent = '0';
+                daysLabel.textContent = 'dias restantes';
+
+                title.textContent = 'Trial expirado';
+                text.textContent = 'Assine o plano PRO para continuar usando todos os recursos';
+                btn.innerHTML = '<i class="fas fa-crown"></i> Assinar PRO agora';
+
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
         async function loadDashboardData() {
             const stats = await api.get('/api/auth/stats');
             if (stats) {
@@ -386,10 +445,8 @@
                 }
             }
 
-            // Show trial banner (function defined in dashboard.html template)
-            if (typeof showTrialBanner === 'function') {
-                showTrialBanner();
-            }
+            // Show trial banner
+            showTrialBanner();
         }
 
         async function loadClientsData() {
