@@ -930,7 +930,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label">Max clientes (Pro)</label>
-                                        <input type="number" class="form-input" name="max_clients_pro" value="${settings.max_clients_pro || '10'}" min="1">
+                                        <input type="number" class="form-input" name="max_clients_pro" value="${settings.max_clients_pro || '15'}" min="1">
                                     </div>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Salvar</button>
@@ -1250,11 +1250,16 @@
             const mainContent = document.getElementById('main-content');
             mainContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-            // Check if Stripe is configured
-            const configCheck = await api.get('/admin/api/settings');
-            const stripeConfigured = configCheck?.settings?.stripe_price_id_pro_monthly;
+            // Get billing stats (includes stripeConfigured flag)
+            const data = await api.get('/admin/api/billing/stats');
 
-            if (!stripeConfigured) {
+            if (!data || !data.success) {
+                mainContent.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar dados de faturamento</p></div>`;
+                return;
+            }
+
+            // Check if Stripe is configured via environment variable
+            if (!data.stripeConfigured) {
                 mainContent.innerHTML = `
                     <div class="page-header">
                         <h1 class="page-title">Faturamento</h1>
@@ -1264,19 +1269,13 @@
                         <div class="card-body" style="text-align: center; padding: 3rem;">
                             <i class="fas fa-credit-card" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
                             <h3 style="margin-bottom: 0.5rem;">Stripe nao configurado</h3>
-                            <p style="color: var(--text-muted);">Configure as variaveis STRIPE_SECRET_KEY e os Price IDs nas configuracoes.</p>
+                            <p style="color: var(--text-muted);">Configure a variavel STRIPE_SECRET_KEY no Railway para habilitar o faturamento.</p>
                             <button class="btn btn-primary" style="margin-top: 1rem;" onclick="navigateTo('/admin/settings')">
                                 <i class="fas fa-cog"></i> Ir para Configuracoes
                             </button>
                         </div>
                     </div>
                 `;
-                return;
-            }
-
-            const data = await api.get('/admin/api/billing/stats');
-            if (!data || !data.success) {
-                mainContent.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar dados de faturamento</p></div>`;
                 return;
             }
 

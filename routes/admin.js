@@ -555,6 +555,9 @@ router.get('/feedbacks', requireAdmin, (req, res) => {
 
 router.get('/api/billing/stats', requireAdmin, async (req, res) => {
     try {
+        // Check if Stripe is configured via environment variable
+        const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+
         // Get subscription stats
         const stats = await db.query(`
             SELECT
@@ -614,6 +617,7 @@ router.get('/api/billing/stats', requireAdmin, async (req, res) => {
 
         res.json({
             success: true,
+            stripeConfigured,
             stats: {
                 activeSubscriptions: activeCount,
                 trialUsers: parseInt(statsRow.trial_users) || 0,
