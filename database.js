@@ -713,9 +713,9 @@ async function getClientDataForReview(slug) {
     if (!row) return null;
 
     // Determinar se o servico esta ativo
-    // Ativo se: client.active = 1 E subscription_status in ('trial', 'active')
+    // Ativo se: client.active = 1 E subscription_status in ('free', 'trial', 'active')
     const isServiceActive = row.active === 1 &&
-        ['trial', 'active'].includes(row.subscription_status);
+        ['free', 'trial', 'active'].includes(row.subscription_status);
 
     return {
         ...row,
