@@ -31,6 +31,11 @@ router.get('/:slug/data', async (req, res) => {
 
         // Se servico esta inativo, retorna dados limitados com flag
         if (!data.service_active) {
+            logger.info('Review page inactive', {
+                slug: req.params.slug,
+                clientActive: data.active,
+                subscriptionStatus: data.subscription_status
+            });
             return res.json({
                 name: data.name,
                 logo_url: data.logo_url,
